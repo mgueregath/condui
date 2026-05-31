@@ -1,289 +1,55 @@
 import { useState } from "react";
 
+const TABS = [
+  { id: "logs", label: "Logs" },
+  { id: "transfers", label: "Transfers" },
+  { id: "tunnels", label: "Tunnels" },
+  { id: "tasks", label: "Tasks" },
+];
+
+const LOGS = [
+  { time: "11:02:15", type: "SSH",  msg: "Connected to root@186.64.121.8", cls: "success" },
+  { time: "11:02:16", type: "SFTP", msg: "Listed directory /home/root", cls: "" },
+  { time: "11:02:17", type: "SSH",  msg: "Command executed: ls -la", cls: "" },
+  { time: "11:02:18", type: "SFTP", msg: "Download completed: docker-compose.yml (2.1 KB)", cls: "success" },
+  { time: "11:02:20", type: "SSH",  msg: "Disconnected", cls: "warn" },
+];
+
 export default function BottomPanel() {
-
-  const [activeTab,
-    setActiveTab] =
-    useState("logs");
-
-  const tabs = [
-    {
-      id: "logs",
-      label: "Logs",
-      icon: "📋",
-    },
-    {
-      id: "transfers",
-      label: "Transfers",
-      icon: "📦",
-    },
-    {
-      id: "tunnels",
-      label: "Tunnels",
-      icon: "🔀",
-    },
-    {
-      id: "metrics",
-      label: "Metrics",
-      icon: "📊",
-    },
-  ];
+  const [activeTab, setActiveTab] = useState("logs");
 
   return (
-
     <div className="bottom-panel">
-
       <div className="bottom-tabs">
-
-        {tabs.map(tab => (
-
+        {TABS.map(t => (
           <div
-            key={tab.id}
-            onClick={() =>
-              setActiveTab(tab.id)
-            }
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-
-              cursor: "pointer",
-
-              padding:
-                "8px 14px",
-
-              borderRadius:
-                "10px",
-
-              background:
-                activeTab ===
-                tab.id
-                  ? "#dbeafe"
-                  : "transparent",
-
-              color:
-                activeTab ===
-                tab.id
-                  ? "#2563eb"
-                  : "#6b7280",
-
-              fontWeight:
-                activeTab ===
-                tab.id
-                  ? 600
-                  : 500,
-            }}
+            key={t.id}
+            className={activeTab === t.id ? "bottom-tab active" : "bottom-tab"}
+            onClick={() => setActiveTab(t.id)}
           >
-
-            <span>
-              {tab.icon}
-            </span>
-
-            <span>
-              {tab.label}
-            </span>
-
+            {t.label}
           </div>
-
         ))}
-
+        <div className="bottom-tab-actions">
+          <button className="bottom-action-btn">🗑 Clear</button>
+          <button className="bottom-action-btn">↑ Export</button>
+          <button className="bottom-action-btn" style={{ border: "none", fontSize: "16px", padding: "0 6px" }}>⋯</button>
+        </div>
       </div>
-
-      <div
-        className="bottom-content"
-        style={{
-          height: "100%",
-        }}
-      >
-
-        {activeTab ===
-          "logs" && (
-
-          <div>
-
-            <div
-              style={{
-                fontWeight: 600,
-                marginBottom:
-                  "12px",
-              }}
-            >
-              Session Activity
-            </div>
-
-            <div
-              style={{
-                color:
-                  "#6b7280",
-                fontSize:
-                  "14px",
-              }}
-            >
-              Connection logs
-              will appear here.
-            </div>
-
+      <div className="bottom-content">
+        {activeTab === "logs" && LOGS.map((l, i) => (
+          <div className="log-line" key={i}>
+            <span className="log-time">{l.time}</span>
+            <span className={`log-badge ${l.type.toLowerCase()}`}>{l.type}</span>
+            <span className={`log-msg ${l.cls}`}>{l.msg}</span>
           </div>
-
-        )}
-
-        {activeTab ===
-          "transfers" && (
-
-          <div>
-
-            <div
-              style={{
-                fontWeight: 600,
-                marginBottom:
-                  "12px",
-              }}
-            >
-              File Transfers
-            </div>
-
-            <div
-              style={{
-                color:
-                  "#6b7280",
-                fontSize:
-                  "14px",
-              }}
-            >
-              Uploads and
-              downloads will
-              appear here.
-            </div>
-
+        ))}
+        {activeTab !== "logs" && (
+          <div style={{ padding: "20px 16px", color: "var(--text-muted)", fontSize: "12px" }}>
+            No data available.
           </div>
-
         )}
-
-        {activeTab ===
-          "tunnels" && (
-
-          <div>
-
-            <div
-              style={{
-                fontWeight: 600,
-                marginBottom:
-                  "12px",
-              }}
-            >
-              SSH Tunnels
-            </div>
-
-            <div
-              style={{
-                color:
-                  "#6b7280",
-                fontSize:
-                  "14px",
-              }}
-            >
-              Active tunnels
-              will appear here.
-            </div>
-
-          </div>
-
-        )}
-
-        {activeTab ===
-          "metrics" && (
-
-          <div>
-
-            <div
-              style={{
-                display: "flex",
-                gap: "16px",
-              }}
-            >
-
-              <MetricCard
-                label="Sessions"
-                value="1"
-              />
-
-              <MetricCard
-                label="Transfers"
-                value="0"
-              />
-
-              <MetricCard
-                label="Tunnels"
-                value="0"
-              />
-
-              <MetricCard
-                label="Latency"
-                value="18ms"
-              />
-
-            </div>
-
-          </div>
-
-        )}
-
       </div>
-
     </div>
-
   );
-
-}
-
-function MetricCard({
-  label,
-  value,
-}) {
-
-  return (
-
-    <div
-      style={{
-        minWidth: "120px",
-
-        padding: "14px",
-
-        border:
-          "1px solid #e5e7eb",
-
-        borderRadius:
-          "12px",
-
-        background:
-          "#ffffff",
-      }}
-    >
-
-      <div
-        style={{
-          fontSize: "12px",
-
-          color: "#6b7280",
-        }}
-      >
-        {label}
-      </div>
-
-      <div
-        style={{
-          fontSize: "22px",
-
-          fontWeight: 700,
-
-          marginTop: "4px",
-        }}
-      >
-        {value}
-      </div>
-
-    </div>
-
-  );
-
 }

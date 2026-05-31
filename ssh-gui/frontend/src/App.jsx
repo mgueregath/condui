@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
-
 import "xterm/css/xterm.css";
 
 import { EventsOn } from "../wailsjs/runtime/runtime";
-
 import RemoteFileTree from "./components/files/RemoteFileTree";
-
 import {
   ConnectSSH,
   SendInput,
@@ -23,415 +19,431 @@ import {
 
 import TabBar from "./components/TabBar";
 import BottomPanel from "./components/BottomPanel";
-
 import { useConnections } from "./hooks/useConnections";
-
 import Modal from "./components/common/Modal";
-
-import ConnectionDrawer from "./components/connections/ConnectionDrawer";
-
+import ConnectionNode from "./components/connections/ConnectionNode";
+import FolderNode from "./components/connections/FolderNode";
 import FolderModal from "./components/connections/FolderModal";
-
 import ConnectionModal from "./components/connections/ConnectionModal";
-
+import AssignFolderModal from "./components/connections/AssignFolderModal";
+import ContextMenu from "./components/connections/ContextMenu";
 import "./components/Layout.css";
+
+function LeftSidebar({
+  folders,
+  connections,
+  expandedFolders,
+  onToggleFolder,
+  onOpenConnection,
+  onNewConnection,
+  onNewFolder,
+  onEditConnection,
+  onDeleteConnection,
+  onAssignFolder,
+  onEditFolder,
+  onDeleteFolder,
+  activeSessionId,
+}) {
+  const [search, setSearch] = useState("");
+  const [emptyCtx, setEmptyCtx] = useState(null);
+
+  const handleEmptyAreaContextMenu = (e) => {
+    if (e.target === e.currentTarget) {
+      e.preventDefault();
+      setEmptyCtx({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const filtered = connections.filter(
+    (c) => !search || c.name?.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  return (
+    <div className="sidebar">
+      <div className="sidebar-header">
+        <span className="sidebar-title">Connections</span>
+        <div className="sidebar-header-actions">
+          <button
+            className="sidebar-icon-btn"
+            title="New connection"
+            onClick={onNewConnection}
+          >
+            +
+          </button>
+          <button
+            className="sidebar-icon-btn"
+            title="New folder"
+            onClick={onNewFolder}
+          >
+            📁
+          </button>
+        </div>
+      </div>
+
+      <input
+        className="sidebar-search"
+        placeholder="Search connections..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+      <div className="sidebar-list" onContextMenu={handleEmptyAreaContextMenu}>
+        {folders.map((folder) => {
+          const fConns = filtered.filter((c) => c.folderId === folder.id);
+          if (fConns.length === 0 && search) return null;
+          return (
+            <FolderNode
+              key={folder.id}
+              folder={folder}
+              expanded={expandedFolders.includes(folder.id)}
+              onToggle={onToggleFolder}
+              onEdit={onEditFolder}
+              onDelete={onDeleteFolder}
+            >
+              {fConns.map((c) => (
+                <ConnectionNode
+                  key={c.id}
+                  connection={c}
+                  folders={folders}
+                  onOpen={onOpenConnection}
+                  onEdit={onEditConnection}
+                  onDelete={onDeleteConnection}
+                  onAssignFolder={onAssignFolder}
+                />
+              ))}
+            </FolderNode>
+          );
+        })}
+
+        {filtered.filter((c) => !c.folderId || c.folderId === "").length >
+          0 && (
+          <div className="sidebar-group">
+            {folders.length > 0 && (
+              <div className="sidebar-group-label">Ungrouped</div>
+            )}
+            {filtered
+              .filter((c) => !c.folderId || c.folderId === "")
+              .map((c) => (
+                <ConnectionNode
+                  key={c.id}
+                  connection={c}
+                  folders={folders}
+                  onOpen={onOpenConnection}
+                  onEdit={onEditConnection}
+                  onDelete={onDeleteConnection}
+                  onAssignFolder={onAssignFolder}
+                />
+              ))}
+          </div>
+        )}
+
+        {filtered.length === 0 && (
+          <div
+            style={{
+              padding: "24px 12px",
+              textAlign: "center",
+              color: "var(--text-muted)",
+              fontSize: "12px",
+            }}
+          >
+            {search ? "No results" : "No connections yet"}
+          </div>
+        )}
+      </div>
+
+      <div className="sidebar-quick-connect" onClick={onNewConnection}>
+        <span>⚡</span>
+        <span>Quick Connect</span>
+        <kbd>⌘K</kbd>
+      </div>
+
+      {emptyCtx && (
+        <ContextMenu
+          x={emptyCtx.x}
+          y={emptyCtx.y}
+          items={[
+            { icon: "+", label: "New connection", onClick: onNewConnection },
+            { icon: "📁", label: "New folder", onClick: onNewFolder },
+          ]}
+          onClose={() => setEmptyCtx(null)}
+        />
+      )}
+    </div>
+  );
+}
 
 function App() {
   const terminalRef = useRef(null);
   const termRef = useRef(null);
-
   const terminalBuffers = useRef({});
 
   const [tabs, setTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
-
   const { folders, connections, reload } = useConnections();
 
-  const [connectionsOpen, setConnectionsOpen] = useState(false);
-
   const [folderModalOpen, setFolderModalOpen] = useState(false);
-
   const [connectionModalOpen, setConnectionModalOpen] = useState(false);
-
+  const [assignFolderModalOpen, setAssignFolderModalOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState([]);
-
   const [editingFolder, setEditingFolder] = useState(null);
-
   const [editingConnection, setEditingConnection] = useState(null);
+  const [assigningConnection, setAssigningConnection] = useState(null);
+
+  const openNewConnection = () => {
+    setEditingConnection(null);
+    setConnectionModalOpen(true);
+  };
+  const openNewFolder = () => {
+    setEditingFolder(null);
+    setFolderModalOpen(true);
+  };
 
   useEffect(() => {
     const term = new Terminal({
       cursorBlink: true,
       convertEol: true,
+      theme: {
+        background: "#111827",
+        foreground: "#d1d5db",
+        cursor: "#6366f1",
+        selectionBackground: "rgba(99,102,241,0.3)",
+        black: "#1f2937",
+        red: "#f87171",
+        green: "#86efac",
+        yellow: "#fcd34d",
+        blue: "#93c5fd",
+        magenta: "#c084fc",
+        cyan: "#67e8f9",
+        white: "#e5e7eb",
+        brightBlack: "#374151",
+        brightRed: "#f87171",
+        brightGreen: "#86efac",
+        brightYellow: "#fcd34d",
+        brightBlue: "#93c5fd",
+        brightMagenta: "#c084fc",
+        brightCyan: "#67e8f9",
+        brightWhite: "#f9fafb",
+      },
+      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+      fontSize: 13,
+      lineHeight: 1.45,
     });
 
     const fitAddon = new FitAddon();
-
     term.loadAddon(fitAddon);
-
     term.open(terminalRef.current);
-
     fitAddon.fit();
-
     termRef.current = term;
 
-    const notifyResize = () => {
-      if (!activeTab || !termRef.current) {
-        return;
-      }
-
-      ResizeTerminal(activeTab, term.rows, term.cols);
-    };
-
     term.onData((data) => {
-      if (!activeTab) {
-        return;
-      }
-
+      if (!activeTab) return;
       SendInput(activeTab, data);
     });
 
     EventsOn("terminal-output", (payload) => {
-      if (!terminalBuffers.current[payload.sessionId]) {
+      if (!terminalBuffers.current[payload.sessionId])
         terminalBuffers.current[payload.sessionId] = "";
-      }
-
       terminalBuffers.current[payload.sessionId] += payload.data;
-
-      if (payload.sessionId !== activeTab) {
-        return;
-      }
-
+      if (payload.sessionId !== activeTab) return;
       term.write(payload.data);
     });
 
     const resizeHandler = () => {
       fitAddon.fit();
-
-      notifyResize();
+      if (activeTab && termRef.current)
+        ResizeTerminal(activeTab, term.rows, term.cols);
     };
-
     window.addEventListener("resize", resizeHandler);
-
     return () => {
       window.removeEventListener("resize", resizeHandler);
-
       term.dispose();
     };
   }, [activeTab]);
 
-  const connect = async (connectionId) => {
-    const sessionId = await ConnectSSH(connectionId);
-
-    setTabs((prev) => [
-      ...prev,
-      {
-        id: sessionId,
-        title: `SSH ${prev.length + 1}`,
-      },
-    ]);
-
-    setActiveTab(sessionId);
-
-    setTimeout(() => {
-      if (!termRef.current) {
-        return;
-      }
-
-      ResizeTerminal(sessionId, termRef.current.rows, termRef.current.cols);
-    }, 200);
-  };
-
   useEffect(() => {
-    if (!activeTab || !termRef.current) {
-      return;
-    }
-
+    if (!activeTab || !termRef.current) return;
     termRef.current.clear();
-
     termRef.current.write(terminalBuffers.current[activeTab] || "");
-
     ResizeTerminal(activeTab, termRef.current.rows, termRef.current.cols);
   }, [activeTab]);
 
-  return (
-    <div
-      style={{
-        width: "100vw",
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        background: "#181a1f",
-        color: "#fff",
-      }}
-    >
-      <div
-        style={{
-          height: "42px",
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          padding: "0 12px",
-          borderBottom: "1px solid #333",
-          background: "#202329",
-        }}
-      >
-        <button onClick={() => setConnectionsOpen(!connectionsOpen)}>☰</button>
+  const activeTabData = tabs.find((t) => t.id === activeTab);
 
-        <button onClick={connect}>+</button>
-
-        <button>📁</button>
-
-        <button>🔀</button>
-
-        <button>⚙</button>
-      </div>
-
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {connectionsOpen && (
-          <>
-            <div
-              onClick={() => setConnectionsOpen(false)}
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: "rgba(0,0,0,0.35)",
-                zIndex: 50,
-              }}
-            />
-
-            <div
-              style={{
-                position: "absolute",
-
-                left: 0,
-                top: 0,
-                bottom: 0,
-
-                width: "320px",
-
-                background: "#202329",
-
-                borderRight: "1px solid #333",
-
-                overflow: "auto",
-
-                zIndex: 100,
-
-                boxShadow: "0 0 25px rgba(0,0,0,0.4)",
-              }}
-            >
-              <div
-                style={{
-                  padding: "12px",
-                  fontWeight: "bold",
-                }}
-              >
-                Connections
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "8px",
-                  padding: "12px",
-                  borderBottom: "1px solid #333",
-                }}
-              >
-                <button
-                  onClick={() => {
-                    setEditingFolder(null);
-
-                    setFolderModalOpen(true);
-                  }}
-                >
-                  + Folder
-                </button>
-
-                <button
-                  onClick={() => {
-                    setEditingConnection(null);
-
-                    setConnectionModalOpen(true);
-                  }}
-                >
-                  + Connection
-                </button>
-              </div>
-
-              <ConnectionDrawer
-                folders={folders}
-                connections={connections}
-                expandedFolders={expandedFolders}
-                onToggleFolder={(id) => {
-                  if (expandedFolders.includes(id)) {
-                    setExpandedFolders((prev) => prev.filter((x) => x !== id));
-                  } else {
-                    setExpandedFolders((prev) => [...prev, id]);
-                  }
-                }}
-                onEditFolder={(folder) => {
-                  setEditingFolder(folder);
-
-                  setFolderModalOpen(true);
-                }}
-                onDeleteFolder={async (folder) => {
-                  try {
-                    const confirmed = confirm(
-                      `Eliminar carpeta ${folder.name}?`,
-                    );
-
-                    if (!confirmed) {
-                      return;
-                    }
-
-                    await DeleteFolder(folder.id);
-
-                    await reload();
-                  } catch (err) {
-                    console.error(err);
-                  }
-                }}
-                onOpenConnection={async (c) => {
-                  const existingTab = tabs.find((t) => t.connectionId === c.id);
-
-                  if (existingTab) {
-                    setActiveTab(existingTab.id);
-
-                    return;
-                  }
-
-                  try {
-                    const sessionId = await ConnectSSH(c.id);
-
-                    setTabs((prev) => [
-                      ...prev,
-                      {
-                        id: sessionId,
-                        connectionId: c.id,
-                        title: c.name,
-                      },
-                    ]);
-
-                    setActiveTab(sessionId);
-                  } catch (err) {
-                    console.error(err);
-                  }
-                }}
-                onEditConnection={(c) => {
-                  setEditingConnection(c);
-                  setConnectionModalOpen(true);
-                }}
-                onDeleteConnection={async (c) => {
-                  try {
-                    await DeleteConnection(c.id);
-
-                    await reload();
-                  } catch (err) {
-                    console.error(err);
-                  }
-                }}
-              />
-            </div>
-          </>
-        )}
-
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <TabBar
-  tabs={tabs}
-  activeTab={activeTab}
-  onSelect={setActiveTab}
-  onClose={(tabId) => {
-
-    setTabs(prev =>
-      prev.filter(
-        t => t.id !== tabId
-      )
-    );
-
-    if (activeTab === tabId) {
-
-      const remaining =
-        tabs.filter(
-          t => t.id !== tabId
-        );
-
-      setActiveTab(
-        remaining.length
-          ? remaining[0].id
-          : null
-      );
-
+  const handleOpenConnection = async (c) => {
+    const existing = tabs.find((t) => t.connectionId === c.id);
+    if (existing) {
+      setActiveTab(existing.id);
+      return;
     }
+    try {
+      const sessionId = await ConnectSSH(c.id);
+      setTabs((prev) => [
+        ...prev,
+        { id: sessionId, connectionId: c.id, title: c.name, color: c.color },
+      ]);
+      setActiveTab(sessionId);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-  }}
-/>
-
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-            }}
+  return (
+    <div className="app-shell">
+      {/* TOP BAR */}
+      <div className="topbar">
+        <span className="topbar-logo">ModernTerm</span>
+        <div className="topbar-actions">
+          <button className="topbar-btn primary" onClick={openNewConnection}>
+            + New Connection
+          </button>
+          <button className="topbar-btn">↑ Upload</button>
+          <button className="topbar-btn">↓ Download</button>
+          <button className="topbar-btn">⇌ Tunnels</button>
+          <button className="topbar-btn">⚙ Settings</button>
+        </div>
+        <div className="topbar-search-wrap">
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
           >
-            <div
-              style={{
-                width: "280px",
-                borderRight: "1px solid #333",
-                background: "#202329",
-              }}
-            >
-              <div
-                style={{
-                  padding: "10px",
-                  borderBottom: "1px solid #333",
-                }}
-              >
-                Remote Files
-              </div>
-
-              <RemoteFileTree sessionId={activeTab} />
-            </div>
-
-            <div
-              style={{
-                flex: 1,
-                position: "relative",
-              }}
-            >
-              <div
-                ref={terminalRef}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                }}
-              />
-            </div>
-          </div>
-
-          <div
-            style={{
-              height: "120px",
-              borderTop: "1px solid #333",
-              background: "#202329",
-            }}
-          >
-            <BottomPanel />
-          </div>
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+          <input className="topbar-search" placeholder="Search (⌘K)" />
+        </div>
+        <div className="topbar-right">
+          <button className="topbar-icon-btn">🔔</button>
+          <button className="topbar-icon-btn">⊞</button>
+          <div className="topbar-avatar">M</div>
         </div>
       </div>
 
+      {/* MAIN */}
+      <div className="main-content">
+        <LeftSidebar
+          folders={folders}
+          connections={connections}
+          expandedFolders={expandedFolders}
+          onToggleFolder={(id) =>
+            setExpandedFolders((prev) =>
+              prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+            )
+          }
+          onOpenConnection={handleOpenConnection}
+          onNewConnection={openNewConnection}
+          onNewFolder={openNewFolder}
+          onEditConnection={(c) => {
+            setEditingConnection(c);
+            setConnectionModalOpen(true);
+          }}
+          onDeleteConnection={async (c) => {
+            try {
+              await DeleteConnection(c.id);
+              await reload();
+            } catch (err) {
+              console.error(err);
+            }
+          }}
+          onAssignFolder={(c) => {
+            setAssigningConnection(c);
+            setAssignFolderModalOpen(true);
+          }}
+          onEditFolder={(f) => {
+            setEditingFolder(f);
+            setFolderModalOpen(true);
+          }}
+          onDeleteFolder={async (f) => {
+            try {
+              await DeleteFolder(f.id);
+              await reload();
+            } catch (err) {
+              console.error(err);
+            }
+          }}
+          activeSessionId={activeTab}
+        />
+
+        {/* Main card — tarjeta única con solapas arriba */}
+        <div className="main-card">
+          <TabBar
+            tabs={tabs}
+            activeTab={activeTab}
+            onSelect={setActiveTab}
+            onClose={(tabId) => {
+              setTabs((prev) => prev.filter((t) => t.id !== tabId));
+              if (activeTab === tabId) {
+                const remaining = tabs.filter((t) => t.id !== tabId);
+                setActiveTab(remaining.length ? remaining[0].id : null);
+              }
+            }}
+          />
+          <div
+            className="card-inner"
+            style={{ display: tabs.length > 0 ? "flex" : "none" }}
+          >
+            <div className="card-mid">
+              <div className="files-panel">
+                <div className="files-header">
+                  Remote Files
+                  <div className="files-header-actions">
+                    <button className="files-header-btn">↺</button>
+                    <button className="files-header-btn">⋯</button>
+                  </div>
+                </div>
+                <RemoteFileTree sessionId={activeTab} />
+              </div>
+              <div className="terminal-card">
+                <div className="terminal-titlebar">
+                  <span className="terminal-titlebar-dot" />
+                  <span className="terminal-title">
+                    {activeTabData ? activeTabData.title : "No Session"}
+                  </span>
+                  <div className="terminal-titlebar-actions">
+                    <button className="terminal-titlebar-btn">+</button>
+                    <button className="terminal-titlebar-btn">⊞</button>
+                    <button className="terminal-titlebar-btn">🗑</button>
+                    <button className="terminal-titlebar-btn">⋮</button>
+                  </div>
+                </div>
+                <div className="terminal-container">
+                  <div ref={terminalRef} />
+                </div>
+              </div>
+            </div>
+            <BottomPanel />
+          </div>
+
+          {tabs.length === 0 && (
+            <div
+              className="card-inner"
+              style={{ alignItems: "center", justifyContent: "center" }}
+            >
+              <div style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                <div style={{ fontSize: "32px", marginBottom: "12px" }}>⚡</div>
+                <div
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    marginBottom: "6px",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  No active sessions
+                </div>
+                <div style={{ fontSize: "12px" }}>
+                  Double-click a connection to get started
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* MODALS */}
       <Modal
         open={folderModalOpen}
         onClose={() => {
@@ -448,11 +460,8 @@ function App() {
               } else {
                 await CreateFolder(name);
               }
-
               await reload();
-
               setFolderModalOpen(false);
-
               setEditingFolder(null);
             } catch (err) {
               console.error(err);
@@ -481,12 +490,32 @@ function App() {
               } else {
                 await CreateConnection(connection);
               }
-
               await reload();
-
               setConnectionModalOpen(false);
-
               setEditingConnection(null);
+            } catch (err) {
+              console.error(err);
+            }
+          }}
+        />
+      </Modal>
+
+      <Modal
+        open={assignFolderModalOpen}
+        onClose={() => {
+          setAssignFolderModalOpen(false);
+          setAssigningConnection(null);
+        }}
+      >
+        <AssignFolderModal
+          connection={assigningConnection}
+          folders={folders}
+          onSave={async (updated) => {
+            try {
+              await UpdateConnection(updated);
+              await reload();
+              setAssignFolderModalOpen(false);
+              setAssigningConnection(null);
             } catch (err) {
               console.error(err);
             }

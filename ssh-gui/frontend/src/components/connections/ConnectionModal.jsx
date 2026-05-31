@@ -1,347 +1,92 @@
 import { useState } from "react";
 
-export default function ConnectionModal({
-  initialValue,
-  folders,
-  onSave,
-}) {
-
-  const [form,
-    setForm] =
-    useState(
-      initialValue || {
-        name: "",
-        host: "",
-        port: 22,
-        username: "",
-        password: "",
-        authType: "password",
-        privateKeyPath: "",
-        folderId: "",
-        color: "#6366f1",
-      }
-    );
-
+function Field({ label, children }) {
   return (
-
-    <div>
-
-      <div
-        style={{
-          padding:
-            "24px 28px",
-
-          borderBottom:
-            "1px solid #e5e7eb",
-        }}
-      >
-
-        <div
-          style={{
-            fontSize: "24px",
-            fontWeight: 700,
-          }}
-        >
-          {
-            initialValue
-              ? "Edit Connection"
-              : "New Connection"
-          }
-        </div>
-
-        <div
-          style={{
-            color: "#6b7280",
-            marginTop: "6px",
-          }}
-        >
-          Configure your SSH connection
-        </div>
-
-      </div>
-
-      <div
-        style={{
-          padding: "28px",
-
-          display: "grid",
-
-          gap: "18px",
-        }}
-      >
-
-        <Input
-          label="Connection Name"
-          value={form.name}
-          onChange={(value) =>
-            setForm({
-              ...form,
-              name: value,
-            })
-          }
-        />
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "1fr 120px",
-            gap: "12px",
-          }}
-        >
-
-          <Input
-            label="Host"
-            value={form.host}
-            onChange={(value) =>
-              setForm({
-                ...form,
-                host: value,
-              })
-            }
-          />
-
-          <Input
-            label="Port"
-            value={form.port}
-            onChange={(value) =>
-              setForm({
-                ...form,
-                port:
-                  Number(value),
-              })
-            }
-          />
-
-        </div>
-
-        <Input
-          label="Username"
-          value={form.username}
-          onChange={(value) =>
-            setForm({
-              ...form,
-              username: value,
-            })
-          }
-        />
-
-        <div>
-
-          <label
-            style={{
-              display: "block",
-              marginBottom: "8px",
-              fontWeight: 600,
-            }}
-          >
-            Folder
-          </label>
-
-          <select
-            value={form.folderId}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                folderId:
-                  e.target.value,
-              })
-            }
-            className="modern-input"
-          >
-
-            <option value="">
-              No Folder
-            </option>
-
-            {folders.map(folder => (
-
-              <option
-                key={folder.id}
-                value={folder.id}
-              >
-                {folder.name}
-              </option>
-
-            ))}
-
-          </select>
-
-        </div>
-
-        <div>
-
-          <label
-            style={{
-              display: "block",
-              marginBottom: "8px",
-              fontWeight: 600,
-            }}
-          >
-            Authentication
-          </label>
-
-          <select
-            value={form.authType}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                authType:
-                  e.target.value,
-              })
-            }
-            className="modern-input"
-          >
-
-            <option value="password">
-              Password
-            </option>
-
-            <option value="private_key">
-              Private Key
-            </option>
-
-          </select>
-
-        </div>
-
-        {form.authType ===
-          "password" && (
-
-          <Input
-            label="Password"
-            type="password"
-            value={form.password}
-            onChange={(value) =>
-              setForm({
-                ...form,
-                password:
-                  value,
-              })
-            }
-          />
-
-        )}
-
-        {form.authType ===
-          "private_key" && (
-
-          <Input
-            label="Private Key Path"
-            value={
-              form.privateKeyPath
-            }
-            onChange={(value) =>
-              setForm({
-                ...form,
-                privateKeyPath:
-                  value,
-              })
-            }
-          />
-
-        )}
-
-        <div>
-
-          <label
-            style={{
-              display: "block",
-              marginBottom: "8px",
-              fontWeight: 600,
-            }}
-          >
-            Color
-          </label>
-
-          <input
-            type="color"
-            value={form.color}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                color:
-                  e.target.value,
-              })
-            }
-          />
-
-        </div>
-
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent:
-            "flex-end",
-
-          gap: "12px",
-
-          padding: "24px",
-
-          borderTop:
-            "1px solid #e5e7eb",
-        }}
-      >
-
-        <button
-          className="btn-secondary"
-        >
-          Cancel
-        </button>
-
-        <button
-          className="btn-primary"
-          onClick={() =>
-            onSave(form)
-          }
-        >
-          Save Connection
-        </button>
-
-      </div>
-
+    <div className="form-group">
+      <label className="form-label">{label}</label>
+      {children}
     </div>
-
   );
-
 }
 
-function Input({
-  label,
-  value,
-  onChange,
-  type = "text",
-}) {
-
+function Input({ label, value, onChange, type = "text", placeholder }) {
   return (
-
-    <div>
-
-      <label
-        style={{
-          display: "block",
-          marginBottom: "8px",
-          fontWeight: 600,
-        }}
-      >
-        {label}
-      </label>
-
+    <Field label={label}>
       <input
+        className="modern-input"
         type={type}
         value={value}
-        onChange={(e) =>
-          onChange(
-            e.target.value
-          )
-        }
-        className="modern-input"
+        placeholder={placeholder}
+        onChange={e => onChange(e.target.value)}
       />
-
-    </div>
-
+    </Field>
   );
+}
 
+export default function ConnectionModal({ initialValue, folders, onSave, onCancel }) {
+  const [form, setForm] = useState(initialValue || {
+    name: "", host: "", port: 22, username: "",
+    password: "", authType: "password",
+    privateKeyPath: "", folderId: "", color: "#7c6af5",
+  });
+
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  return (
+    <div>
+      <div className="modal-header">
+        <h2>{initialValue ? "Edit Connection" : "New Connection"}</h2>
+        <p>Configure your SSH connection details</p>
+      </div>
+
+      <div className="modal-body">
+        <Input label="Connection Name" value={form.name} onChange={v => set("name", v)} placeholder="My Server" />
+
+        <div className="form-grid-2">
+          <Input label="Host" value={form.host} onChange={v => set("host", v)} placeholder="192.168.1.100" />
+          <Input label="Port" value={form.port} onChange={v => set("port", Number(v))} placeholder="22" />
+        </div>
+
+        <Input label="Username" value={form.username} onChange={v => set("username", v)} placeholder="root" />
+
+        <div className="form-grid-2">
+          <Field label="Folder">
+            <select className="modern-input" value={form.folderId} onChange={e => set("folderId", e.target.value)}>
+              <option value="">No Folder</option>
+              {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Authentication">
+            <select className="modern-input" value={form.authType} onChange={e => set("authType", e.target.value)}>
+              <option value="password">Password</option>
+              <option value="private_key">Private Key</option>
+            </select>
+          </Field>
+        </div>
+
+        {form.authType === "password" && (
+          <Input label="Password" type="password" value={form.password} onChange={v => set("password", v)} placeholder="••••••••" />
+        )}
+        {form.authType === "private_key" && (
+          <Input label="Private Key Path" value={form.privateKeyPath} onChange={v => set("privateKeyPath", v)} placeholder="~/.ssh/id_rsa" />
+        )}
+
+        <Field label="Color">
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <input
+              type="color" value={form.color}
+              onChange={e => set("color", e.target.value)}
+              style={{ width: "40px", height: "32px", border: "none", borderRadius: "6px", cursor: "pointer", background: "transparent" }}
+            />
+            <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{form.color}</span>
+          </div>
+        </Field>
+      </div>
+
+      <div className="modal-footer">
+        <button className="btn-secondary" onClick={() => onCancel()}>Cancel</button>
+        <button className="btn-primary" onClick={() => onSave(form)}>Save Connection</button>
+      </div>
+    </div>
+  );
 }

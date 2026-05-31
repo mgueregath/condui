@@ -1,33 +1,13 @@
-export default function Modal({
-  open,
-  children,
-  onClose,
-}) {
+import { createPortal } from "react-dom";
 
-  if (!open) {
-    return null;
-  }
-
-  return (
-
-    <div
-      className="modal-overlay"
-      onClick={onClose}
-    >
-
-      <div
-        className="modern-modal"
-        onClick={(e) =>
-          e.stopPropagation()
-        }
-      >
-
+export default function Modal({ open, children, onClose }) {
+  if (!open) return null;
+  return createPortal(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modern-modal" onClick={e => e.stopPropagation()}>
         {children}
-
       </div>
-
-    </div>
-
+    </div>,
+    document.body
   );
-
 }
