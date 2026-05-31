@@ -9,16 +9,21 @@ import { EventsOn } from "../wailsjs/runtime/runtime";
 
 import { ConnectSSH, SendInput, ResizeTerminal } from "../wailsjs/go/main/App";
 
+import TabBar from "./components/TabBar";
+import BottomPanel from "./components/BottomPanel";
+
+import "./components/Layout.css";
+
 function App() {
   const terminalRef = useRef(null);
+  const termRef = useRef(null);
 
   const terminalBuffers = useRef({});
 
   const [tabs, setTabs] = useState([]);
-
   const [activeTab, setActiveTab] = useState(null);
 
-  const termRef = useRef(null);
+  const [connectionsOpen, setConnectionsOpen] = useState(false);
 
   useEffect(() => {
     const term = new Terminal({
@@ -34,6 +39,8 @@ function App() {
 
     fitAddon.fit();
 
+    termRef.current = term;
+
     const notifyResize = () => {
       if (!activeTab || !termRef.current) {
         return;
@@ -41,10 +48,6 @@ function App() {
 
       ResizeTerminal(activeTab, term.rows, term.cols);
     };
-
-    termRef.current = term;
-
-    term.writeln("ModernTerm");
 
     term.onData((data) => {
       if (!activeTab) {
@@ -124,47 +127,200 @@ function App() {
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        background: "#1e1f22",
+        background: "#181a1f",
+        color: "#fff",
       }}
     >
       <div
         style={{
-          padding: "10px",
-          borderBottom: "1px solid #333",
-        }}
-      >
-        <button onClick={connect}>Nueva conexión</button>
-      </div>
-
-      <div
-        style={{
+          height: "42px",
           display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          padding: "0 12px",
           borderBottom: "1px solid #333",
+          background: "#202329",
         }}
       >
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: "8px 16px",
-              background: activeTab === tab.id ? "#2d2f34" : "#1e1f22",
-              color: "#fff",
-              border: "none",
-            }}
-          >
-            {tab.title}
-          </button>
-        ))}
+        <button onClick={() => setConnectionsOpen(!connectionsOpen)}>☰</button>
+
+        <button onClick={connect}>+</button>
+
+        <button>📁</button>
+
+        <button>🔀</button>
+
+        <button>⚙</button>
       </div>
 
       <div
-        ref={terminalRef}
         style={{
           flex: 1,
+          display: "flex",
+          position: "relative",
           overflow: "hidden",
         }}
-      />
+      >
+        {connectionsOpen && (
+          <>
+            <div
+              onClick={() => setConnectionsOpen(false)}
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(0,0,0,0.35)",
+                zIndex: 50,
+              }}
+            />
+
+            <div
+              style={{
+                position: "absolute",
+
+                left: 0,
+                top: 0,
+                bottom: 0,
+
+                width: "320px",
+
+                background: "#202329",
+
+                borderRight: "1px solid #333",
+
+                overflow: "auto",
+
+                zIndex: 100,
+
+                boxShadow: "0 0 25px rgba(0,0,0,0.4)",
+              }}
+            >
+              <div
+                style={{
+                  padding: "12px",
+                  fontWeight: "bold",
+                }}
+              >
+                Connections
+              </div>
+
+              <div
+                style={{
+                  padding: "12px",
+                }}
+              >
+                ▼ Producción
+              </div>
+
+              <div
+                style={{
+                  paddingLeft: "24px",
+                }}
+              >
+                Servidor 1
+              </div>
+
+              <div
+                style={{
+                  paddingLeft: "24px",
+                }}
+              >
+                Servidor 2
+              </div>
+
+              <div
+                style={{
+                  padding: "12px",
+                }}
+              >
+                ▼ Desarrollo
+              </div>
+
+              <div
+                style={{
+                  paddingLeft: "24px",
+                }}
+              >
+                QA
+              </div>
+            </div>
+          </>
+        )}
+
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
+
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+            }}
+          >
+            <div
+              style={{
+                width: "280px",
+                borderRight: "1px solid #333",
+                background: "#202329",
+              }}
+            >
+              <div
+                style={{
+                  padding: "10px",
+                  borderBottom: "1px solid #333",
+                }}
+              >
+                Remote Files
+              </div>
+
+              <div
+                style={{
+                  padding: "10px",
+                }}
+              >
+                📁 /root
+                <br />
+                ├── docker-compose.yml
+                <br />
+                ├── logs
+                <br />
+                ├── scripts
+                <br />
+                └── models
+              </div>
+            </div>
+
+            <div
+              style={{
+                flex: 1,
+                position: "relative",
+              }}
+            >
+              <div
+                ref={terminalRef}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                }}
+              />
+            </div>
+          </div>
+
+          <div
+            style={{
+              height: "120px",
+              borderTop: "1px solid #333",
+              background: "#202329",
+            }}
+          >
+            <BottomPanel />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -6,7 +6,7 @@ echo "================================="
 echo "Incremento 4 - Layout Profesional"
 echo "================================="
 
-cd frontend
+cd ssh-gui/frontend
 
 pnpm add react-resizable-panels react-icons
 

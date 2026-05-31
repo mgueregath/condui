@@ -1,0 +1,141 @@
+:root {
+
+  --bg: #1e1f22;
+
+  --sidebar: #25262b;
+
+  --panel: #2b2d31;
+
+  --border: #3a3c42;
+
+  --text: #d9d9d9;
+
+  --muted: #8b8d93;
+
+}
+
+html,
+body,
+#root {
+
+  margin: 0;
+  padding: 0;
+
+  width: 100%;
+  height: 100%;
+
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.sidebar {
+
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+
+  background: var(--sidebar);
+
+}
+
+.sidebar-title {
+
+  padding: 16px;
+
+  font-weight: bold;
+
+  border-bottom: 1px solid var(--border);
+
+}
+
+.sidebar-list {
+
+  flex: 1;
+
+  overflow: auto;
+
+}
+
+.sidebar-item {
+
+  padding: 10px 16px;
+
+  cursor: pointer;
+
+}
+
+.sidebar-item:hover {
+
+  background: #303136;
+
+}
+
+.sidebar-item.active {
+
+  background: #3b3d44;
+
+}
+
+.new-connection-btn {
+
+  margin: 12px;
+
+  padding: 10px;
+
+}
+
+.tabbar {
+
+  display: flex;
+
+  border-bottom: 1px solid var(--border);
+
+}
+
+.tab {
+
+  padding: 10px 16px;
+
+  cursor: pointer;
+
+}
+
+.tab.active {
+
+  background: #303136;
+
+}
+
+.bottom-panel {
+
+  height: 100%;
+
+  display: flex;
+
+  flex-direction: column;
+
+}
+
+.bottom-tabs {
+
+  display: flex;
+
+  gap: 20px;
+
+  padding: 8px;
+
+  border-bottom: 1px solid var(--border);
+
+}
+
+.bottom-content {
+
+  flex: 1;
+
+  padding: 12px;
+
+}
