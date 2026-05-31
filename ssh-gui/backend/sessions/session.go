@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"golang.org/x/crypto/ssh"
+	"github.com/pkg/sftp"
 )
 
 type SSHSession struct {
@@ -11,6 +12,8 @@ type SSHSession struct {
 
 	Client  *ssh.Client
 	Session *ssh.Session
+
+	SFTP *sftp.Client
 
 	Stdin  io.WriteCloser
 	Stdout io.Reader

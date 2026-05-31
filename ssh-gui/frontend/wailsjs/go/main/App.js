@@ -38,6 +38,10 @@ export function GetFolders() {
   return window['go']['main']['App']['GetFolders']();
 }
 
+export function ListDirectory(arg1, arg2) {
+  return window['go']['main']['App']['ListDirectory'](arg1, arg2);
+}
+
 export function ListSessions() {
   return window['go']['main']['App']['ListSessions']();
 }

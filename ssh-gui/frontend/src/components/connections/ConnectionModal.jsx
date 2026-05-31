@@ -6,7 +6,8 @@ export default function ConnectionModal({
   onSave,
 }) {
 
-  const [form, setForm] =
+  const [form,
+    setForm] =
     useState(
       initialValue || {
         name: "",
@@ -17,169 +18,330 @@ export default function ConnectionModal({
         authType: "password",
         privateKeyPath: "",
         folderId: "",
-        color: "#3b82f6",
+        color: "#6366f1",
       }
     );
 
   return (
-    <div
-      style={{
-        width: "500px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "12px",
-      }}
-    >
 
-      <h3>
-        {
-          initialValue
-            ? "Editar conexión"
-            : "Nueva conexión"
-        }
-      </h3>
+    <div>
 
-      <input
-        placeholder="Nombre"
-        value={form.name}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            name: e.target.value,
-          })
-        }
-      />
+      <div
+        style={{
+          padding:
+            "24px 28px",
 
-      <select
-        value={form.folderId}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            folderId: e.target.value,
-          })
-        }
+          borderBottom:
+            "1px solid #e5e7eb",
+        }}
       >
-        <option value="">
-          Sin carpeta
-        </option>
 
-        {folders.map(folder => (
-          <option
-            key={folder.id}
-            value={folder.id}
-          >
-            {folder.name}
-          </option>
-        ))}
-      </select>
-
-      <input
-        placeholder="Host"
-        value={form.host}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            host: e.target.value,
-          })
-        }
-      />
-
-      <input
-        type="number"
-        placeholder="Puerto"
-        value={form.port}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            port: Number(e.target.value),
-          })
-        }
-      />
-
-      <input
-        placeholder="Usuario"
-        value={form.username}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            username: e.target.value,
-          })
-        }
-      />
-
-      <select
-        value={form.authType}
-        onChange={(e) =>
-          setForm({
-            ...form,
-            authType: e.target.value,
-          })
-        }
-      >
-        <option value="password">
-          Password
-        </option>
-
-        <option value="private_key">
-          Private Key
-        </option>
-      </select>
-
-      {form.authType === "password" && (
-        <input
-          type="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              password: e.target.value,
-            })
+        <div
+          style={{
+            fontSize: "24px",
+            fontWeight: 700,
+          }}
+        >
+          {
+            initialValue
+              ? "Edit Connection"
+              : "New Connection"
           }
-        />
-      )}
+        </div>
 
-      {form.authType === "private_key" && (
-        <input
-          placeholder="Ruta llave privada"
-          value={form.privateKeyPath}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              privateKeyPath:
-                e.target.value,
-            })
-          }
-        />
-      )}
-
-      <div>
-
-        <label>
-          Color
-        </label>
-
-        <input
-          type="color"
-          value={form.color}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              color: e.target.value,
-            })
-          }
-        />
+        <div
+          style={{
+            color: "#6b7280",
+            marginTop: "6px",
+          }}
+        >
+          Configure your SSH connection
+        </div>
 
       </div>
 
-      <button
-        onClick={() =>
-          onSave(form)
-        }
+      <div
+        style={{
+          padding: "28px",
+
+          display: "grid",
+
+          gap: "18px",
+        }}
       >
-        Guardar
-      </button>
+
+        <Input
+          label="Connection Name"
+          value={form.name}
+          onChange={(value) =>
+            setForm({
+              ...form,
+              name: value,
+            })
+          }
+        />
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "1fr 120px",
+            gap: "12px",
+          }}
+        >
+
+          <Input
+            label="Host"
+            value={form.host}
+            onChange={(value) =>
+              setForm({
+                ...form,
+                host: value,
+              })
+            }
+          />
+
+          <Input
+            label="Port"
+            value={form.port}
+            onChange={(value) =>
+              setForm({
+                ...form,
+                port:
+                  Number(value),
+              })
+            }
+          />
+
+        </div>
+
+        <Input
+          label="Username"
+          value={form.username}
+          onChange={(value) =>
+            setForm({
+              ...form,
+              username: value,
+            })
+          }
+        />
+
+        <div>
+
+          <label
+            style={{
+              display: "block",
+              marginBottom: "8px",
+              fontWeight: 600,
+            }}
+          >
+            Folder
+          </label>
+
+          <select
+            value={form.folderId}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                folderId:
+                  e.target.value,
+              })
+            }
+            className="modern-input"
+          >
+
+            <option value="">
+              No Folder
+            </option>
+
+            {folders.map(folder => (
+
+              <option
+                key={folder.id}
+                value={folder.id}
+              >
+                {folder.name}
+              </option>
+
+            ))}
+
+          </select>
+
+        </div>
+
+        <div>
+
+          <label
+            style={{
+              display: "block",
+              marginBottom: "8px",
+              fontWeight: 600,
+            }}
+          >
+            Authentication
+          </label>
+
+          <select
+            value={form.authType}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                authType:
+                  e.target.value,
+              })
+            }
+            className="modern-input"
+          >
+
+            <option value="password">
+              Password
+            </option>
+
+            <option value="private_key">
+              Private Key
+            </option>
+
+          </select>
+
+        </div>
+
+        {form.authType ===
+          "password" && (
+
+          <Input
+            label="Password"
+            type="password"
+            value={form.password}
+            onChange={(value) =>
+              setForm({
+                ...form,
+                password:
+                  value,
+              })
+            }
+          />
+
+        )}
+
+        {form.authType ===
+          "private_key" && (
+
+          <Input
+            label="Private Key Path"
+            value={
+              form.privateKeyPath
+            }
+            onChange={(value) =>
+              setForm({
+                ...form,
+                privateKeyPath:
+                  value,
+              })
+            }
+          />
+
+        )}
+
+        <div>
+
+          <label
+            style={{
+              display: "block",
+              marginBottom: "8px",
+              fontWeight: 600,
+            }}
+          >
+            Color
+          </label>
+
+          <input
+            type="color"
+            value={form.color}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                color:
+                  e.target.value,
+              })
+            }
+          />
+
+        </div>
+
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent:
+            "flex-end",
+
+          gap: "12px",
+
+          padding: "24px",
+
+          borderTop:
+            "1px solid #e5e7eb",
+        }}
+      >
+
+        <button
+          className="btn-secondary"
+        >
+          Cancel
+        </button>
+
+        <button
+          className="btn-primary"
+          onClick={() =>
+            onSave(form)
+          }
+        >
+          Save Connection
+        </button>
+
+      </div>
 
     </div>
+
   );
+
+}
+
+function Input({
+  label,
+  value,
+  onChange,
+  type = "text",
+}) {
+
+  return (
+
+    <div>
+
+      <label
+        style={{
+          display: "block",
+          marginBottom: "8px",
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </label>
+
+      <input
+        type={type}
+        value={value}
+        onChange={(e) =>
+          onChange(
+            e.target.value
+          )
+        }
+        className="modern-input"
+      />
+
+    </div>
+
+  );
+
 }

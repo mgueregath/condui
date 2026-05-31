@@ -1,3 +1,5 @@
+import { useMemo, useState } from "react";
+
 import FolderNode from "./FolderNode";
 import ConnectionNode from "./ConnectionNode";
 
@@ -13,114 +15,240 @@ export default function ConnectionDrawer({
   onDeleteFolder,
 }) {
 
+  const [search, setSearch] =
+    useState("");
+
+  const filteredConnections =
+    useMemo(() => {
+
+      const value =
+        search
+          .trim()
+          .toLowerCase();
+
+      if (!value) {
+        return connections;
+      }
+
+      return connections.filter(c => {
+
+        return (
+          c.name
+            ?.toLowerCase()
+            .includes(value) ||
+
+          c.host
+            ?.toLowerCase()
+            .includes(value) ||
+
+          c.username
+            ?.toLowerCase()
+            .includes(value)
+        );
+
+      });
+
+    }, [
+      search,
+      connections,
+    ]);
+
   const ungroupedConnections =
-    connections.filter(
+    filteredConnections.filter(
       c =>
         !c.folderId ||
         c.folderId === ""
     );
 
   return (
-    <div>
 
-      {ungroupedConnections.length > 0 && (
+    <div
+      style={{
+        height: "100%",
+
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+
+      <div
+        style={{
+          padding: "16px",
+          borderBottom:
+            "1px solid #e5e7eb",
+          background: "#fff",
+        }}
+      >
+
+        <input
+          placeholder="Search connections..."
+          value={search}
+          onChange={(e) =>
+            setSearch(
+              e.target.value
+            )
+          }
+          style={{
+            width: "100%",
+
+            padding: "12px",
+
+            borderRadius: "10px",
+
+            border:
+              "1px solid #e5e7eb",
+
+            fontSize: "14px",
+          }}
+        />
 
         <div
           style={{
-            padding: "8px",
-            borderBottom:
-              "1px solid #333",
+            marginTop: "10px",
+
+            fontSize: "12px",
+
+            color: "#6b7280",
           }}
         >
+          {filteredConnections.length}
+          {" "}
+          connection(s)
+        </div>
+
+      </div>
+
+      <div
+        style={{
+          flex: 1,
+          overflow: "auto",
+
+          padding: "12px",
+        }}
+      >
+
+        {ungroupedConnections.length > 0 && (
 
           <div
             style={{
-              color: "#888",
-              fontSize: "12px",
-              marginBottom: "8px",
-              textTransform:
-                "uppercase",
+              marginBottom: "20px",
             }}
           >
-            Sin carpeta
+
+            <div
+              style={{
+                fontSize: "11px",
+
+                fontWeight: "700",
+
+                color: "#6b7280",
+
+                letterSpacing: "1px",
+
+                textTransform:
+                  "uppercase",
+
+                marginBottom: "10px",
+              }}
+            >
+              Connections
+            </div>
+
+            {ungroupedConnections.map(
+              connection => (
+
+                <ConnectionNode
+                  key={connection.id}
+                  connection={connection}
+                  onOpen={
+                    onOpenConnection
+                  }
+                  onEdit={
+                    onEditConnection
+                  }
+                  onDelete={
+                    onDeleteConnection
+                  }
+                />
+
+              )
+            )}
+
           </div>
 
-          {ungroupedConnections.map(
-            connection => (
+        )}
 
-              <ConnectionNode
-                key={connection.id}
-                connection={connection}
-                onOpen={
-                  onOpenConnection
-                }
-                onEdit={
-                  onEditConnection
-                }
-                onDelete={
-                  onDeleteConnection
-                }
-              />
+        {folders.map(folder => {
 
-            )
-          )}
-
-        </div>
-
-      )}
-
-      {folders.map(folder => (
-
-        <FolderNode
-          key={folder.id}
-          folder={folder}
-          expanded={
-            expandedFolders.includes(
-              folder.id
-            )
-          }
-          onToggle={
-            onToggleFolder
-          }
-          onEdit={
-            onEditFolder
-          }
-          onDelete={
-            onDeleteFolder
-          }
-        >
-
-          {connections
-            .filter(
+          const folderConnections =
+            filteredConnections.filter(
               c =>
                 c.folderId ===
                 folder.id
-            )
-            .map(connection => (
+            );
 
-              <ConnectionNode
-                key={connection.id}
-                connection={
-                  connection
-                }
-                onOpen={
-                  onOpenConnection
-                }
-                onEdit={
-                  onEditConnection
-                }
-                onDelete={
-                  onDeleteConnection
-                }
-              />
+          if (
+            folderConnections.length === 0 &&
+            search
+          ) {
+            return null;
+          }
 
-            ))}
+          return (
 
-        </FolderNode>
+            <FolderNode
+              key={folder.id}
+              folder={folder}
+              expanded={
+                expandedFolders.includes(
+                  folder.id
+                )
+              }
+              onToggle={
+                onToggleFolder
+              }
+              onEdit={
+                onEditFolder
+              }
+              onDelete={
+                onDeleteFolder
+              }
+            >
 
-      ))}
+              {folderConnections.map(
+                connection => (
+
+                  <ConnectionNode
+                    key={
+                      connection.id
+                    }
+                    connection={
+                      connection
+                    }
+                    onOpen={
+                      onOpenConnection
+                    }
+                    onEdit={
+                      onEditConnection
+                    }
+                    onDelete={
+                      onDeleteConnection
+                    }
+                  />
+
+                )
+              )}
+
+            </FolderNode>
+
+          );
+
+        })}
+
+      </div>
 
     </div>
+
   );
 
 }

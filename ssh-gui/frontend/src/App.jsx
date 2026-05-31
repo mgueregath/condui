@@ -7,6 +7,8 @@ import "xterm/css/xterm.css";
 
 import { EventsOn } from "../wailsjs/runtime/runtime";
 
+import RemoteFileTree from "./components/files/RemoteFileTree";
+
 import {
   ConnectSSH,
   SendInput,
@@ -347,7 +349,35 @@ function App() {
             flexDirection: "column",
           }}
         >
-          <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
+          <TabBar
+  tabs={tabs}
+  activeTab={activeTab}
+  onSelect={setActiveTab}
+  onClose={(tabId) => {
+
+    setTabs(prev =>
+      prev.filter(
+        t => t.id !== tabId
+      )
+    );
+
+    if (activeTab === tabId) {
+
+      const remaining =
+        tabs.filter(
+          t => t.id !== tabId
+        );
+
+      setActiveTab(
+        remaining.length
+          ? remaining[0].id
+          : null
+      );
+
+    }
+
+  }}
+/>
 
           <div
             style={{
@@ -371,21 +401,7 @@ function App() {
                 Remote Files
               </div>
 
-              <div
-                style={{
-                  padding: "10px",
-                }}
-              >
-                📁 /root
-                <br />
-                ├── docker-compose.yml
-                <br />
-                ├── logs
-                <br />
-                ├── scripts
-                <br />
-                └── models
-              </div>
+              <RemoteFileTree sessionId={activeTab} />
             </div>
 
             <div

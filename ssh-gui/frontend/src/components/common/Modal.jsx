@@ -9,15 +9,25 @@ export default function Modal({
   }
 
   return (
-    <div className="modal-overlay">
 
-      <div className="modal">
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+    >
+
+      <div
+        className="modern-modal"
+        onClick={(e) =>
+          e.stopPropagation()
+        }
+      >
 
         {children}
 
       </div>
 
     </div>
+
   );
 
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -12,6 +13,8 @@ import (
 	"ssh-gui/backend/sessions"
     "ssh-gui/backend/storage"
 	"ssh-gui/backend/models"
+
+	sftpservice "ssh-gui/backend/sftp"
 )
 
 type App struct {
@@ -88,6 +91,12 @@ func (a *App) ConnectSSH(
 		return "", err
 	}
 
+	sftpClient, err := sftp.NewClient(client)
+
+if err != nil {
+    return "", err
+}
+
 	session, err := client.NewSession()
 
 	if err != nil {
@@ -135,6 +144,8 @@ func (a *App) ConnectSSH(
 
 			Client: client,
 			Session: session,
+
+        	SFTP: sftpClient,
 
 			Stdin: stdin,
 			Stdout: stdout,
@@ -351,4 +362,41 @@ func (a *App) GetConnectionByID(
 		id,
 	)
 
+}
+
+func (a *App) ListDirectory(
+    sessionID string,
+    path string,
+) (
+    []sftpservice.FileItem,
+    error,
+) {
+
+    session, ok :=
+        a.sessionManager.Get(
+            sessionID,
+        )
+
+    if !ok {
+
+        return nil,
+            fmt.Errorf(
+                "session not found",
+            )
+
+    }
+
+    if session.SFTP == nil {
+
+        return nil,
+            fmt.Errorf(
+                "sftp client nil",
+            )
+
+    }
+
+    return sftpservice.ListDirectory(
+        session.SFTP,
+        path,
+    )
 }

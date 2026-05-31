@@ -15,12 +15,23 @@ export default function ConnectionNode({
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "8px 10px",
+
+        padding: "12px",
+
+        marginBottom: "10px",
+
+        borderRadius: "14px",
+
+        background: "#ffffff",
+
+        border: "1px solid #e5e7eb",
+
+        boxShadow:
+          "0 2px 8px rgba(0,0,0,0.04)",
+
         cursor: "pointer",
-        borderRadius: "6px",
-        margin: "4px 8px",
-        background: "#262a31",
-        border: "1px solid #333",
+
+        transition: "all .15s ease",
       }}
     >
 
@@ -28,36 +39,46 @@ export default function ConnectionNode({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "10px",
+          gap: "12px",
           flex: 1,
-          overflow: "hidden",
+          minWidth: 0,
         }}
       >
 
         <div
           style={{
-            width: "10px",
-            height: "10px",
-            borderRadius: "50%",
+            width: "12px",
+            height: "12px",
+
+            borderRadius: "999px",
+
             background:
               connection.color ||
-              "#3b82f6",
+              "#2563eb",
+
             flexShrink: 0,
           }}
         />
 
         <div
           style={{
-            overflow: "hidden",
+            flex: 1,
+            minWidth: 0,
           }}
         >
 
           <div
             style={{
-              fontSize: "13px",
-              fontWeight: "600",
+              fontSize: "14px",
+
+              fontWeight: 600,
+
+              color: "#111827",
+
               whiteSpace: "nowrap",
+
               overflow: "hidden",
+
               textOverflow: "ellipsis",
             }}
           >
@@ -66,11 +87,17 @@ export default function ConnectionNode({
 
           <div
             style={{
-              fontSize: "11px",
-              color: "#888",
+              fontSize: "12px",
+
+              color: "#6b7280",
+
               whiteSpace: "nowrap",
+
               overflow: "hidden",
+
               textOverflow: "ellipsis",
+
+              marginTop: "2px",
             }}
           >
             {connection.username}
@@ -87,41 +114,61 @@ export default function ConnectionNode({
       <div
         style={{
           display: "flex",
-          gap: "4px",
-          marginLeft: "8px",
+
+          gap: "6px",
+
+          marginLeft: "12px",
         }}
       >
 
         <button
-          title="Conectar"
+          title="Connect"
           onClick={(e) => {
 
             e.stopPropagation();
 
-            onOpen(
-              connection
-            );
+            onOpen(connection);
 
           }}
           style={{
+            width: "34px",
+            height: "34px",
+
+            border: "1px solid #dbeafe",
+
+            borderRadius: "10px",
+
+            background: "#eff6ff",
+
+            color: "#2563eb",
+
             cursor: "pointer",
+
+            fontWeight: "bold",
           }}
         >
           ▶
         </button>
 
         <button
-          title="Editar"
+          title="Edit"
           onClick={(e) => {
 
             e.stopPropagation();
 
-            onEdit(
-              connection
-            );
+            onEdit(connection);
 
           }}
           style={{
+            width: "34px",
+            height: "34px",
+
+            border: "1px solid #e5e7eb",
+
+            borderRadius: "10px",
+
+            background: "#ffffff",
+
             cursor: "pointer",
           }}
         >
@@ -129,17 +176,35 @@ export default function ConnectionNode({
         </button>
 
         <button
-          title="Eliminar"
+          title="Delete"
           onClick={(e) => {
 
             e.stopPropagation();
 
-            onDelete(
-              connection
-            );
+            const confirmed =
+              confirm(
+                `Delete "${connection.name}"?`
+              );
+
+            if (!confirmed) {
+              return;
+            }
+
+            onDelete(connection);
 
           }}
           style={{
+            width: "34px",
+            height: "34px",
+
+            border: "1px solid #fee2e2",
+
+            borderRadius: "10px",
+
+            background: "#fef2f2",
+
+            color: "#dc2626",
+
             cursor: "pointer",
           }}
         >
