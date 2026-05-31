@@ -6,8 +6,36 @@ export function CloseSession(arg1) {
   return window['go']['main']['App']['CloseSession'](arg1);
 }
 
-export function ConnectSSH() {
-  return window['go']['main']['App']['ConnectSSH']();
+export function ConnectSSH(arg1) {
+  return window['go']['main']['App']['ConnectSSH'](arg1);
+}
+
+export function CreateConnection(arg1) {
+  return window['go']['main']['App']['CreateConnection'](arg1);
+}
+
+export function CreateFolder(arg1) {
+  return window['go']['main']['App']['CreateFolder'](arg1);
+}
+
+export function DeleteConnection(arg1) {
+  return window['go']['main']['App']['DeleteConnection'](arg1);
+}
+
+export function DeleteFolder(arg1) {
+  return window['go']['main']['App']['DeleteFolder'](arg1);
+}
+
+export function GetConnectionByID(arg1) {
+  return window['go']['main']['App']['GetConnectionByID'](arg1);
+}
+
+export function GetConnections() {
+  return window['go']['main']['App']['GetConnections']();
+}
+
+export function GetFolders() {
+  return window['go']['main']['App']['GetFolders']();
 }
 
 export function ListSessions() {
@@ -20,4 +48,12 @@ export function ResizeTerminal(arg1, arg2, arg3) {
 
 export function SendInput(arg1, arg2) {
   return window['go']['main']['App']['SendInput'](arg1, arg2);
+}
+
+export function UpdateConnection(arg1) {
+  return window['go']['main']['App']['UpdateConnection'](arg1);
+}
+
+export function UpdateFolder(arg1, arg2) {
+  return window['go']['main']['App']['UpdateFolder'](arg1, arg2);
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"context"
 
 	"github.com/google/uuid"
@@ -9,17 +10,38 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"ssh-gui/backend/sessions"
+    "ssh-gui/backend/storage"
+	"ssh-gui/backend/models"
 )
 
 type App struct {
 	ctx context.Context
 
 	sessionManager *sessions.SessionManager
+
+	database *storage.Database
 }
 
 func NewApp() *App {
+
+	db, err :=
+		storage.NewDatabase(
+			"modernterm.db",
+		)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if err := db.Migrate(); err != nil {
+		panic(err)
+	}
+
 	return &App{
-		sessionManager: sessions.NewSessionManager(),
+		sessionManager:
+			sessions.NewSessionManager(),
+
+		database: db,
 	}
 }
 
@@ -27,21 +49,40 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-func (a *App) ConnectSSH() (string, error) {
+func (a *App) ConnectSSH(
+	connectionID string,
+) (string, error) {
 
-	config := &ssh.ClientConfig{
-		User: "root",
-		Auth: []ssh.AuthMethod{
-			ssh.Password("1h98wCO3g2GHYko"),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	connection, err :=
+		a.database.GetConnectionByID(
+			connectionID,
+		)
+
+	if err != nil {
+		return "", err
 	}
 
+	config := &ssh.ClientConfig{
+	User: connection.Username,
+	Auth: []ssh.AuthMethod{
+		ssh.Password(
+			*connection.Password,
+		),
+	},
+	HostKeyCallback:
+		ssh.InsecureIgnoreHostKey(),
+}
+
+
 	client, err := ssh.Dial(
-		"tcp",
-		"186.64.121.8:38364",
-		config,
-	)
+	"tcp",
+	fmt.Sprintf(
+		"%s:%d",
+		connection.Host,
+		connection.Port,
+	),
+	config,
+)
 
 	if err != nil {
 		return "", err
@@ -223,4 +264,91 @@ func (a *App) ResizeTerminal(
 
 	session.Rows = rows
 	session.Cols = cols
+}
+
+func (a *App) CreateFolder(
+	name string,
+) error {
+
+	_, err :=
+		a.database.CreateFolder(
+			name,
+		)
+
+	return err
+}
+
+func (a *App) GetFolders() (
+	[]models.Folder,
+	error,
+) {
+
+	return a.database.GetFolders()
+
+}
+
+func (a *App) GetConnections() (
+	[]models.Connection,
+	error,
+) {
+
+	return a.database.GetConnections()
+
+}
+
+func (a *App) CreateConnection(
+	connection models.Connection,
+) error {
+
+	return a.database.CreateConnection(
+		&connection,
+	)
+}
+
+func (a *App) UpdateConnection(
+	connection models.Connection,
+) error {
+
+	return a.database.UpdateConnection(
+		&connection,
+	)
+}
+
+func (a *App) DeleteConnection(
+	id string,
+) error {
+
+	return a.database.DeleteConnection(
+		id,
+	)
+}
+
+func (a *App) UpdateFolder(
+	id string,
+	name string,
+) error {
+
+	return a.database.UpdateFolder(
+		id,
+		name,
+	)
+}
+
+func (a *App) DeleteFolder(
+	id string,
+) error {
+
+	return a.database.DeleteFolder(
+		id,
+	)
+}
+
+func (a *App) GetConnectionByID(
+	id string,
+) (*models.Connection, error) {
+
+	return a.database.GetConnectionByID(
+		id,
+	)
+
 }

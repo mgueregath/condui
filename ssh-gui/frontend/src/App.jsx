@@ -7,10 +7,30 @@ import "xterm/css/xterm.css";
 
 import { EventsOn } from "../wailsjs/runtime/runtime";
 
-import { ConnectSSH, SendInput, ResizeTerminal } from "../wailsjs/go/main/App";
+import {
+  ConnectSSH,
+  SendInput,
+  ResizeTerminal,
+  CreateFolder,
+  CreateConnection,
+  UpdateFolder,
+  UpdateConnection,
+  DeleteConnection,
+  DeleteFolder,
+} from "../wailsjs/go/main/App";
 
 import TabBar from "./components/TabBar";
 import BottomPanel from "./components/BottomPanel";
+
+import { useConnections } from "./hooks/useConnections";
+
+import Modal from "./components/common/Modal";
+
+import ConnectionDrawer from "./components/connections/ConnectionDrawer";
+
+import FolderModal from "./components/connections/FolderModal";
+
+import ConnectionModal from "./components/connections/ConnectionModal";
 
 import "./components/Layout.css";
 
@@ -23,7 +43,19 @@ function App() {
   const [tabs, setTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
 
+  const { folders, connections, reload } = useConnections();
+
   const [connectionsOpen, setConnectionsOpen] = useState(false);
+
+  const [folderModalOpen, setFolderModalOpen] = useState(false);
+
+  const [connectionModalOpen, setConnectionModalOpen] = useState(false);
+
+  const [expandedFolders, setExpandedFolders] = useState([]);
+
+  const [editingFolder, setEditingFolder] = useState(null);
+
+  const [editingConnection, setEditingConnection] = useState(null);
 
   useEffect(() => {
     const term = new Terminal({
@@ -86,8 +118,8 @@ function App() {
     };
   }, [activeTab]);
 
-  const connect = async () => {
-    const sessionId = await ConnectSSH();
+  const connect = async (connectionId) => {
+    const sessionId = await ConnectSSH(connectionId);
 
     setTabs((prev) => [
       ...prev,
@@ -202,46 +234,108 @@ function App() {
               >
                 Connections
               </div>
-
               <div
                 style={{
+                  display: "flex",
+                  gap: "8px",
                   padding: "12px",
+                  borderBottom: "1px solid #333",
                 }}
               >
-                ▼ Producción
+                <button
+                  onClick={() => {
+                    setEditingFolder(null);
+
+                    setFolderModalOpen(true);
+                  }}
+                >
+                  + Folder
+                </button>
+
+                <button
+                  onClick={() => {
+                    setEditingConnection(null);
+
+                    setConnectionModalOpen(true);
+                  }}
+                >
+                  + Connection
+                </button>
               </div>
 
-              <div
-                style={{
-                  paddingLeft: "24px",
+              <ConnectionDrawer
+                folders={folders}
+                connections={connections}
+                expandedFolders={expandedFolders}
+                onToggleFolder={(id) => {
+                  if (expandedFolders.includes(id)) {
+                    setExpandedFolders((prev) => prev.filter((x) => x !== id));
+                  } else {
+                    setExpandedFolders((prev) => [...prev, id]);
+                  }
                 }}
-              >
-                Servidor 1
-              </div>
+                onEditFolder={(folder) => {
+                  setEditingFolder(folder);
 
-              <div
-                style={{
-                  paddingLeft: "24px",
+                  setFolderModalOpen(true);
                 }}
-              >
-                Servidor 2
-              </div>
+                onDeleteFolder={async (folder) => {
+                  try {
+                    const confirmed = confirm(
+                      `Eliminar carpeta ${folder.name}?`,
+                    );
 
-              <div
-                style={{
-                  padding: "12px",
-                }}
-              >
-                ▼ Desarrollo
-              </div>
+                    if (!confirmed) {
+                      return;
+                    }
 
-              <div
-                style={{
-                  paddingLeft: "24px",
+                    await DeleteFolder(folder.id);
+
+                    await reload();
+                  } catch (err) {
+                    console.error(err);
+                  }
                 }}
-              >
-                QA
-              </div>
+                onOpenConnection={async (c) => {
+                  const existingTab = tabs.find((t) => t.connectionId === c.id);
+
+                  if (existingTab) {
+                    setActiveTab(existingTab.id);
+
+                    return;
+                  }
+
+                  try {
+                    const sessionId = await ConnectSSH(c.id);
+
+                    setTabs((prev) => [
+                      ...prev,
+                      {
+                        id: sessionId,
+                        connectionId: c.id,
+                        title: c.name,
+                      },
+                    ]);
+
+                    setActiveTab(sessionId);
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }}
+                onEditConnection={(c) => {
+                  setEditingConnection(c);
+                  setConnectionModalOpen(true);
+                }}
+                onDeleteConnection={async (c) => {
+                  try {
+                    await DeleteConnection(c.id);
+
+                    await reload();
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }}
+              />
             </div>
           </>
         )}
@@ -321,6 +415,68 @@ function App() {
           </div>
         </div>
       </div>
+
+      <Modal
+        open={folderModalOpen}
+        onClose={() => {
+          setFolderModalOpen(false);
+          setEditingFolder(null);
+        }}
+      >
+        <FolderModal
+          initialName={editingFolder?.name || ""}
+          onSave={async (name) => {
+            try {
+              if (editingFolder) {
+                await UpdateFolder(editingFolder.id, name);
+              } else {
+                await CreateFolder(name);
+              }
+
+              await reload();
+
+              setFolderModalOpen(false);
+
+              setEditingFolder(null);
+            } catch (err) {
+              console.error(err);
+            }
+          }}
+        />
+      </Modal>
+
+      <Modal
+        open={connectionModalOpen}
+        onClose={() => {
+          setConnectionModalOpen(false);
+          setEditingConnection(null);
+        }}
+      >
+        <ConnectionModal
+          folders={folders}
+          initialValue={editingConnection}
+          onSave={async (connection) => {
+            try {
+              if (editingConnection) {
+                await UpdateConnection({
+                  ...connection,
+                  id: editingConnection.id,
+                });
+              } else {
+                await CreateConnection(connection);
+              }
+
+              await reload();
+
+              setConnectionModalOpen(false);
+
+              setEditingConnection(null);
+            } catch (err) {
+              console.error(err);
+            }
+          }}
+        />
+      </Modal>
     </div>
   );
 }
