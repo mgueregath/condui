@@ -15,6 +15,7 @@ import (
 	"ssh-gui/backend/models"
 
 	sftpservice "ssh-gui/backend/sftp"
+    "ssh-gui/backend/transfers"
 )
 
 type App struct {
@@ -23,6 +24,8 @@ type App struct {
 	sessionManager *sessions.SessionManager
 
 	database *storage.Database
+
+	transferManager *transfers.Manager
 }
 
 func NewApp() *App {
@@ -43,6 +46,8 @@ func NewApp() *App {
 	return &App{
 		sessionManager:
 			sessions.NewSessionManager(),
+		transferManager:
+    		transfers.NewManager(),
 
 		database: db,
 	}
@@ -399,4 +404,192 @@ func (a *App) ListDirectory(
         session.SFTP,
         path,
     )
+}
+
+func (a *App) UploadFile(
+	sessionID string,
+	remoteDirectory string, // Ahora pasamos el directorio actual del árbol
+) error {
+
+	session, ok :=
+		a.sessionManager.Get(sessionID)
+
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+
+	localPath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Seleccionar archivo para subir",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Todos los archivos", Pattern: "*.*"},
+		},
+	})
+
+	if err != nil || localPath == "" {
+		return fmt.Errorf("operación cancelada por el usuario")
+	}
+
+	fileName := sftpservice.GetFileName(localPath)
+	
+	var remotePath string
+	if remoteDirectory == "/" {
+		remotePath = fmt.Sprintf("/%s", fileName)
+	} else {
+		remotePath = fmt.Sprintf("%s/%s", remoteDirectory, fileName)
+	}
+
+	return sftpservice.UploadFile(
+		session.SFTP,
+		localPath,
+		remotePath,
+	)
+}
+
+func (a *App) DownloadFile(
+	sessionID string,
+	remotePath string,
+	localPath string,
+) error {
+
+	session, ok :=
+		a.sessionManager.Get(sessionID)
+
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+
+	// 1. Abrir diálogo nativo para guardar archivo
+	fileName := sftpservice.GetFileName(remotePath) // O usa path.Base(remotePath)
+	
+	chosenLocalPath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Descargar archivo remoto",
+		DefaultFilename: fileName,
+	})
+	
+	if err != nil || chosenLocalPath == "" {
+		return fmt.Errorf("descarga cancelada por el usuario")
+	}
+
+	return sftpservice.DownloadFile(
+		session.SFTP,
+		remotePath,
+		chosenLocalPath,
+	)
+}
+
+func (a *App) DeleteRemoteFile(
+	sessionID string,
+	path string,
+) error {
+
+	session, ok :=
+		a.sessionManager.Get(sessionID)
+
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+
+	return sftpservice.DeleteFile(
+		session.SFTP,
+		path,
+	)
+}
+
+func (a *App) RenameRemoteFile(
+	sessionID string,
+	oldPath string,
+	newPath string,
+) error {
+
+	session, ok :=
+		a.sessionManager.Get(sessionID)
+
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+
+	return sftpservice.RenameFile(
+		session.SFTP,
+		oldPath,
+		newPath,
+	)
+}
+
+func (a *App) CreateRemoteDirectory(
+	sessionID string,
+	path string,
+) error {
+
+	session, ok :=
+		a.sessionManager.Get(sessionID)
+
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+
+	return sftpservice.CreateDirectory(
+		session.SFTP,
+		path,
+	)
+}
+
+func (a *App) ReadRemoteFile(
+	sessionID string,
+	path string,
+) (string, error) {
+
+	session, ok :=
+		a.sessionManager.Get(
+			sessionID,
+		)
+
+	if !ok {
+		return "",
+			fmt.Errorf(
+				"session not found",
+			)
+	}
+
+	if session.SFTP == nil {
+		return "",
+			fmt.Errorf(
+				"sftp client nil",
+			)
+	}
+
+	return sftpservice.ReadFile(
+		session.SFTP,
+		path,
+	)
+}
+
+
+func (a *App) SaveRemoteFile(
+	sessionID string,
+	path string,
+	content string,
+) error {
+
+	session, ok :=
+		a.sessionManager.Get(
+			sessionID,
+		)
+
+	if !ok {
+		return fmt.Errorf(
+			"session not found",
+		)
+	}
+
+	if session.SFTP == nil {
+		return fmt.Errorf(
+			"sftp client nil",
+		)
+	}
+
+	return sftpservice.WriteFile(
+		session.SFTP,
+		path,
+		content,
+	)
 }

@@ -15,6 +15,7 @@ import {
   UpdateConnection,
   DeleteConnection,
   DeleteFolder,
+  UploadFile,
 } from "../wailsjs/go/main/App";
 
 import TabBar from "./components/TabBar";
@@ -176,6 +177,7 @@ function App() {
   const terminalRef = useRef(null);
   const termRef = useRef(null);
   const terminalBuffers = useRef({});
+  const fileTreeRef = useRef(null);
 
   const [tabs, setTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
@@ -197,6 +199,13 @@ function App() {
     setEditingFolder(null);
     setFolderModalOpen(true);
   };
+
+  const [editor, setEditor] = useState({
+    open: false,
+    path: "",
+    content: "",
+    modified: false,
+  });
 
   useEffect(() => {
     const term = new Terminal({
@@ -287,12 +296,36 @@ function App() {
     }
   };
 
+const uploadFile = async () => {
+    // Si no hay una sesión SSH activa, detenemos la operación
+    if (!activeTab) {
+      alert("Por favor, selecciona una sesión activa primero.");
+      return;
+    }
+
+    const currentRemotePath = fileTreeRef.current?.currentPath || "/";
+
+    try {
+      await UploadFile(activeTab, currentRemotePath); 
+      
+      fileTreeRef.current?.refresh(); 
+    } catch (err) {
+      if (err.includes("cancelada")) {
+        console.log("Subida cancelada por el usuario.");
+        return;
+      }
+      console.error("Error al subir archivo:", err);
+      alert("Error al subir archivo: " + err);
+    }
+  };
+
   return (
     <div className="app-shell">
       {/* TOP BAR */}
       <div className="topbar">
         <span className="topbar-logo">ModernTerm</span>
         <div className="topbar-actions">
+          {/* 
           <button className="topbar-btn primary" onClick={openNewConnection}>
             + New Connection
           </button>
@@ -300,6 +333,7 @@ function App() {
           <button className="topbar-btn">↓ Download</button>
           <button className="topbar-btn">⇌ Tunnels</button>
           <button className="topbar-btn">⚙ Settings</button>
+          */}
         </div>
         <div className="topbar-search-wrap">
           <svg
@@ -390,11 +424,29 @@ function App() {
                 <div className="files-header">
                   Remote Files
                   <div className="files-header-actions">
-                    <button className="files-header-btn">↺</button>
+                    <button
+                      className="files-header-btn"
+                      title="Subir archivo aquí"
+                      onClick={uploadFile}
+                      style={{
+                        background: "var(--primary)",
+                        padding: "2px 8px",
+                        borderRadius: "4px",
+                        fontSize: "11px",
+                      }}
+                    >
+                      <i class="bi bi-file-earmark-arrow-up"></i>
+                    </button>
+                    <button
+                      className="files-header-btn"
+                      onClick={() => fileTreeRef.current?.refresh()}
+                    >
+                      ↺
+                    </button>
                     <button className="files-header-btn">⋯</button>
                   </div>
                 </div>
-                <RemoteFileTree sessionId={activeTab} />
+                <RemoteFileTree sessionId={activeTab} ref={fileTreeRef} />
               </div>
               <div className="terminal-card">
                 <div className="terminal-titlebar">

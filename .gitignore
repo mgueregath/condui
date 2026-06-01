@@ -1,0 +1,42 @@
+# --- Artefactos de Compilación de Go ---
+# Binarios principales generados en la raíz o subcarpetas
+/ssh-gui/ssh-gui
+/ssh-gui/ssh-gui.exe
+ssh-gui
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+__debug_bin
+
+# --- Artefactos específicos de Wails ---
+# La carpeta build/bin es donde Wails deposita el ejecutable final empaquetado
+/ssh-gui/build/bin/
+build/bin/
+
+# --- Base de datos local ---
+# Evita subir tu base de datos SQLite de desarrollo
+*.db
+modernterm.db
+
+# --- Frontend (Node / React) ---
+# Dependencias de Node y directorios de compilación generados por Vite/Webpack
+**/node_modules/
+/ssh-gui/frontend/dist/
+dist/
+.eslintcache
+.npm
+npm-debug.log*
+
+# --- IDEs y Sistema Operativo ---
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+.DS_Store
+Thumbs.db

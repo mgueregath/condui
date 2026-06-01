@@ -11,9 +11,15 @@ export function CreateConnection(arg1:models.Connection):Promise<void>;
 
 export function CreateFolder(arg1:string):Promise<void>;
 
+export function CreateRemoteDirectory(arg1:string,arg2:string):Promise<void>;
+
 export function DeleteConnection(arg1:string):Promise<void>;
 
 export function DeleteFolder(arg1:string):Promise<void>;
+
+export function DeleteRemoteFile(arg1:string,arg2:string):Promise<void>;
+
+export function DownloadFile(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function GetConnectionByID(arg1:string):Promise<models.Connection>;
 
@@ -25,10 +31,18 @@ export function ListDirectory(arg1:string,arg2:string):Promise<Array<sftp.FileIt
 
 export function ListSessions():Promise<Array<string>>;
 
+export function ReadRemoteFile(arg1:string,arg2:string):Promise<string>;
+
+export function RenameRemoteFile(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function ResizeTerminal(arg1:string,arg2:number,arg3:number):Promise<void>;
+
+export function SaveRemoteFile(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SendInput(arg1:string,arg2:string):Promise<void>;
 
 export function UpdateConnection(arg1:models.Connection):Promise<void>;
 
 export function UpdateFolder(arg1:string,arg2:string):Promise<void>;
+
+export function UploadFile(arg1:string,arg2:string):Promise<void>;

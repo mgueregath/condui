@@ -18,12 +18,24 @@ export function CreateFolder(arg1) {
   return window['go']['main']['App']['CreateFolder'](arg1);
 }
 
+export function CreateRemoteDirectory(arg1, arg2) {
+  return window['go']['main']['App']['CreateRemoteDirectory'](arg1, arg2);
+}
+
 export function DeleteConnection(arg1) {
   return window['go']['main']['App']['DeleteConnection'](arg1);
 }
 
 export function DeleteFolder(arg1) {
   return window['go']['main']['App']['DeleteFolder'](arg1);
+}
+
+export function DeleteRemoteFile(arg1, arg2) {
+  return window['go']['main']['App']['DeleteRemoteFile'](arg1, arg2);
+}
+
+export function DownloadFile(arg1, arg2, arg3) {
+  return window['go']['main']['App']['DownloadFile'](arg1, arg2, arg3);
 }
 
 export function GetConnectionByID(arg1) {
@@ -46,8 +58,20 @@ export function ListSessions() {
   return window['go']['main']['App']['ListSessions']();
 }
 
+export function ReadRemoteFile(arg1, arg2) {
+  return window['go']['main']['App']['ReadRemoteFile'](arg1, arg2);
+}
+
+export function RenameRemoteFile(arg1, arg2, arg3) {
+  return window['go']['main']['App']['RenameRemoteFile'](arg1, arg2, arg3);
+}
+
 export function ResizeTerminal(arg1, arg2, arg3) {
   return window['go']['main']['App']['ResizeTerminal'](arg1, arg2, arg3);
+}
+
+export function SaveRemoteFile(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveRemoteFile'](arg1, arg2, arg3);
 }
 
 export function SendInput(arg1, arg2) {
@@ -60,4 +84,8 @@ export function UpdateConnection(arg1) {
 
 export function UpdateFolder(arg1, arg2) {
   return window['go']['main']['App']['UpdateFolder'](arg1, arg2);
+}
+
+export function UploadFile(arg1, arg2) {
+  return window['go']['main']['App']['UploadFile'](arg1, arg2);
 }
