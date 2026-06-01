@@ -109,6 +109,7 @@ body,
 
 .topbar-logo {
   font-size: 15px;
+  margin-left: 80px;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.4px;
@@ -236,6 +237,26 @@ body,
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.sidebar .app-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 18px 0px;
+
+  border-bottom: 6px solid var(--bg-base);
+}
+
+.sidebar .app-logo .logo-image {
+  width: 170px;
+
+  max-width: 60%;
+
+  height: auto;
+
+  object-fit: contain;
 }
 
 .sidebar-header {
@@ -1060,6 +1081,7 @@ body,
 
 /* ===================== MODALS ===================== */
 .modal-overlay {
+  position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(6px);

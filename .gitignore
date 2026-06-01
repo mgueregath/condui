@@ -1,42 +1,132 @@
-# --- Artefactos de Compilación de Go ---
-# Binarios principales generados en la raíz o subcarpetas
-/ssh-gui/ssh-gui
-/ssh-gui/ssh-gui.exe
-ssh-gui
+# =====================================================
+# Condui - Git Ignore
+# =====================================================
+
+
+# -----------------------------------------------------
+# Go build artifacts
+# -----------------------------------------------------
+
+SSH-Studio
+SSH-Studio.exe
+
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+
 *.test
-__debug_bin
+__debug_bin*
 
-# --- Artefactos específicos de Wails ---
-# La carpeta build/bin es donde Wails deposita el ejecutable final empaquetado
-/ssh-gui/build/bin/
+coverage.out
+
+
+
+# -----------------------------------------------------
+# Wails build artifacts
+# -----------------------------------------------------
+
 build/bin/
+build/darwin/
+build/windows/
+build/linux/
 
-# --- Base de datos local ---
-# Evita subir tu base de datos SQLite de desarrollo
+.wails/
+wails.log
+
+
+
+# -----------------------------------------------------
+# Releases generados
+# -----------------------------------------------------
+
+release/
+releases/
+
+*.app
+*.dmg
+*.AppImage
+*.msi
+
+
+
+# -----------------------------------------------------
+# Local Database
+# -----------------------------------------------------
+
 *.db
+*.sqlite
+*.sqlite3
+
 modernterm.db
+sshstudio.db
 
-# --- Frontend (Node / React) ---
-# Dependencias de Node y directorios de compilación generados por Vite/Webpack
-**/node_modules/
-/ssh-gui/frontend/dist/
-dist/
-.eslintcache
-.npm
+
+
+# -----------------------------------------------------
+# Frontend
+# -----------------------------------------------------
+
+node_modules/
+
+frontend/dist/
+frontend/node_modules/
+
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# --- IDEs y Sistema Operativo ---
+.pnpm-store/
+
+.eslintcache
+
+
+
+# -----------------------------------------------------
+# Environment
+# -----------------------------------------------------
+
+.env
+.env.local
+.env.*.local
+
+
+
+# -----------------------------------------------------
+# IDE
+# -----------------------------------------------------
+
 .idea/
 .vscode/
+
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
+
 *.swp
+
+
+
+# -----------------------------------------------------
+# OS files
+# -----------------------------------------------------
+
 .DS_Store
+.AppleDouble
+.LSOverride
+
 Thumbs.db
+
+
+
+# -----------------------------------------------------
+# Temporary files
+# -----------------------------------------------------
+
+tmp/
+temp/
+
+*.log
+*.tmp

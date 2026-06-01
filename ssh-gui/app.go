@@ -36,9 +36,16 @@ type App struct {
 
 func NewApp() *App {
 
+	dbPath, err :=
+		storage.DatabasePath()
+
+	if err != nil {
+		panic(err)
+}
+
 	db, err :=
 		storage.NewDatabase(
-			"modernterm.db",
+			dbPath,
 		)
 
 	if err != nil {

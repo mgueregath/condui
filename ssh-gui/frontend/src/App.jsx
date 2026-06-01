@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
+import conduiLogo from "./assets/images/condui-transparent.png";
 
 import { EventsOn } from "../wailsjs/runtime/runtime";
 import RemoteFileTree from "./components/files/RemoteFileTree";
@@ -67,6 +68,10 @@ function LeftSidebar({
 
   return (
     <div className="sidebar">
+      <div className="app-logo">
+        
+        <img className="logo-image" src={conduiLogo} />
+      </div>
       <div className="sidebar-header">
         <span className="sidebar-title">Connections</span>
         <div className="sidebar-header-actions">
@@ -156,12 +161,6 @@ function LeftSidebar({
             {search ? "No results" : "No connections yet"}
           </div>
         )}
-      </div>
-
-      <div className="sidebar-quick-connect" onClick={onNewConnection}>
-        <span>⚡</span>
-        <span>Quick Connect</span>
-        <kbd>⌘K</kbd>
       </div>
 
       {emptyCtx && (
@@ -327,6 +326,9 @@ const uploadFile = async () => {
 
   return (
     <div className="app-shell">
+      <div className="topbar">
+        <span className="topbar-logo"></span>
+        </div>
       {/* TOP BAR */}
       {/*
       <div className="topbar">
@@ -535,6 +537,10 @@ const uploadFile = async () => {
         <ConnectionModal
           folders={folders}
           initialValue={editingConnection}
+          onCancel={() => {
+    setConnectionModalOpen(false);
+    setEditingConnection(null);
+  }}
           onSave={async (connection) => {
             try {
               if (editingConnection) {

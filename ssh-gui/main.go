@@ -6,35 +6,96 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
+
 func main() {
-	// Create an instance of the app structure
+
 	app := NewApp()
 
-	// Create application with options
-err := wails.Run(&options.App{
-    Title:  "SSH Studio",
-    Width:  1024,
-    Height: 768,
-    MinWidth:  800,
-    MinHeight: 600,
-    AssetServer: &assetserver.Options{
-        Assets: assets,
-    },
-    BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
-    OnStartup:        app.startup,
-    WindowStartState: options.Maximised,
 
-    Bind: []interface{}{
-        app,
-    },
-})
+	err := wails.Run(
+		&options.App{
+
+			Title:
+				"Condui",
+
+			Width:
+				1400,
+
+			Height:
+				900,
+
+			MinWidth:
+				1000,
+
+			MinHeight:
+				700,
+
+
+			AssetServer:
+				&assetserver.Options{
+					Assets: assets,
+				},
+
+
+			BackgroundColour:
+				&options.RGBA{
+					R: 17,
+					G: 24,
+					B: 39,
+					A: 1,
+				},
+
+
+			WindowStartState:
+				options.Maximised,
+
+
+			OnStartup:
+				app.startup,
+
+
+			Windows:
+				&windows.Options{
+
+					WindowIsTranslucent:
+						false,
+
+					WebviewIsTransparent:
+						false,
+				},
+
+
+			Mac:
+				&mac.Options{
+
+					TitleBar:
+						mac.TitleBarHiddenInset(),
+
+					Appearance:
+						mac.NSAppearanceNameDarkAqua,
+				},
+
+
+			Bind:
+				[]interface{}{
+					app,
+				},
+		},
+	)
+
 
 	if err != nil {
-		println("Error:", err.Error())
+		println(
+			"Error:",
+			err.Error(),
+		)
 	}
 }
