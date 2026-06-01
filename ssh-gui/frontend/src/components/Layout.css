@@ -592,7 +592,6 @@ body,
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
-  gap: 3px;
   font-size: 10px;
   background: var(--bg-elevated);
 }
@@ -602,6 +601,9 @@ body,
 .breadcrumb-item {
   color: var(--text-secondary);
   cursor: pointer;
+}
+.breadcrumb-item.root {
+  font-weight: 600;
 }
 .breadcrumb-item:hover {
   color: var(--text-primary);
@@ -633,13 +635,19 @@ body,
   overflow-y: auto;
 }
 .file-node {
+  -webkit-user-select: none;
   display: grid;
-  grid-template-columns: 1fr 48px 70px;
   align-items: center;
   padding: 4px 10px;
   cursor: pointer;
   transition: 0.12s;
 }
+
+.file-node-name span {
+  -webkit-user-select: none;
+
+}
+
 .file-node:hover {
   background: var(--bg-hover);
 }
@@ -652,11 +660,13 @@ body,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  -webkit-user-select: none;
 }
 .file-icon {
   font-size: 13px;
   flex-shrink: 0;
   color: var(--text-muted);
+  -webkit-user-select: none;
 }
 .file-icon.dir {
   color: #3b82f6;
@@ -711,9 +721,9 @@ body,
   box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
 }
 .terminal-title {
-  font-size: 11px;
+  font-size: 12px;
   color: #9ca3af;
-  font-weight: 500;
+  font-weight: 600;
 }
 .terminal-titlebar-actions {
   margin-left: auto;
@@ -1050,7 +1060,6 @@ body,
 
 /* ===================== MODALS ===================== */
 .modal-overlay {
-  position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(6px);
@@ -1413,3 +1422,10 @@ select.modern-input {
   margin-left: 8px;
   color: #f59e0b;
 }
+
+.remote-tree {
+  overflow-y: auto;
+display: flex;
+flex-direction: column;
+}
+

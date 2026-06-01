@@ -143,15 +143,15 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
   return (
     <div className="remote-tree">
       <div className="files-breadcrumb">
-        <span className="breadcrumb-item" onClick={() => load("/")}>
+        <span className="breadcrumb-item root" onClick={() => load("/")}>
           /
         </span>
 
         {parts.map((p, i) => (
-          <span key={i}>
-            /
-            <span onClick={() => load("/" + parts.slice(0, i + 1).join("/"))}>
-              {p}
+          <span key={i} >
+            <span className="breadcrumb-item" onClick={() => load("/" + parts.slice(0, i + 1).join("/"))}>
+              
+          {i == 0 ? "" : "/"}{p}
             </span>
           </span>
         ))}
@@ -194,6 +194,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
         onDelete={deleteFile}
         onRename={renameFile}
         onNewFolder={createFolder}
+        onOpenFile={openFile}
         onClose={() =>
           setContextMenu((c) => ({
             ...c,

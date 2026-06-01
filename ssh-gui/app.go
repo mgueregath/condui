@@ -3,6 +3,12 @@ package main
 import (
 	"fmt"
 	"context"
+	"time"
+	"io"
+	"os"
+	"net"
+	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/pkg/sftp"
@@ -406,43 +412,55 @@ func (a *App) ListDirectory(
     )
 }
 
-func (a *App) UploadFile(
-	sessionID string,
-	remoteDirectory string, // Ahora pasamos el directorio actual del árbol
-) error {
+func (a *App) UploadFile(sessionID string, remoteDirectory string) error {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok { return fmt.Errorf("session not found") }
 
-	session, ok :=
-		a.sessionManager.Get(sessionID)
-
-	if !ok {
-		return fmt.Errorf("session not found")
-	}
-
-	localPath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "Seleccionar archivo para subir",
-		Filters: []runtime.FileFilter{
-			{DisplayName: "Todos los archivos", Pattern: "*.*"},
-		},
-	})
-
-	if err != nil || localPath == "" {
-		return fmt.Errorf("operación cancelada por el usuario")
-	}
+	localPath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{Title: "Subir archivo"})
+	if err != nil || localPath == "" { return fmt.Errorf("cancelado") }
 
 	fileName := sftpservice.GetFileName(localPath)
-	
 	var remotePath string
-	if remoteDirectory == "/" {
-		remotePath = fmt.Sprintf("/%s", fileName)
-	} else {
-		remotePath = fmt.Sprintf("%s/%s", remoteDirectory, fileName)
+	if remoteDirectory == "/" { remotePath = fmt.Sprintf("/%s", fileName) } else { remotePath = fmt.Sprintf("%s/%s", remoteDirectory, fileName) }
+
+	// Abrir archivo local para obtener su peso total
+	localFile, err := os.Open(localPath)
+	if err != nil { return err }
+	defer localFile.Close()
+
+	stat, err := localFile.Stat()
+	if err != nil { return err }
+
+	// Crear archivo en el servidor remoto por SFTP
+	remoteFile, err := session.SFTP.Create(remotePath)
+	if err != nil { return err }
+	defer remoteFile.Close()
+
+	transferID := uuid.NewString()
+	a.emitLog("SFTP", "Iniciando subida de: "+fileName, "")
+
+	// Envolver el destino en nuestro ProgressWriter
+	progress := &models.ProgressWriter{
+		Total:       stat.Size(),
+		ID:          transferID,
+		FileName:    fileName,
+		Direction:   "upload",
+		AppCtx:      a.ctx,
 	}
 
-	return sftpservice.UploadFile(
-		session.SFTP,
-		localPath,
-		remotePath,
-	)
+	// MultiWriter escribe en el archivo remoto y a la vez computa el progreso
+	mw := io.MultiWriter(remoteFile, progress)
+	_, err = io.Copy(mw, localFile)
+
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "transfer-status", map[string]any{"id": transferID, "status": "error"})
+		a.emitLog("SFTP", "Error al subir "+fileName, "error")
+		return err
+	}
+
+	runtime.EventsEmit(a.ctx, "transfer-status", map[string]any{"id": transferID, "name": fileName, "progress": 100, "status": "done"})
+	a.emitLog("SFTP", "Subida completada: "+fileName, "success")
+	return nil
 }
 
 func (a *App) DownloadFile(
@@ -592,4 +610,282 @@ func (a *App) SaveRemoteFile(
 		path,
 		content,
 	)
+}
+
+func (a *App) emitLog(logType string, message string, class string) {
+	if a.ctx == nil {
+		return
+	}
+	runtime.EventsEmit(a.ctx, "log-event", map[string]string{
+		"time": time.Now().Format("15:04:05"),
+		"type": logType,
+		"msg":  message,
+		"cls":  class, // "success", "warn", "error" o ""
+	})
+}
+
+var activeListeners = make(map[string]net.Listener)
+
+var (
+    tunnelsMutex  sync.RWMutex
+    runtimeTunnels = make(map[string]*models.ActiveTunnel)
+    // Almacén en memoria para los túneles registrados por Sesión/Conexión si no usas DB todavía
+    registeredTunnels = make(map[string][]models.TunnelInfo) 
+)
+
+// GetTunnels obtiene los túneles vinculados a la conexión.
+// Por ahora, si no deseas modificar la DB inmediatamente, puedes usar este almacén dinámico/mock
+// GetTunnels obtiene la lista de túneles dinámicos guardados para la sesión activa
+func (a *App) GetTunnels(sessionID string) ([]models.TunnelInfo, error) {
+    tunnelsMutex.RLock()
+    defer tunnelsMutex.RUnlock()
+
+    list, exists := registeredTunnels[sessionID]
+    if !exists {
+        return []models.TunnelInfo{}, nil
+    }
+
+    // Sincronizar el flag de Active en tiempo real basándose en si el listener genérico sigue vivo
+    for i := range list {
+        list[i].Active = runtimeTunnels[list[i].ID] != nil
+    }
+
+    return list, nil
+}
+
+// AddTunnel registra un nuevo túnel dinámico en la sesión actual
+func (a *App) AddTunnel(sessionID string, localPort int, remoteHost string, remotePort int) (models.TunnelInfo, error) {
+    tunnelsMutex.Lock()
+    defer tunnelsMutex.Unlock()
+
+    tunnelID := uuid.NewString()
+    newTunnel := models.TunnelInfo{
+        ID:         tunnelID,
+        LocalPort:  localPort,
+        RemoteHost: remoteHost,
+        RemotePort: remotePort,
+        Active:     false,
+    }
+
+    registeredTunnels[sessionID] = append(registeredTunnels[sessionID], newTunnel)
+    a.emitLog("TUNNEL", fmt.Sprintf("Nuevo túnel registrado: :%d -> %s:%d", localPort, remoteHost, remotePort), "")
+    
+    return newTunnel, nil
+}
+
+// DeleteTunnel elimina un túnel del registro (y lo apaga si está encendido)
+func (a *App) DeleteTunnel(sessionID string, tunnelID string) error {
+    // Apagar primero si está corriendo
+    _ = a.ToggleTunnel(sessionID, tunnelID, 0, "", 0, false)
+
+    tunnelsMutex.Lock()
+    defer tunnelsMutex.Unlock()
+
+    list := registeredTunnels[sessionID]
+    for i, t := range list {
+        if t.ID == tunnelID {
+            // Eliminar del slice
+            registeredTunnels[sessionID] = append(list[:i], list[i+1:]...)
+            a.emitLog("TUNNEL", fmt.Sprintf("Túnel :%d eliminado del registro.", t.LocalPort), "warn")
+            break
+        }
+    }
+    return nil
+}
+
+// EditTunnel modifica los parámetros de un túnel existente
+func (a *App) EditTunnel(sessionID string, tunnelID string, localPort int, remoteHost string, remotePort int) (models.TunnelInfo, error) {
+    // 1. Apagar el túnel primero si estuviera corriendo en tiempo de ejecución
+    _ = a.ToggleTunnel(sessionID, tunnelID, 0, "", 0, false)
+
+    tunnelsMutex.Lock()
+    defer tunnelsMutex.Unlock()
+
+    list, exists := registeredTunnels[sessionID]
+    if !exists {
+        return models.TunnelInfo{}, fmt.Errorf("no se encontraron túneles para esta sesión")
+    }
+
+    for i, t := range list {
+        if t.ID == tunnelID {
+            // 2. Actualizar valores
+            list[i].LocalPort = localPort
+            list[i].RemoteHost = remoteHost
+            list[i].RemotePort = remotePort
+            
+            registeredTunnels[sessionID] = list
+            a.emitLog("TUNNEL", fmt.Sprintf("Túnel editado con éxito: Mapeado a :%d", localPort), "success")
+            return list[i], nil
+        }
+    }
+
+    return models.TunnelInfo{}, fmt.Errorf("túnel no encontrado")
+}
+
+// ToggleTunnel Enciende o apaga el túnel SSH local port forwarding de forma asíncrona
+func (a *App) ToggleTunnel(sessionID string, tunnelID string, localPort int, remoteHost string, remotePort int, activate bool) error {
+    session, ok := a.sessionManager.Get(sessionID)
+    if !ok {
+        return fmt.Errorf("session not found")
+    }
+
+    tunnelsMutex.Lock()
+    defer tunnelsMutex.Unlock()
+
+    if !activate {
+        // APAGAR TÚNEL
+        if t, exists := runtimeTunnels[tunnelID]; exists {
+            t.Listener.Close()
+            delete(runtimeTunnels, tunnelID)
+            a.emitLog("TUNNEL", fmt.Sprintf("Túnel local :%d cerrado de forma segura.", t.LocalPort), "warn")
+        }
+        return nil
+    }
+
+    // Si se activa por interfaz, pero no se pasaron parámetros directos, buscamos en el registro guardado
+    if localPort == 0 {
+        for _, t := range registeredTunnels[sessionID] {
+            if t.ID == tunnelID {
+                localPort = t.LocalPort
+                remoteHost = t.RemoteHost
+                remotePort = t.RemotePort
+                break
+            }
+        }
+    }
+
+    // ENCENDER TÚNEL
+    localAddr := fmt.Sprintf("127.0.0.1:%d", localPort)
+    listener, err := net.Listen("tcp", localAddr)
+    if err != nil {
+        a.emitLog("TUNNEL", fmt.Sprintf("Error abriendo puerto local :%d: %v", localPort, err), "error")
+        return fmt.Errorf("no se pudo abrir el puerto local: %v", err)
+    }
+
+    runtimeTunnels[tunnelID] = &models.ActiveTunnel{
+        Listener:   listener,
+        LocalPort:  localPort,
+        RemoteHost: remoteHost,
+        RemotePort: remotePort,
+    }
+    
+    a.emitLog("TUNNEL", fmt.Sprintf("Túnel activo: local :%d retransmitiendo a %s:%d", localPort, remoteHost, remotePort), "success")
+
+    // Goroutine dedicada para la escucha bidireccional del flujo TCP cifrado
+    go func(l net.Listener, rHost string, rPort int) {
+        for {
+            localConn, err := l.Accept()
+            if err != nil {
+                return // Listener cerrado externamente por el Close()
+            }
+
+            // Establecer canal seguro por dentro del cliente SSH de Wails hacia la máquina remota
+            remoteConn, err := session.Client.Dial("tcp", fmt.Sprintf("%s:%d", rHost, rPort))
+            if err != nil {
+                localConn.Close()
+                a.emitLog("TUNNEL", fmt.Sprintf("Fallo de reenvío TCP hacia %s:%d", rHost, rPort), "error")
+                continue
+            }
+
+            // Intercambio asíncrono bidireccional continuo (Puente simétrico)
+            go func() {
+                defer localConn.Close()
+                defer remoteConn.Close()
+                _, _ = io.Copy(localConn, remoteConn)
+            }()
+            go func() {
+                defer localConn.Close()
+                defer remoteConn.Close()
+                _, _ = io.Copy(remoteConn, localConn)
+            }()
+        }
+    }(listener, remoteHost, remotePort)
+
+    return nil
+}
+
+func (a *App) GetDockerContainers(sessionID string) ([]models.DockerContainer, error) {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session not found")
+	}
+
+	cmdSession, err := session.Client.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	defer cmdSession.Close()
+
+	// Comando óptimo que formatea el output nativo a filas JSON procesables
+	output, err := cmdSession.Output("docker ps -a --format '{\"id\":\"{{.ID}}\",\"names\":\"{{.Names}}\",\"image\":\"{{.Image}}\",\"status\":\"{{.Status}}\",\"state\":\"{{.State}}\"}'")
+	if err != nil {
+		return nil, fmt.Errorf("docker no responde, puede que no esté instalado en el servidor remoto o requiera privilegios de sudo")
+	}
+
+	lines := strings.Split(string(output), "\n")
+	var containers []models.DockerContainer
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// Deserializar línea o mapearla manualmente de forma segura
+		// Nota: En entornos de desarrollo si el string falla, puedes parsearlo usando json.Unmarshal
+		var c models.DockerContainer
+		// Implementación de parseo rápido basado en el formato JSON inyectado:
+		c.ID = extractJSONField(line, "id")
+		c.Names = extractJSONField(line, "names")
+		c.Image = extractJSONField(line, "image")
+		c.Status = extractJSONField(line, "status")
+		c.State = extractJSONField(line, "state")
+		
+		if c.ID != "" {
+			containers = append(containers, c)
+		}
+	}
+
+	return containers, nil
+}
+
+// ToggleContainer ejecuta las acciones vitales: start, stop o restart
+func (a *App) ToggleContainer(sessionID string, containerID string, action string) (string, error) {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return "", fmt.Errorf("session not found")
+	}
+
+	cmdSession, err := session.Client.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer cmdSession.Close()
+
+	validActions := map[string]bool{"start": true, "stop": true, "restart": true}
+	if !validActions[action] {
+		return "", fmt.Errorf("acción inválida")
+	}
+
+	output, err := cmdSession.CombinedOutput(fmt.Sprintf("docker %s %s", action, containerID))
+	if err == nil {
+		a.emitLog("DOCKER", fmt.Sprintf("Contenedor %s ejecutó: %s", containerID, action), "success")
+	} else {
+		a.emitLog("DOCKER", fmt.Sprintf("Error en contenedor %s: %s", containerID, string(output)), "error")
+	}
+	return string(output), err
+}
+
+// Función utilitaria limpia para parsear los campos string JSON devueltos por el comando docker sin romper el flujo
+func extractJSONField(jsonStr, field string) string {
+	key := fmt.Sprintf("\"%s\":\"", field)
+	idx := strings.Index(jsonStr, key)
+	if idx == -1 {
+		return ""
+	}
+	start := idx + len(key)
+	end := strings.Index(jsonStr[start:], "\"")
+	if end == -1 {
+		return ""
+	}
+	return jsonStr[start : start+end]
 }

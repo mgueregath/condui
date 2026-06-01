@@ -10,6 +10,7 @@ export default function FileContextMenu({
   onDelete,
   onRename,
   onNewFolder,
+  onOpenFile,
   onClose,
 }) {
   const ref = useRef(null);
@@ -92,6 +93,11 @@ export default function FileContextMenu({
    * Click derecho sobre archivo
    */
   else if (!item.isDirectory) {
+    items.push({
+      icon: "📝",
+      label: "Open / Edit",
+      onClick: () => onOpenFile(item),
+    });
     items.push({
       icon: "⬇",
       label: "Download",

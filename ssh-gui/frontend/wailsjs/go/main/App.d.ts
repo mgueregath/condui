@@ -3,6 +3,8 @@
 import {models} from '../models';
 import {sftp} from '../models';
 
+export function AddTunnel(arg1:string,arg2:number,arg3:string,arg4:number):Promise<models.TunnelInfo>;
+
 export function CloseSession(arg1:string):Promise<void>;
 
 export function ConnectSSH(arg1:string):Promise<string>;
@@ -19,13 +21,21 @@ export function DeleteFolder(arg1:string):Promise<void>;
 
 export function DeleteRemoteFile(arg1:string,arg2:string):Promise<void>;
 
+export function DeleteTunnel(arg1:string,arg2:string):Promise<void>;
+
 export function DownloadFile(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function EditTunnel(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number):Promise<models.TunnelInfo>;
 
 export function GetConnectionByID(arg1:string):Promise<models.Connection>;
 
 export function GetConnections():Promise<Array<models.Connection>>;
 
+export function GetDockerContainers(arg1:string):Promise<Array<models.DockerContainer>>;
+
 export function GetFolders():Promise<Array<models.Folder>>;
+
+export function GetTunnels(arg1:string):Promise<Array<models.TunnelInfo>>;
 
 export function ListDirectory(arg1:string,arg2:string):Promise<Array<sftp.FileItem>>;
 
@@ -40,6 +50,10 @@ export function ResizeTerminal(arg1:string,arg2:number,arg3:number):Promise<void
 export function SaveRemoteFile(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SendInput(arg1:string,arg2:string):Promise<void>;
+
+export function ToggleContainer(arg1:string,arg2:string,arg3:string):Promise<string>;
+
+export function ToggleTunnel(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number,arg6:boolean):Promise<void>;
 
 export function UpdateConnection(arg1:models.Connection):Promise<void>;
 

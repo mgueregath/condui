@@ -30,6 +30,26 @@ export namespace models {
 	        this.color = source["color"];
 	    }
 	}
+	export class DockerContainer {
+	    id: string;
+	    names: string;
+	    image: string;
+	    status: string;
+	    state: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DockerContainer(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.names = source["names"];
+	        this.image = source["image"];
+	        this.status = source["status"];
+	        this.state = source["state"];
+	    }
+	}
 	export class Folder {
 	    id: string;
 	    name: string;
@@ -44,6 +64,26 @@ export namespace models {
 	        this.id = source["id"];
 	        this.name = source["name"];
 	        this.parentId = source["parentId"];
+	    }
+	}
+	export class TunnelInfo {
+	    id: string;
+	    localPort: number;
+	    remoteHost: string;
+	    remotePort: number;
+	    active: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new TunnelInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.localPort = source["localPort"];
+	        this.remoteHost = source["remoteHost"];
+	        this.remotePort = source["remotePort"];
+	        this.active = source["active"];
 	    }
 	}
 

@@ -16,7 +16,13 @@ import {
   DeleteConnection,
   DeleteFolder,
   UploadFile,
+  EditTunnel,
 } from "../wailsjs/go/main/App";
+
+import { BsUpload,  } from "react-icons/bs";
+import { GrRefresh } from "react-icons/gr";
+import { MdUploadFile } from "react-icons/md";
+
 
 import TabBar from "./components/TabBar";
 import BottomPanel from "./components/BottomPanel";
@@ -322,10 +328,10 @@ const uploadFile = async () => {
   return (
     <div className="app-shell">
       {/* TOP BAR */}
+      {/*
       <div className="topbar">
         <span className="topbar-logo">ModernTerm</span>
         <div className="topbar-actions">
-          {/* 
           <button className="topbar-btn primary" onClick={openNewConnection}>
             + New Connection
           </button>
@@ -333,7 +339,6 @@ const uploadFile = async () => {
           <button className="topbar-btn">↓ Download</button>
           <button className="topbar-btn">⇌ Tunnels</button>
           <button className="topbar-btn">⚙ Settings</button>
-          */}
         </div>
         <div className="topbar-search-wrap">
           <svg
@@ -355,6 +360,7 @@ const uploadFile = async () => {
           <div className="topbar-avatar">M</div>
         </div>
       </div>
+      */}
 
       {/* MAIN */}
       <div className="main-content">
@@ -429,19 +435,16 @@ const uploadFile = async () => {
                       title="Subir archivo aquí"
                       onClick={uploadFile}
                       style={{
-                        background: "var(--primary)",
-                        padding: "2px 8px",
-                        borderRadius: "4px",
-                        fontSize: "11px",
+                        background: "var(--primary)"
                       }}
                     >
-                      <i class="bi bi-file-earmark-arrow-up"></i>
+                      <MdUploadFile />
                     </button>
                     <button
                       className="files-header-btn"
                       onClick={() => fileTreeRef.current?.refresh()}
                     >
-                      ↺
+                      <GrRefresh />
                     </button>
                     <button className="files-header-btn">⋯</button>
                   </div>
@@ -466,7 +469,7 @@ const uploadFile = async () => {
                 </div>
               </div>
             </div>
-            <BottomPanel />
+            <BottomPanel sessionId={activeTab}/>
           </div>
 
           {tabs.length === 0 && (
