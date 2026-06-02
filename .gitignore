@@ -7,8 +7,8 @@
 # Go build artifacts
 # -----------------------------------------------------
 
-SSH-Studio
-SSH-Studio.exe
+Condui
+Condui.exe
 
 *.exe
 *.exe~
@@ -20,6 +20,8 @@ SSH-Studio.exe
 __debug_bin*
 
 coverage.out
+
+*.zip
 
 
 

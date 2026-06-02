@@ -3,6 +3,7 @@ import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 import conduiLogo from "./assets/images/condui-transparent.png";
+import { FaFolder, FaFolderOpen, FaFile } from "react-icons/fa";
 
 import { EventsOn } from "../wailsjs/runtime/runtime";
 import RemoteFileTree from "./components/files/RemoteFileTree";
@@ -20,10 +21,10 @@ import {
   EditTunnel,
 } from "../wailsjs/go/main/App";
 
-import { BsUpload,  } from "react-icons/bs";
+import { BsUpload } from "react-icons/bs";
 import { GrRefresh } from "react-icons/gr";
 import { MdUploadFile } from "react-icons/md";
-
+import { FaLevelUpAlt } from "react-icons/fa";
 
 import TabBar from "./components/TabBar";
 import BottomPanel from "./components/BottomPanel";
@@ -40,6 +41,7 @@ import "./components/Layout.css";
 function LeftSidebar({
   folders,
   connections,
+  connectingId,
   expandedFolders,
   onToggleFolder,
   onOpenConnection,
@@ -67,113 +69,120 @@ function LeftSidebar({
   );
 
   return (
-    <div className="sidebar">
+    <div className="sidebar-container">
+      <div class="sidebar">
+        <div className="sidebar-header">
+          <span className="sidebar-title">Connections</span>
+          <div className="sidebar-header-actions">
+            <button
+              className="sidebar-icon-btn"
+              title="New connection"
+              onClick={onNewConnection}
+            >
+              +
+            </button>
+            <button
+              className="sidebar-icon-btn"
+              title="New folder"
+              onClick={onNewFolder}
+            >
+              <FaFolder />
+            </button>
+          </div>
+        </div>
+
+        <input
+          className="sidebar-search"
+          placeholder="Search connections..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        <div
+          className="sidebar-list"
+          onContextMenu={handleEmptyAreaContextMenu}
+        >
+          {folders.map((folder) => {
+            const fConns = filtered.filter((c) => c.folderId === folder.id);
+            if (fConns.length === 0 && search) return null;
+            return (
+              <FolderNode
+                key={folder.id}
+                folder={folder}
+                expanded={expandedFolders.includes(folder.id)}
+                onToggle={onToggleFolder}
+                onEdit={onEditFolder}
+                onDelete={onDeleteFolder}
+              >
+                {fConns.map((c) => (
+                  <ConnectionNode
+                    key={c.id}
+                    connection={c}
+                    connecting={connectingId === c.id}
+                    folders={folders}
+                    onOpen={onOpenConnection}
+                    onEdit={onEditConnection}
+                    onDelete={onDeleteConnection}
+                    onAssignFolder={onAssignFolder}
+                  />
+                ))}
+              </FolderNode>
+            );
+          })}
+
+          {filtered.filter((c) => !c.folderId || c.folderId === "").length >
+            0 && (
+            <div className="sidebar-group">
+              {folders.length > 0 && (
+                <div className="sidebar-group-label">Ungrouped</div>
+              )}
+              {filtered
+                .filter((c) => !c.folderId || c.folderId === "")
+                .map((c) => (
+                  <ConnectionNode
+                    key={c.id}
+                    connection={c}
+                    connecting={connectingId === c.id}
+                    folders={folders}
+                    onOpen={onOpenConnection}
+                    onEdit={onEditConnection}
+                    onDelete={onDeleteConnection}
+                    onAssignFolder={onAssignFolder}
+                  />
+                ))}
+            </div>
+          )}
+
+          {filtered.length === 0 && (
+            <div
+              style={{
+                padding: "24px 12px",
+                textAlign: "center",
+                color: "var(--text-muted)",
+                fontSize: "12px",
+              }}
+            >
+              {search ? "No results" : "No connections yet"}
+            </div>
+          )}
+        </div>
+
+        {emptyCtx && (
+          <ContextMenu
+            x={emptyCtx.x}
+            y={emptyCtx.y}
+            items={[
+              { icon: "+", label: "New connection", onClick: onNewConnection },
+              { icon: <FaFolder />, label: "New folder", onClick: onNewFolder },
+            ]}
+            onClose={() => setEmptyCtx(null)}
+          />
+        )}
+      </div>
+
       <div className="app-logo">
-        
         <img className="logo-image" src={conduiLogo} />
       </div>
-      <div className="sidebar-header">
-        <span className="sidebar-title">Connections</span>
-        <div className="sidebar-header-actions">
-          <button
-            className="sidebar-icon-btn"
-            title="New connection"
-            onClick={onNewConnection}
-          >
-            +
-          </button>
-          <button
-            className="sidebar-icon-btn"
-            title="New folder"
-            onClick={onNewFolder}
-          >
-            📁
-          </button>
-        </div>
-      </div>
-
-      <input
-        className="sidebar-search"
-        placeholder="Search connections..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-
-      <div className="sidebar-list" onContextMenu={handleEmptyAreaContextMenu}>
-        {folders.map((folder) => {
-          const fConns = filtered.filter((c) => c.folderId === folder.id);
-          if (fConns.length === 0 && search) return null;
-          return (
-            <FolderNode
-              key={folder.id}
-              folder={folder}
-              expanded={expandedFolders.includes(folder.id)}
-              onToggle={onToggleFolder}
-              onEdit={onEditFolder}
-              onDelete={onDeleteFolder}
-            >
-              {fConns.map((c) => (
-                <ConnectionNode
-                  key={c.id}
-                  connection={c}
-                  folders={folders}
-                  onOpen={onOpenConnection}
-                  onEdit={onEditConnection}
-                  onDelete={onDeleteConnection}
-                  onAssignFolder={onAssignFolder}
-                />
-              ))}
-            </FolderNode>
-          );
-        })}
-
-        {filtered.filter((c) => !c.folderId || c.folderId === "").length >
-          0 && (
-          <div className="sidebar-group">
-            {folders.length > 0 && (
-              <div className="sidebar-group-label">Ungrouped</div>
-            )}
-            {filtered
-              .filter((c) => !c.folderId || c.folderId === "")
-              .map((c) => (
-                <ConnectionNode
-                  key={c.id}
-                  connection={c}
-                  folders={folders}
-                  onOpen={onOpenConnection}
-                  onEdit={onEditConnection}
-                  onDelete={onDeleteConnection}
-                  onAssignFolder={onAssignFolder}
-                />
-              ))}
-          </div>
-        )}
-
-        {filtered.length === 0 && (
-          <div
-            style={{
-              padding: "24px 12px",
-              textAlign: "center",
-              color: "var(--text-muted)",
-              fontSize: "12px",
-            }}
-          >
-            {search ? "No results" : "No connections yet"}
-          </div>
-        )}
-      </div>
-
-      {emptyCtx && (
-        <ContextMenu
-          x={emptyCtx.x}
-          y={emptyCtx.y}
-          items={[
-            { icon: "+", label: "New connection", onClick: onNewConnection },
-            { icon: "📁", label: "New folder", onClick: onNewFolder },
-          ]}
-          onClose={() => setEmptyCtx(null)}
-        />
-      )}
     </div>
   );
 }
@@ -186,6 +195,9 @@ function App() {
 
   const [tabs, setTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
+  const [connectingId, setConnectingId] = useState(null);
+  const [connectionChoice, setConnectionChoice] = useState(null);
+  const [sshError, setSshError] = useState(null);
   const { folders, connections, reload } = useConnections();
 
   const [folderModalOpen, setFolderModalOpen] = useState(false);
@@ -254,11 +266,14 @@ function App() {
       SendInput(activeTab, data);
     });
 
-    EventsOn("terminal-output", (payload) => {
-      if (!terminalBuffers.current[payload.sessionId])
+    const unsubscribe = EventsOn("terminal-output", (payload) => {
+      if (!terminalBuffers.current[payload.sessionId]) {
         terminalBuffers.current[payload.sessionId] = "";
+      }
       terminalBuffers.current[payload.sessionId] += payload.data;
-      if (payload.sessionId !== activeTab) return;
+      if (payload.sessionId !== activeTab) {
+        return;
+      }
       term.write(payload.data);
     });
 
@@ -269,6 +284,7 @@ function App() {
     };
     window.addEventListener("resize", resizeHandler);
     return () => {
+      unsubscribe();
       window.removeEventListener("resize", resizeHandler);
       term.dispose();
     };
@@ -283,25 +299,49 @@ function App() {
 
   const activeTabData = tabs.find((t) => t.id === activeTab);
 
-  const handleOpenConnection = async (c) => {
+  const handleOpenConnection = async (c, forceNew = false) => {
     const existing = tabs.find((t) => t.connectionId === c.id);
-    if (existing) {
-      setActiveTab(existing.id);
+
+    if (existing && !forceNew) {
+      setConnectionChoice({
+        connection: c,
+        session: existing,
+      });
+
       return;
     }
+
+    setConnectingId(c.id);
+
     try {
       const sessionId = await ConnectSSH(c.id);
+
       setTabs((prev) => [
         ...prev,
-        { id: sessionId, connectionId: c.id, title: c.name, color: c.color },
+        {
+          id: sessionId,
+          connectionId: c.id,
+          title: c.name,
+          color: c.color,
+        },
       ]);
+
       setActiveTab(sessionId);
     } catch (err) {
-      console.error(err);
+      setSshError({
+        title: "Connection failed",
+
+        message:
+          typeof err === "string" ? err : err?.message || "Unable to connect",
+
+        connection: c.name,
+      });
+    } finally {
+      setConnectingId(null);
     }
   };
 
-const uploadFile = async () => {
+  const uploadFile = async () => {
     // Si no hay una sesión SSH activa, detenemos la operación
     if (!activeTab) {
       alert("Por favor, selecciona una sesión activa primero.");
@@ -311,9 +351,9 @@ const uploadFile = async () => {
     const currentRemotePath = fileTreeRef.current?.currentPath || "/";
 
     try {
-      await UploadFile(activeTab, currentRemotePath); 
-      
-      fileTreeRef.current?.refresh(); 
+      await UploadFile(activeTab, currentRemotePath);
+
+      fileTreeRef.current?.refresh();
     } catch (err) {
       if (err.includes("cancelada")) {
         console.log("Subida cancelada por el usuario.");
@@ -327,8 +367,10 @@ const uploadFile = async () => {
   return (
     <div className="app-shell">
       <div className="topbar">
-        <span className="topbar-logo"></span>
-        </div>
+        <span className="topbar-logo">
+          condu<span class="i">i</span>
+        </span>
+      </div>
       {/* TOP BAR */}
       {/*
       <div className="topbar">
@@ -406,6 +448,7 @@ const uploadFile = async () => {
               console.error(err);
             }
           }}
+          connectingId={connectingId}
           activeSessionId={activeTab}
         />
 
@@ -434,10 +477,17 @@ const uploadFile = async () => {
                   <div className="files-header-actions">
                     <button
                       className="files-header-btn"
+                      title="Parent directory"
+                      onClick={() => fileTreeRef.current?.goParent()}
+                    >
+                      <FaLevelUpAlt />
+                    </button>
+                    <button
+                      className="files-header-btn"
                       title="Subir archivo aquí"
                       onClick={uploadFile}
                       style={{
-                        background: "var(--primary)"
+                        background: "var(--primary)",
                       }}
                     >
                       <MdUploadFile />
@@ -460,10 +510,12 @@ const uploadFile = async () => {
                     {activeTabData ? activeTabData.title : "No Session"}
                   </span>
                   <div className="terminal-titlebar-actions">
+                    {/*
                     <button className="terminal-titlebar-btn">+</button>
                     <button className="terminal-titlebar-btn">⊞</button>
                     <button className="terminal-titlebar-btn">🗑</button>
                     <button className="terminal-titlebar-btn">⋮</button>
+                     */}
                   </div>
                 </div>
                 <div className="terminal-container">
@@ -471,7 +523,7 @@ const uploadFile = async () => {
                 </div>
               </div>
             </div>
-            <BottomPanel sessionId={activeTab}/>
+            <BottomPanel sessionId={activeTab} />
           </div>
 
           {tabs.length === 0 && (
@@ -538,9 +590,9 @@ const uploadFile = async () => {
           folders={folders}
           initialValue={editingConnection}
           onCancel={() => {
-    setConnectionModalOpen(false);
-    setEditingConnection(null);
-  }}
+            setConnectionModalOpen(false);
+            setEditingConnection(null);
+          }}
           onSave={async (connection) => {
             try {
               if (editingConnection) {
@@ -582,6 +634,75 @@ const uploadFile = async () => {
             }
           }}
         />
+      </Modal>
+      <Modal open={!!sshError} onClose={() => setSshError(null)}>
+        <div>
+          <div className="modal-header">
+            <h2>Connection failed</h2>
+
+            <p>Unable to establish SSH connection</p>
+          </div>
+
+          <div className="modal-body">
+            <div className="ssh-error-box">
+              <div className="ssh-error-title">{sshError?.connection}</div>
+
+              <pre>{sshError?.message}</pre>
+            </div>
+          </div>
+
+          <div className="modal-footer">
+            <button className="btn-primary" onClick={() => setSshError(null)}>
+              OK
+            </button>
+          </div>
+        </div>
+      </Modal>
+      <Modal
+        open={!!connectionChoice}
+        onClose={() => setConnectionChoice(null)}
+      >
+        <div>
+          <div className="modal-header">
+            <h2>Connection already active</h2>
+
+            <p>Choose how you want to continue</p>
+          </div>
+
+          <div className="modal-body">
+            <div className="connection-choice-card">
+              <strong>{connectionChoice?.connection?.name}</strong>
+
+              <span>This server already has an active SSH session.</span>
+            </div>
+          </div>
+
+          <div className="modal-footer">
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                setActiveTab(connectionChoice.session.id);
+
+                setConnectionChoice(null);
+              }}
+            >
+              Go to session
+            </button>
+
+            <button
+              className="btn-primary"
+              onClick={() => {
+                const c = connectionChoice.connection;
+
+                setConnectionChoice(null);
+
+                handleOpenConnection(c, true);
+              }}
+            >
+              Open new
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

@@ -1,5 +1,83 @@
 import Editor from "@monaco-editor/react";
 
+
+const getExtension = (path = "") => {
+  return path
+    .split(".")
+    .pop()
+    ?.toLowerCase();
+};
+
+
+const getLanguage = (path) => {
+
+  const ext = getExtension(path);
+
+
+  const map = {
+
+    js: "javascript",
+    jsx: "javascript",
+
+    ts: "typescript",
+    tsx: "typescript",
+
+    json: "json",
+
+    html: "html",
+    css: "css",
+
+    go: "go",
+
+    py: "python",
+
+    java: "java",
+
+    sh: "shell",
+
+    yaml: "yaml",
+    yml: "yaml",
+
+    md: "markdown",
+
+    sql: "sql",
+
+    xml: "xml",
+
+    env: "plaintext",
+
+    log: "plaintext",
+    txt: "plaintext",
+
+  };
+
+
+  return map[ext] || "plaintext";
+
+};
+
+
+
+const isImage = (path) => {
+
+  const ext = getExtension(path);
+
+
+  return [
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "webp",
+    "bmp",
+    "svg",
+  ].includes(ext);
+
+};
+
+
+
+
 export default function RemoteFileEditorModal({
   open,
   path,
@@ -10,6 +88,7 @@ export default function RemoteFileEditorModal({
   onSave,
 }) {
 
+
   if (!open) return null;
 
 
@@ -17,16 +96,23 @@ export default function RemoteFileEditorModal({
     path?.split("/").pop();
 
 
+  const image =
+    isImage(path);
+
+
+  const language =
+    getLanguage(path);
+
+
+
   return (
 
     <div className="remote-editor-backdrop">
-
 
       <div className="remote-editor-window">
 
 
         <div className="remote-editor-header">
-
 
           <div>
 
@@ -34,11 +120,15 @@ export default function RemoteFileEditorModal({
 
               {fileName}
 
-              {modified && (
+
+              {modified && !image && (
+
                 <span className="editor-modified">
                   ●
                 </span>
+
               )}
+
 
             </div>
 
@@ -48,7 +138,6 @@ export default function RemoteFileEditorModal({
               {path}
 
             </div>
-
 
           </div>
 
@@ -67,42 +156,72 @@ export default function RemoteFileEditorModal({
 
         <div className="remote-editor-body">
 
-          <Editor
 
-            height="100%"
+          {image ? (
 
-            theme="vs-dark"
 
-            value={content}
+            <div className="remote-image-viewer">
 
-            options={{
 
-              minimap:{
-                enabled:false,
-              },
+              <img
 
-              fontSize:14,
+                src={`data:image/*;base64,${content}`}
 
-              automaticLayout:true,
+                alt={fileName}
 
-              scrollBeyondLastLine:false,
+              />
 
-              wordWrap:"on",
 
-              padding:{
-                top:12,
+            </div>
+
+
+          ) : (
+
+
+            <Editor
+
+              height="100%"
+
+              theme="vs-dark"
+
+              language={language}
+
+              value={content}
+
+
+              options={{
+
+                minimap:{
+                  enabled:false,
+                },
+
+                fontSize:14,
+
+                automaticLayout:true,
+
+                scrollBeyondLastLine:false,
+
+                wordWrap:"on",
+
+                padding:{
+                  top:12,
+                },
+
+              }}
+
+
+              onChange={(v)=>
+                onChange(
+                  v ?? ""
+                )
               }
 
-            }}
+
+            />
 
 
-            onChange={(v)=>
-              onChange(
-                v ?? ""
-              )
-            }
+          )}
 
-          />
 
         </div>
 
@@ -119,17 +238,24 @@ export default function RemoteFileEditorModal({
           </button>
 
 
-          <button
 
-            className="btn-primary"
+          {!image && (
 
-            disabled={!modified}
+            <button
 
-            onClick={onSave}
+              className="btn-primary"
 
-          >
-            Save
-          </button>
+              disabled={!modified}
+
+              onClick={onSave}
+
+            >
+
+              Save
+
+            </button>
+
+          )}
 
 
         </div>
@@ -137,8 +263,8 @@ export default function RemoteFileEditorModal({
 
       </div>
 
-
     </div>
 
   );
+
 }

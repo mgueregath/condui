@@ -9,12 +9,18 @@ import {
   GetDockerContainers,
   ToggleContainer,
 } from "../../wailsjs/go/main/App";
+import { FaTrash, FaDocker, FaEdit, FaPause, FaPlay, FaStop } from "react-icons/fa";
+import { LuLogs } from "react-icons/lu";
+import { BiTransfer } from "react-icons/bi";
+import { GiWarpPipe } from "react-icons/gi";
+import { IoIosAdd } from "react-icons/io";
+import { GrRefresh } from "react-icons/gr";
 
 const TABS = [
-  { id: "logs", label: "Logs" },
-  { id: "transfers", label: "Transfers" },
-  { id: "tunnels", label: "Tunnels" },
-  { id: "docker", label: "Docker" },
+  { id: "logs", label: "Logs", icon: <LuLogs /> },
+  { id: "transfers", label: "Transfers", icon: <BiTransfer /> },
+  { id: "tunnels", label: "Tunnels", icon: <GiWarpPipe /> },
+  { id: "docker", label: "Docker", icon: <FaDocker /> },
 ];
 
 export default function BottomPanel({ sessionId }) {
@@ -198,7 +204,7 @@ export default function BottomPanel({ sessionId }) {
         style={{
           display: "flex",
           borderBottom: "1px solid var(--border)",
-          background: "var(--bg-surface)",
+          background: "var(--bg-elevated)",
           flexShrink: 0,
         }}
       >
@@ -220,6 +226,7 @@ export default function BottomPanel({ sessionId }) {
                   : "2px solid transparent",
             }}
           >
+            {t.icon}
             {t.label}
             {t.id === "transfers" &&
               Object.values(transfers).filter((t) => t.status === "active")
@@ -286,7 +293,7 @@ export default function BottomPanel({ sessionId }) {
                 color: "var(--text-secondary)",
               }}
             >
-              🗑 Clear
+              <FaTrash /> Clear
             </button>
           )}
           {(activeTab === "tunnels" || activeTab === "docker") && (
@@ -303,7 +310,7 @@ export default function BottomPanel({ sessionId }) {
                 color: "var(--text-secondary)",
               }}
             >
-              🔄 Refresh
+              <GrRefresh /> Refresh
             </button>
           )}
         </div>
@@ -315,7 +322,7 @@ export default function BottomPanel({ sessionId }) {
         style={{
           height: "320px",
           overflowY: "auto",
-          background: "var(--bg-panel)",
+          background: "var(--bg-white)",
           position: "relative",
         }}
       >
@@ -742,7 +749,7 @@ export default function BottomPanel({ sessionId }) {
                       <button
                         onClick={() => handleToggleContainer(c.id, c.state)}
                         style={{
-                          padding: "5px 12px",
+                          padding: "5px 5px",
                           cursor: "pointer",
                           backgroundColor: isRunning
                             ? "var(--yellow)"
@@ -752,7 +759,6 @@ export default function BottomPanel({ sessionId }) {
                           borderRadius: "4px",
                           fontSize: "11px",
                           fontWeight: "600",
-                          minWidth: "75px",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -767,7 +773,7 @@ export default function BottomPanel({ sessionId }) {
                           (e.currentTarget.style.opacity = "1")
                         }
                       >
-                        {isRunning ? "🛑 Stop" : "▶ Start"}
+                        {isRunning ? <FaStop /> : <FaPlay /> }
                       </button>
                     </div>
                   </div>
@@ -812,8 +818,8 @@ export default function BottomPanel({ sessionId }) {
               }}
             >
               {editingTunnelId
-                ? "✏️ Editar Parámetros del Túnel"
-                : "➕ Configurar Nuevo Túnel Port-Forwarding"}
+                ? <FaEdit /> + " Editar Parámetros del Túnel"
+                : <IoIosAdd /> + "➕ Configurar Nuevo Túnel Port-Forwarding"}
             </h3>
 
             <form

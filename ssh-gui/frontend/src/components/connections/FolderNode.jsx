@@ -1,5 +1,6 @@
 import { useState } from "react";
 import ContextMenu from "./ContextMenu";
+import { FaFolder, FaFolderOpen, FaFile, FaAngleLeft, FaAngleDown } from "react-icons/fa";
 
 export default function FolderNode({ folder, expanded, onToggle, onEdit, onDelete, children }) {
   const [ctx, setCtx] = useState(null);
@@ -25,13 +26,16 @@ export default function FolderNode({ folder, expanded, onToggle, onEdit, onDelet
         onClick={() => onToggle(folder.id)}
         onContextMenu={handleContextMenu}
       >
-        <span style={{ fontSize: "9px", color: "var(--text-muted)", width: "10px", flexShrink: 0 }}>
-          {expanded ? "▼" : "▶"}
+        <span style={{ fontSize: "14px", flexShrink: 0 }}>
+          {expanded ? <FaFolderOpen /> : <FaFolder />}
         </span>
-        <span style={{ fontSize: "14px", flexShrink: 0 }}>📁</span>
         <div className="conn-info">
           <div className="conn-name">{folder.name}</div>
         </div>
+
+        <span style={{ fontSize: "9px", color: "var(--text-muted)", width: "10px", flexShrink: 0 }}>
+          {expanded ? <FaAngleDown /> : <FaAngleLeft />}
+        </span>
       </div>
 
       {expanded && <div style={{ paddingLeft: "14px" }}>{children}</div>}

@@ -1,5 +1,9 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { FaFolder, FaEdit, FaTrash, FaDownload } from "react-icons/fa";
+import { RiFileEditFill } from "react-icons/ri";
+import { MdCreateNewFolder } from "react-icons/md";
+
 
 export default function FileContextMenu({
   x,
@@ -83,7 +87,7 @@ export default function FileContextMenu({
    */
   if (item.isBackground) {
     items.push({
-      icon: "📁",
+      icon: <FaFolder />,
       label: "New Folder",
       onClick: () => onNewFolder(item),
     });
@@ -94,18 +98,18 @@ export default function FileContextMenu({
    */
   else if (!item.isDirectory) {
     items.push({
-      icon: "📝",
+      icon: <RiFileEditFill />,
       label: "Open / Edit",
       onClick: () => onOpenFile(item),
     });
     items.push({
-      icon: "⬇",
+      icon: <FaDownload />,
       label: "Download",
       onClick: () => onDownload(item),
     });
 
     items.push({
-      icon: "✏️",
+      icon: <FaEdit />,
       label: "Rename",
       onClick: () => onRename(item),
     });
@@ -115,7 +119,7 @@ export default function FileContextMenu({
     });
 
     items.push({
-      icon: "🗑",
+      icon: <FaTrash />,
       label: "Delete",
       danger: true,
       onClick: () => onDelete(item),
@@ -127,13 +131,13 @@ export default function FileContextMenu({
    */
   else {
     items.push({
-      icon: "📁",
+      icon: <MdCreateNewFolder />,
       label: "New Folder",
       onClick: () => onNewFolder(item),
     });
 
     items.push({
-      icon: "✏️",
+      icon: <FaEdit />,
       label: "Rename",
       onClick: () => onRename(item),
     });
@@ -143,7 +147,7 @@ export default function FileContextMenu({
     });
 
     items.push({
-      icon: "🗑",
+      icon: <FaTrash />,
       label: "Delete",
       danger: true,
       onClick: () => onDelete(item),

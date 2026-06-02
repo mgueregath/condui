@@ -1,3 +1,6 @@
+import { FaFolder, FaFolderOpen, FaFile } from "react-icons/fa";
+
+
 export default function RemoteFileNode({
  item,
  onOpen,
@@ -37,7 +40,7 @@ export default function RemoteFileNode({
    <div className="file-node-name">
 
     <span>
-     {isDir?"📁":"📄"}
+     {isDir? <FaFolder /> : <FaFile /> }
     </span>
 
     <span>

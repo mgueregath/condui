@@ -1,4 +1,4 @@
-import { useEffect, useState, forwardRef, useImperativeHandle } from "react"; 
+import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 
 import {
   ListDirectory,
@@ -7,7 +7,7 @@ import {
   CreateRemoteDirectory,
   DownloadFile,
   ReadRemoteFile,
-  SaveRemoteFile
+  SaveRemoteFile,
 } from "../../../wailsjs/go/main/App";
 
 import RemoteFileNode from "./RemoteFileNode";
@@ -42,11 +42,25 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
   };
 
   const refresh = () => load(path);
+  const goParent = () => {
+    if (path === "/") {
+      return;
+    }
+
+    const parts = path.split("/").filter(Boolean);
+
+    parts.pop();
+
+    const parent = parts.length === 0 ? "/" : "/" + parts.join("/");
+
+    load(parent);
+  };
 
   useImperativeHandle(ref, () => ({
-    refresh,
-    currentPath: path
-  }));
+  refresh,
+  goParent,
+  currentPath: path,
+}));
 
   const openContextMenu = (item, x, y) => {
     setContextMenu({
@@ -127,7 +141,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
 
   const downloadFile = async (item) => {
     try {
-      await DownloadFile(sessionId, item.path, ""); 
+      await DownloadFile(sessionId, item.path, "");
       alert("Descarga completada con éxito");
     } catch (err) {
       console.error(err);
@@ -148,10 +162,13 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
         </span>
 
         {parts.map((p, i) => (
-          <span key={i} >
-            <span className="breadcrumb-item" onClick={() => load("/" + parts.slice(0, i + 1).join("/"))}>
-              
-          {i == 0 ? "" : "/"}{p}
+          <span key={i}>
+            <span
+              className="breadcrumb-item"
+              onClick={() => load("/" + parts.slice(0, i + 1).join("/"))}
+            >
+              {i == 0 ? "" : "/"}
+              {p}
             </span>
           </span>
         ))}

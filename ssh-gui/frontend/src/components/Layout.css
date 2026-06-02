@@ -1,20 +1,21 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 
 :root {
-  --bg-base: #eef1f6;
+  --bg-base: #f0f0f7;
   --bg-surface: #ffffff;
-  --bg-elevated: #f8fafc;
-  --bg-hover: #f1f5f9;
+  --bg-elevated: #f6f5fb;
+  --bg-hover: #eeecf9;
+  --bg-white: #ffffff;
 
-  --border: #e2e8f0;
-  --border-subtle: #f0f4f8;
+  --border: #e0ddf4;
+  --border-subtle: #ede9f8;
 
   --text-primary: #111827;
-  --text-secondary: #6b7280;
-  --text-muted: #9ca3af;
+  --text-secondary: #6b6490;
+  --text-muted: #a89fc4;
 
-  --accent: #6366f1;
-  --accent-hover: #4f46e5;
+  --accent: #8661f1;
+  --accent-hover: #7048e8;
 
   --green: #22c55e;
   --yellow: #f59e0b;
@@ -23,9 +24,9 @@
 
   --card-radius: 10px;
 
-  --terminal-bg: #111827;
-  --terminal-titlebar: #1f2937;
-  --terminal-border: #374151;
+  --terminal-bg: #0d0b18;
+  --terminal-titlebar: #130f24;
+  --terminal-border: #0d0b18;
 
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
@@ -108,12 +109,18 @@ body,
 }
 
 .topbar-logo {
-  font-size: 15px;
+  font-family: "NeuropolX", sans-serif;
+  font-size: 30px;
   margin-left: 80px;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.4px;
   margin-right: 10px;
+  transform: scaleY(1.4);
+}
+
+.topbar-logo span.i {
+  color: var(--accent);
 }
 
 .topbar-actions {
@@ -228,28 +235,24 @@ body,
 }
 
 /* ===================== LEFT SIDEBAR — tarjeta independiente ===================== */
-.sidebar {
+
+.sidebar-container {
+  display: flex;
   width: 220px;
   flex-shrink: 0;
-  background: var(--bg-surface);
-  border-radius: var(--card-radius);
-  border: 1px solid var(--border);
-  display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
-.sidebar .app-logo {
+.sidebar-container .app-logo {
+  height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
 
   padding: 18px 0px;
-
-  border-bottom: 6px solid var(--bg-base);
 }
 
-.sidebar .app-logo .logo-image {
+.sidebar-container .app-logo .logo-image {
   width: 170px;
 
   max-width: 60%;
@@ -257,6 +260,17 @@ body,
   height: auto;
 
   object-fit: contain;
+}
+
+.sidebar {
+  flex: 1;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border-radius: var(--card-radius);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .sidebar-header {
@@ -465,14 +479,13 @@ body,
 .tabbar {
   height: 40px;
   flex-shrink: 0;
-  background: var(--bg-surface);
-  border-radius: var(--card-radius);
+  background: var(--bg-base);
+  border-radius: var(--card-radius) var(--card-radius) 0 0;
   display: flex;
   align-items: center;
   padding: 0 10px;
   gap: 3px;
   padding-top: 10px;
-  z-index: 0;
 }
 .tabbar::-webkit-scrollbar {
   height: 0;
@@ -491,22 +504,24 @@ body,
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 500;
-  border: 1px solid var(--border);
   white-space: nowrap;
   flex-shrink: 0;
+  border: 1px solid #e9e9e9;
+  overflow: visible;
 }
 .tab:hover {
   background: var(--bg-hover);
   color: var(--text-secondary);
 }
 .tab.active {
-  background: var(--bg-elevated);
+  background: var(--bg-white);
   color: var(--text-primary);
   border-color: var(--border);
-  border-bottom: none;
   z-index: 999;
   font-size: 12px;
   font-weight: 600;
+  border: 1px solid var(--border);
+  border-bottom: none;
 }
 
 .tab-close {
@@ -584,6 +599,7 @@ body,
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: var(--bg-elevated);
 }
 .files-header-actions {
   display: flex;
@@ -666,7 +682,6 @@ body,
 
 .file-node-name span {
   -webkit-user-select: none;
-
 }
 
 .file-node:hover {
@@ -743,7 +758,7 @@ body,
 }
 .terminal-title {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-secondary);
   font-weight: 600;
 }
 .terminal-titlebar-actions {
@@ -778,7 +793,22 @@ body,
 .terminal-container > div {
   position: absolute;
   inset: 0;
-  padding: 4px;
+  background: var(--terminal-bg);
+}
+
+.terminal .xterm-viewport {
+  background: var(--terminal-bg) !important;
+}
+
+.terminal .xterm-screen {
+  padding: 4px !important;
+}
+
+.terminal .xterm-screen .xterm-rows span {
+  font-family: "JetBrains Mono", monospace !important;
+  line-height: 1.55;
+  font-size: 12px;
+  color: #c4bde0 !important;
 }
 
 .terminal-statusbar {
@@ -1263,7 +1293,7 @@ select.modern-input {
   flex-direction: column;
   gap: 8px;
   padding: 8px;
-  background: var(--bg-elevated);
+  background: var(--bg-white);
   overflow: hidden;
   min-height: 0;
   z-index: 0;
@@ -1360,7 +1390,6 @@ select.modern-input {
   justify-content: center;
 }
 
-
 .remote-editor-window {
   width: min(1200px, 92vw);
   height: min(800px, 86vh);
@@ -1370,10 +1399,8 @@ select.modern-input {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow:
-    0 25px 90px rgba(0,0,0,.55);
+  box-shadow: 0 25px 90px rgba(0, 0, 0, 0.55);
 }
-
 
 /* HEADER */
 
@@ -1388,20 +1415,17 @@ select.modern-input {
   flex-shrink: 0;
 }
 
-
 .remote-editor-title {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-
 .remote-editor-path {
   margin-top: 3px;
   font-size: 11px;
   color: var(--text-muted);
 }
-
 
 .remote-editor-close {
   border: none;
@@ -1411,8 +1435,6 @@ select.modern-input {
   color: var(--text-muted);
 }
 
-
-
 /* BODY */
 
 .remote-editor-body {
@@ -1421,8 +1443,6 @@ select.modern-input {
   overflow: hidden;
   background: #1e1e1e;
 }
-
-
 
 /* FOOTER */
 
@@ -1438,8 +1458,6 @@ select.modern-input {
   flex-shrink: 0;
 }
 
-
-
 .editor-modified {
   margin-left: 8px;
   color: #f59e0b;
@@ -1447,7 +1465,263 @@ select.modern-input {
 
 .remote-tree {
   overflow-y: auto;
-display: flex;
-flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
+/* ======================================================
+   SSH CONNECTION LOADER
+   ====================================================== */
+
+.conn-loader {
+  width: 13px;
+  height: 13px;
+
+  display: inline-block;
+
+  border-radius: 50%;
+
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #35d07f;
+
+  animation: conn-spin 0.7s linear infinite;
+}
+
+@keyframes conn-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.conn-action-btn:disabled {
+  opacity: 0.55;
+
+}
+
+/* ======================================================
+   SSH ERROR MODAL CONTENT
+   ====================================================== */
+
+
+
+.ssh-error-modal h2 {
+  margin: 0;
+
+  font-size: 18px;
+
+  font-weight: 600;
+
+  color: #ff5f57;
+}
+
+
+.ssh-error-modal pre {
+  margin: 0;
+
+  max-height: 180px;
+
+  overflow: auto;
+
+  padding: 12px;
+
+  border-radius: 10px;
+
+  background: #111318;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  color: #ffb4b4;
+
+  font-size: 12px;
+
+  line-height: 1.45;
+
+  white-space: pre-wrap;
+
+  font-family: "JetBrains Mono", "SF Mono", Consolas, monospace;
+}
+
+/* ======================================================
+   SSH ERROR BUTTON
+   ====================================================== */
+
+.ssh-error-modal .primary-btn {
+  margin-top: 4px;
+
+  height: 34px;
+
+  border: none;
+
+  border-radius: 8px;
+
+  background: linear-gradient(180deg, #2684ff, #1264d8);
+
+  color: white;
+
+  font-size: 13px;
+
+  font-weight: 500;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.ssh-error-modal .primary-btn:hover {
+  transform: translateY(-1px);
+
+  opacity: 0.9;
+}
+
+.ssh-error-modal .primary-btn:active {
+  transform: translateY(0);
+}
+
+/* ======================================================
+   KEEP SSH LOADER VISIBLE
+   ====================================================== */
+
+.conn-actions.connecting {
+
+  opacity: 1 !important;
+
+  visibility: visible !important;
+
+  pointer-events: auto;
+
+}
+
+
+.drawer-conn-item:has(.conn-actions.connecting)
+.conn-actions {
+
+  opacity: 1;
+
+  visibility: visible;
+
+}
+
+/* ===============================
+   SSH MODAL EXTENSIONS
+================================ */
+
+.ssh-error-box {
+
+  background: var(--bg-elevated);
+
+  border: 1px solid var(--border);
+
+  border-radius: 8px;
+
+  padding: 12px;
+
+}
+
+
+.ssh-error-title {
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  color: var(--red);
+
+  margin-bottom: 10px;
+
+}
+
+
+.ssh-error-box pre {
+
+  margin: 0;
+
+  padding: 10px;
+
+  background: var(--terminal-bg);
+
+  border-radius: 6px;
+
+  color: #fca5a5;
+
+  font-family:
+    "JetBrains Mono",
+    monospace;
+
+  font-size: 11px;
+
+  white-space: pre-wrap;
+
+  max-height: 150px;
+
+  overflow: auto;
+
+}
+
+
+.connection-choice-card {
+
+  display:flex;
+
+  flex-direction:column;
+
+  gap:6px;
+
+  padding:14px;
+
+  background:var(--bg-elevated);
+
+  border:1px solid var(--border);
+
+  border-radius:8px;
+
+}
+
+
+.connection-choice-card strong {
+
+  font-size:13px;
+
+  color:var(--text-primary);
+
+}
+
+
+.connection-choice-card span {
+
+  font-size:12px;
+
+  color:var(--text-muted);
+
+}
+
+.remote-image-viewer {
+
+  width:100%;
+  height:100%;
+
+  display:flex;
+
+  align-items:center;
+  justify-content:center;
+
+  background:#1e1e1e;
+
+}
+
+
+.remote-image-viewer img {
+
+  max-width:95%;
+  max-height:95%;
+
+  object-fit:contain;
+
+  border-radius:8px;
+
+}

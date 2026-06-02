@@ -9,6 +9,8 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"encoding/base64"
+    "path/filepath"
 
 	"github.com/google/uuid"
 	"github.com/pkg/sftp"
@@ -575,6 +577,7 @@ func (a *App) ReadRemoteFile(
 			)
 	}
 
+
 	if session.SFTP == nil {
 		return "",
 			fmt.Errorf(
@@ -582,10 +585,45 @@ func (a *App) ReadRemoteFile(
 			)
 	}
 
-	return sftpservice.ReadFile(
-		session.SFTP,
-		path,
-	)
+
+	content, err :=
+		sftpservice.ReadFile(
+			session.SFTP,
+			path,
+		)
+
+
+	if err != nil {
+		return "", err
+	}
+
+
+	ext :=
+		strings.ToLower(
+			filepath.Ext(path),
+		)
+
+
+	switch ext {
+
+	case ".png",
+		".jpg",
+		".jpeg",
+		".gif",
+		".webp",
+		".bmp":
+
+		return base64.StdEncoding.EncodeToString(
+			[]byte(content),
+		), nil
+
+
+	default:
+
+		return content, nil
+
+	}
+
 }
 
 
