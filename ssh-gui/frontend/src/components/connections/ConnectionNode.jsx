@@ -16,13 +16,23 @@ export default function ConnectionNode({
   };
 
   return (
-    <div className="drawer-conn-item" onDoubleClick={connect}>
-      <span
-        className={`conn-dot ${connection.online ? "online" : "offline"}`}
-      />
+    <div className="drawer-conn-item" onDoubleClick={connect} 
+    style={{
+      "--connection-color": connection.color,
+    }}>
+      <div className="conn-status">
+        <span
+          className={`conn-dot ${connection.online > 0 ? "online" : "offline"}`}
+        />
 
+        {connection.online > 1 && (
+          <span className="conn-count">{connection.online}</span>
+        )}
+      </div>
       <div className="conn-info">
-        <div className="conn-name">{connection.name}</div>
+        <div className="conn-name" style={{ color: connection.color }}>
+          {connection.name}
+        </div>
 
         <div className="conn-host">
           {connection.username}@{connection.host}
@@ -69,3 +79,4 @@ export default function ConnectionNode({
     </div>
   );
 }
+

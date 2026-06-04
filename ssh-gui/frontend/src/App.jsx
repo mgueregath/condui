@@ -39,6 +39,7 @@ import ContextMenu from "./components/connections/ContextMenu";
 import "./components/Layout.css";
 
 function LeftSidebar({
+  tabs,
   folders,
   connections,
   connectingId,
@@ -117,7 +118,10 @@ function LeftSidebar({
                 {fConns.map((c) => (
                   <ConnectionNode
                     key={c.id}
-                    connection={c}
+                    connection={{
+                      ...c,
+                      online: tabs.filter((tab) => tab.connectionId === c.id).length,
+                    }}
                     connecting={connectingId === c.id}
                     folders={folders}
                     onOpen={onOpenConnection}
@@ -141,7 +145,10 @@ function LeftSidebar({
                 .map((c) => (
                   <ConnectionNode
                     key={c.id}
-                    connection={c}
+                    connection={{
+                      ...c,
+                      online: tabs.filter((tab) => tab.connectionId === c.id).length,
+                    }}
                     connecting={connectingId === c.id}
                     folders={folders}
                     onOpen={onOpenConnection}
@@ -232,7 +239,7 @@ function App() {
         background: "#111827",
         foreground: "#d1d5db",
         cursor: "#6366f1",
-        selectionBackground: "rgba(99,102,241,0.3)",
+        selectionBackground: "rgba(99, 101, 241, 0.07)",
         black: "#1f2937",
         red: "#f87171",
         green: "#86efac",
@@ -409,6 +416,7 @@ function App() {
       {/* MAIN */}
       <div className="main-content">
         <LeftSidebar
+          tabs={tabs}
           folders={folders}
           connections={connections}
           expandedFolders={expandedFolders}

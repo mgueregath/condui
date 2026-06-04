@@ -27,7 +27,7 @@ export default function ConnectionModal({ initialValue, folders, onSave, onCance
   const [form, setForm] = useState(initialValue || {
     name: "", host: "", port: 22, username: "",
     password: "", authType: "password",
-    privateKeyPath: "", folderId: "", color: "#7c6af5",
+    privateKeyPath: "", folderId: "", color: "#eeecf9",
   });
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));

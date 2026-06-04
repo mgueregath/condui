@@ -18,17 +18,9 @@ export default function TabBar({ tabs, activeTab, onSelect, onClose }) {
           className={activeTab === tab.id ? "tab active" : "tab"}
           onClick={() => onSelect(tab.id)}
         >
-          <span
-            style={{
-              width: "7px",
-              height: "7px",
-              borderRadius: "50%",
-              background: tab.color || "var(--green)",
-              display: "inline-block",
-              flexShrink: 0,
-            }}
-          />
-          <span>{tab.title}</span>
+          <span style={{ color: tab.color || "var(--bg-hover)" }}>
+            {tab.title}
+          </span>
           {onClose && (
             <button
               className="tab-close"

@@ -1056,9 +1056,15 @@ body,
   transition: 0.12s;
   color: var(--text-secondary);
   position: relative;
+  box-sizing: border-box;
+  border: 2px solid transparent;
 }
 .drawer-conn-item:hover {
-  background: var(--bg-hover);
+  background: color-mix(
+    in srgb,
+    var(--connection-color) 20%,
+    transparent
+  );
   color: var(--text-primary);
 }
 .drawer-conn-item .conn-actions {
@@ -1724,4 +1730,58 @@ select.modern-input {
 
   border-radius:8px;
 
+}
+
+.conn-status {
+  position: relative;
+  width: 14px;
+  height: 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+}
+
+.conn-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.conn-dot.online {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34,197,94,.8);
+}
+
+.conn-dot.offline {
+  background: #64748b;
+}
+
+
+.conn-count {
+  position: absolute;
+
+  top: -7px;
+  right: -5px;
+
+  min-width: 14px;
+  height: 14px;
+
+  padding: 0 4px;
+
+  border-radius: 999px;
+
+
+  color: #020617;
+
+  font-size: 9px;
+  font-weight: 700;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  line-height: 1;
 }
