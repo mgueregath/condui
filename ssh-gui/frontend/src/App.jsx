@@ -5,7 +5,7 @@ import "xterm/css/xterm.css";
 import conduiLogo from "./assets/images/condui-transparent.png";
 import { FaFolder, FaFolderOpen, FaFile } from "react-icons/fa";
 
-import { EventsOn } from "../wailsjs/runtime/runtime";
+import { EventsOn, EventsOff } from "../wailsjs/runtime/runtime";
 import RemoteFileTree from "./components/files/RemoteFileTree";
 import {
   ConnectSSH,
@@ -28,6 +28,7 @@ import { FaLevelUpAlt } from "react-icons/fa";
 
 import TabBar from "./components/TabBar";
 import BottomPanel from "./components/BottomPanel";
+import ResourceBar from "./components/ResourceBar";
 import { useConnections } from "./hooks/useConnections";
 import Modal from "./components/common/Modal";
 import ConnectionNode from "./components/connections/ConnectionNode";
@@ -207,6 +208,43 @@ function App() {
   const [sshError, setSshError] = useState(null);
   const { folders, connections, reload } = useConnections();
 
+  useEffect(() => {
+    const unsub = EventsOn("session-disconnected", (payload) => {
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.id === payload.sessionId ? { ...t, disconnected: true } : t,
+        ),
+      );
+    });
+    return () => unsub();
+  }, []);
+
+  const handleReconnect = async (tab) => {
+    const connection = connections.find((c) => c.id === tab.connectionId);
+    if (!connection) return;
+
+    setConnectingId(tab.connectionId);
+    try {
+      const newSessionId = await ConnectSSH(tab.connectionId);
+      delete terminalBuffers.current[tab.id];
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.id === tab.id ? { ...t, id: newSessionId, disconnected: false } : t,
+        ),
+      );
+      setActiveTab(newSessionId);
+    } catch (err) {
+      setSshError({
+        title: "Reconnection failed",
+        message:
+          typeof err === "string" ? err : err?.message || "Unable to connect",
+        connection: tab.title,
+      });
+    } finally {
+      setConnectingId(null);
+    }
+  };
+
   const [folderModalOpen, setFolderModalOpen] = useState(false);
   const [connectionModalOpen, setConnectionModalOpen] = useState(false);
   const [assignFolderModalOpen, setAssignFolderModalOpen] = useState(false);
@@ -284,15 +322,22 @@ function App() {
       term.write(payload.data);
     });
 
-    const resizeHandler = () => {
+    const doFit = () => {
       fitAddon.fit();
       if (activeTab && termRef.current)
         ResizeTerminal(activeTab, term.rows, term.cols);
     };
-    window.addEventListener("resize", resizeHandler);
+    window.addEventListener("resize", doFit);
+
+    // Re-ajusta también cuando el contenedor cambia de tamaño por DOM
+    // (p.ej. cuando aparece la ResourceBar después de cargar los stats)
+    const ro = new ResizeObserver(doFit);
+    ro.observe(terminalRef.current);
+
     return () => {
       unsubscribe();
-      window.removeEventListener("resize", resizeHandler);
+      window.removeEventListener("resize", doFit);
+      ro.disconnect();
       term.dispose();
     };
   }, [activeTab]);
@@ -473,6 +518,8 @@ function App() {
                 setActiveTab(remaining.length ? remaining[0].id : null);
               }
             }}
+            onReconnect={handleReconnect}
+            connectingId={connectingId}
           />
           <div
             className="card-inner"
@@ -513,22 +560,46 @@ function App() {
               </div>
               <div className="terminal-card">
                 <div className="terminal-titlebar">
-                  <span className="terminal-titlebar-dot" />
+                  <span
+                    className={
+                      "terminal-titlebar-dot" +
+                      (activeTabData?.disconnected ? " disconnected" : "")
+                    }
+                  />
                   <span className="terminal-title">
                     {activeTabData ? activeTabData.title : "No Session"}
                   </span>
-                  <div className="terminal-titlebar-actions">
-                    {/*
-                    <button className="terminal-titlebar-btn">+</button>
-                    <button className="terminal-titlebar-btn">⊞</button>
-                    <button className="terminal-titlebar-btn">🗑</button>
-                    <button className="terminal-titlebar-btn">⋮</button>
-                     */}
-                  </div>
+                  {activeTabData?.disconnected && (
+                    <span className="terminal-titlebar-status">
+                      Disconnected
+                    </span>
+                  )}
+                  <div className="terminal-titlebar-actions" />
                 </div>
                 <div className="terminal-container">
                   <div ref={terminalRef} />
+                  {activeTabData?.disconnected && (
+                    <div className="terminal-disconnect-overlay">
+                      <div className="terminal-disconnect-icon">⚠</div>
+                      <div className="terminal-disconnect-message">
+                        Session disconnected
+                      </div>
+                      <button
+                        className="terminal-reconnect-btn"
+                        disabled={connectingId === activeTabData?.connectionId}
+                        onClick={() => handleReconnect(activeTabData)}
+                      >
+                        {connectingId === activeTabData?.connectionId
+                          ? "Connecting…"
+                          : "Reconnect"}
+                      </button>
+                    </div>
+                  )}
                 </div>
+                <ResourceBar
+                  sessionId={activeTab}
+                  disconnected={activeTabData?.disconnected}
+                />
               </div>
             </div>
             <BottomPanel sessionId={activeTab} />

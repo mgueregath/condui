@@ -1,4 +1,4 @@
-import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
+import { useEffect, useState, useMemo, forwardRef, useImperativeHandle } from "react";
 
 import {
   ListDirectory,
@@ -14,9 +14,18 @@ import RemoteFileNode from "./RemoteFileNode";
 import FileContextMenu from "./FileContextMenu";
 import RemoteFileEditorModal from "../editor/RemoteFileEditorModal";
 
+const SORT_OPTIONS = [
+  { key: "name",    label: "Nombre" },
+  { key: "size",    label: "Tamaño" },
+  { key: "modTime", label: "Modificado" },
+  { key: "type",    label: "Tipo" },
+];
+
 const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
   const [path, setPath] = useState("/");
   const [files, setFiles] = useState([]);
+  const [sortBy, setSortBy] = useState("name");
+  const [sortDir, setSortDir] = useState("asc");
 
   const [editor, setEditor] = useState({
     open: false,
@@ -34,108 +43,68 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
 
   const load = async (targetPath) => {
     if (!sessionId) return;
-
     const result = await ListDirectory(sessionId, targetPath);
-
     setFiles(result || []);
     setPath(targetPath);
   };
 
   const refresh = () => load(path);
   const goParent = () => {
-    if (path === "/") {
-      return;
-    }
-
+    if (path === "/") return;
     const parts = path.split("/").filter(Boolean);
-
     parts.pop();
-
     const parent = parts.length === 0 ? "/" : "/" + parts.join("/");
-
     load(parent);
   };
 
   useImperativeHandle(ref, () => ({
-  refresh,
-  goParent,
-  currentPath: path,
-}));
+    refresh,
+    goParent,
+    currentPath: path,
+  }));
 
   const openContextMenu = (item, x, y) => {
-    setContextMenu({
-      visible: true,
-      x,
-      y,
-      item,
-    });
+    setContextMenu({ visible: true, x, y, item });
   };
 
   const openFile = async (file) => {
     const content = await ReadRemoteFile(sessionId, file.path);
-
-    setEditor({
-      open: true,
-      path: file.path,
-      content,
-      modified: false,
-    });
+    setEditor({ open: true, path: file.path, content, modified: false });
   };
 
   const saveEditor = async () => {
     await SaveRemoteFile(sessionId, editor.path, editor.content);
-
-    setEditor((e) => ({
-      ...e,
-      modified: false,
-    }));
+    setEditor((e) => ({ ...e, modified: false }));
   };
 
   const closeEditor = async () => {
     if (editor.modified) {
-      if (window.confirm("Save changes?")) {
-        await saveEditor();
-      }
+      if (window.confirm("Save changes?")) await saveEditor();
     }
-
-    setEditor({
-      open: false,
-      path: "",
-      content: "",
-      modified: false,
-    });
+    setEditor({ open: false, path: "", content: "", modified: false });
   };
 
   const deleteFile = async (item) => {
     if (!confirm(`Delete ${item.name}?`)) return;
-
     await DeleteRemoteFile(sessionId, item.path);
-
     refresh();
   };
 
   const renameFile = async (item) => {
     const name = prompt("New name", item.name);
-
     if (!name) return;
-
     const parent = item.path.substring(0, item.path.lastIndexOf("/"));
-
     await RenameRemoteFile(sessionId, item.path, `${parent}/${name}`);
-
     refresh();
   };
 
   const createFolder = async () => {
     const name = prompt("Folder name");
-
     if (!name) return;
-
     await CreateRemoteDirectory(
       sessionId,
       path === "/" ? `/${name}` : `${path}/${name}`,
     );
-
     refresh();
   };
 
@@ -152,6 +121,46 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
     load("/");
   }, [sessionId]);
 
+  const toggleSort = (field) => {
+    if (sortBy === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortDir("asc");
+    }
+  };
+
+  const sortedFiles = useMemo(() => {
+    if (!files.length) return files;
+    return [...files].sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case "name":
+          if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+          cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+          break;
+        case "size":
+          if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+          cmp = a.size - b.size;
+          break;
+        case "modTime": {
+          const ta = a.modTime ? new Date(a.modTime).getTime() : 0;
+          const tb = b.modTime ? new Date(b.modTime).getTime() : 0;
+          cmp = ta - tb;
+          break;
+        }
+        case "type":
+          if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+          const extA = a.name.includes(".") ? a.name.split(".").pop().toLowerCase() : "";
+          const extB = b.name.includes(".") ? b.name.split(".").pop().toLowerCase() : "";
+          cmp = extA.localeCompare(extB);
+          if (cmp === 0) cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+          break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [files, sortBy, sortDir]);
+
   const parts = path.split("/").filter(Boolean);
 
   return (
@@ -160,17 +169,31 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
         <span className="breadcrumb-item root" onClick={() => load("/")}>
           /
         </span>
-
         {parts.map((p, i) => (
           <span key={i}>
             <span
               className="breadcrumb-item"
               onClick={() => load("/" + parts.slice(0, i + 1).join("/"))}
             >
-              {i == 0 ? "" : "/"}
+              {i === 0 ? "" : "/"}
               {p}
             </span>
           </span>
+        ))}
+      </div>
+
+      <div className="files-sort-bar">
+        {SORT_OPTIONS.map((opt) => (
+          <button
+            key={opt.key}
+            className={"files-sort-btn" + (sortBy === opt.key ? " active" : "")}
+            onClick={() => toggleSort(opt.key)}
+          >
+            {opt.label}
+            {sortBy === opt.key && (
+              <span className="sort-arrow">{sortDir === "asc" ? "↑" : "↓"}</span>
+            )}
+          </button>
         ))}
       </div>
 
@@ -178,21 +201,15 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
         className="files-list"
         onContextMenu={(e) => {
           if (e.target !== e.currentTarget) return;
-
           e.preventDefault();
-
           openContextMenu(
-            {
-              isBackground: true,
-              isDirectory: true,
-              path,
-            },
+            { isBackground: true, isDirectory: true, path },
             e.clientX,
             e.clientY,
           );
         }}
       >
-        {files.map((file) => (
+        {sortedFiles.map((file) => (
           <RemoteFileNode
             key={file.path}
             item={file}
@@ -212,12 +229,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
         onRename={renameFile}
         onNewFolder={createFolder}
         onOpenFile={openFile}
-        onClose={() =>
-          setContextMenu((c) => ({
-            ...c,
-            visible: false,
-          }))
-        }
+        onClose={() => setContextMenu((c) => ({ ...c, visible: false }))}
       />
 
       <RemoteFileEditorModal
@@ -226,11 +238,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
         content={editor.content}
         modified={editor.modified}
         onChange={(value) =>
-          setEditor((e) => ({
-            ...e,
-            content: value,
-            modified: true,
-          }))
+          setEditor((e) => ({ ...e, content: value, modified: true }))
         }
         onSave={saveEditor}
         onClose={closeEditor}

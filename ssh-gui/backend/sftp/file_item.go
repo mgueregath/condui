@@ -1,5 +1,7 @@
 package sftp
 
+import "time"
+
 type FileItem struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
@@ -9,4 +11,6 @@ type FileItem struct {
 	Size int64 `json:"size"`
 
 	Mode string `json:"mode"`
+
+	ModTime time.Time `json:"modTime"`
 }

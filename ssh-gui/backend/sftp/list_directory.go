@@ -37,6 +37,9 @@ func ListDirectory(
 
 					Mode:
 						file.Mode().String(),
+
+					ModTime:
+						file.ModTime(),
 				},
 			)
 

@@ -6,4 +6,5 @@ type DockerContainer struct {
 	Image   string `json:"image"`
 	Status  string `json:"status"`
 	State   string `json:"state"`
+	Ports   string `json:"ports"`
 }

@@ -2,11 +2,15 @@ package main
 
 import (
 	"fmt"
+	"bufio"
 	"context"
+	"strconv"
 	"time"
 	"io"
 	"os"
 	"net"
+	"net/http"
+	neturl "net/url"
 	"strings"
 	"sync"
 	"encoding/base64"
@@ -34,6 +38,11 @@ type App struct {
 	database *storage.Database
 
 	transferManager *transfers.Manager
+
+	dockerLogMu      sync.Mutex
+	dockerLogSessions map[string]*ssh.Session
+
+	logServerPort int
 }
 
 func NewApp() *App {
@@ -70,6 +79,174 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	go a.startDockerLogServer()
+}
+
+func (a *App) startDockerLogServer() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", a.handleLogViewer)
+	mux.HandleFunc("/stream", a.handleLogStream)
+	for port := 9091; port <= 9110; port++ {
+		srv := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", port), Handler: mux}
+		ln, err := net.Listen("tcp", srv.Addr)
+		if err != nil {
+			continue
+		}
+		a.logServerPort = port
+		srv.Serve(ln)
+		return
+	}
+}
+
+func (a *App) handleLogViewer(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	session := r.URL.Query().Get("session")
+	container := r.URL.Query().Get("container")
+	streamURL := fmt.Sprintf("/stream?session=%s&container=%s",
+		neturl.QueryEscape(session), neturl.QueryEscape(container))
+	html := fmt.Sprintf(`<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Logs — %s</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%%;background:#08060f;color:#c9d1de;font-family:"JetBrains Mono","Cascadia Code","Fira Code",monospace;font-size:12px;line-height:1.6}
+#header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#0d0b18;border-bottom:1px solid #1e1b2e;position:sticky;top:0;z-index:10;gap:12px}
+#title{font-weight:600;font-size:13px;color:#e2e8f0}
+#badge{font-size:10px;font-weight:700;letter-spacing:.06em;animation:pulse 1.5s ease-in-out infinite}
+.live{color:#4ade80}.stopped{color:#f87171;animation:none!important}
+@keyframes pulse{0%%,100%%{opacity:1}50%%{opacity:.3}}
+#count{font-size:10px;color:#4b5563}
+#controls{display:flex;gap:6px}
+button{padding:3px 10px;border-radius:4px;border:1px solid #1e1b2e;background:transparent;color:#94a3b8;font-size:11px;font-family:inherit;cursor:pointer}
+button:hover{background:#1e1b2e;color:#e2e8f0}
+#follow-btn{border-color:var(--accent,#6366f1);color:#818cf8;display:none}
+#logs{padding:10px 16px;min-height:calc(100%% - 45px)}
+.line{white-space:pre-wrap;word-break:break-all}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0d0b18}::-webkit-scrollbar-thumb{background:#1e1b2e;border-radius:3px}
+</style>
+</head>
+<body>
+<div id="header">
+  <div style="display:flex;align-items:center;gap:10px;min-width:0">
+    <span id="title">%s</span>
+    <span id="badge" class="live">● LIVE</span>
+    <span id="count">0 líneas</span>
+  </div>
+  <div id="controls">
+    <button onclick="document.getElementById('logs').innerHTML='';lineCount=0;updateCount()">Limpiar</button>
+    <button id="follow-btn" onclick="enableFollow()">↓ Seguir</button>
+  </div>
+</div>
+<div id="logs"></div>
+<script>
+var following=true,lineCount=0;
+function updateCount(){document.getElementById('count').textContent=lineCount+' líneas'}
+function enableFollow(){following=true;document.getElementById('follow-btn').style.display='none';window.scrollTo(0,document.body.scrollHeight)}
+window.addEventListener('scroll',function(){
+  var atBottom=window.innerHeight+window.scrollY>=document.body.offsetHeight-60;
+  following=atBottom;
+  document.getElementById('follow-btn').style.display=atBottom?'none':'block';
+});
+var es=new EventSource('%s');
+es.onmessage=function(e){
+  if(e.data==='__END__'){
+    es.close();
+    document.getElementById('badge').textContent='■ STOPPED';
+    document.getElementById('badge').className='stopped';
+    return;
+  }
+  var d=document.getElementById('logs');
+  var line=document.createElement('div');
+  line.className='line';
+  line.textContent=e.data;
+  d.appendChild(line);
+  lineCount++;
+  updateCount();
+  if(following)window.scrollTo(0,document.body.scrollHeight);
+};
+es.onerror=function(){
+  document.getElementById('badge').textContent='■ STOPPED';
+  document.getElementById('badge').className='stopped';
+};
+</script>
+</body>
+</html>`, name, name, streamURL)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte(html))
+}
+
+func (a *App) handleLogStream(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.URL.Query().Get("session")
+	containerID := r.URL.Query().Get("container")
+
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		http.Error(w, "session not found", http.StatusNotFound)
+		return
+	}
+
+	cmdSession, err := session.Client.NewSession()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer cmdSession.Close()
+
+	stdout, err := cmdSession.StdoutPipe()
+	if err != nil {
+		cmdSession.Close()
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := cmdSession.Start(fmt.Sprintf("docker logs -f --tail=500 %s 2>&1", containerID)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:9091")
+
+	flusher, canFlush := w.(http.Flusher)
+	ctx := r.Context()
+
+	ansiRe := strings.NewReplacer("\r", "")
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		line := ansiRe.Replace(scanner.Text())
+		fmt.Fprintf(w, "data: %s\n\n", strings.ReplaceAll(line, "\n", " "))
+		if canFlush {
+			flusher.Flush()
+		}
+	}
+	fmt.Fprintf(w, "data: __END__\n\n")
+	if canFlush {
+		flusher.Flush()
+	}
+}
+
+// OpenDockerLogWindow abre los logs del contenedor en una ventana del navegador del sistema
+func (a *App) OpenDockerLogWindow(sessionID string, containerID string, containerName string) error {
+	if a.logServerPort == 0 {
+		return fmt.Errorf("servidor de logs no iniciado")
+	}
+	url := fmt.Sprintf("http://127.0.0.1:%d/?session=%s&container=%s&name=%s",
+		a.logServerPort,
+		neturl.QueryEscape(sessionID),
+		neturl.QueryEscape(containerID),
+		neturl.QueryEscape(containerName),
+	)
+	runtime.BrowserOpenURL(a.ctx, url)
+	return nil
 }
 
 func (a *App) ConnectSSH(
@@ -191,6 +368,13 @@ if err != nil {
 			n, err := stdout.Read(buffer)
 
 			if err != nil {
+				runtime.EventsEmit(
+					a.ctx,
+					"session-disconnected",
+					map[string]any{
+						"sessionId": sessionID,
+					},
+				)
 				return
 			}
 
@@ -657,6 +841,91 @@ func (a *App) SaveRemoteFile(
 	)
 }
 
+type SystemStats struct {
+	CPUPercent  float64 `json:"cpuPercent"`
+	MemUsedGB   float64 `json:"memUsedGB"`
+	MemFreeGB   float64 `json:"memFreeGB"`
+	MemTotalGB  float64 `json:"memTotalGB"`
+	DiskUsedGB  float64 `json:"diskUsedGB"`
+	DiskFreeGB  float64 `json:"diskFreeGB"`
+	DiskTotalGB float64 `json:"diskTotalGB"`
+	UptimeSecs  float64 `json:"uptimeSecs"`
+	NetRxBps    float64 `json:"netRxBps"`
+	NetTxBps    float64 `json:"netTxBps"`
+	DiskReadBps float64 `json:"diskReadBps"`
+	DiskWriteBps float64 `json:"diskWriteBps"`
+}
+
+func (a *App) GetSystemStats(sessionID string) (*SystemStats, error) {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session not found")
+	}
+
+	cmdSession, err := session.Client.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	defer cmdSession.Close()
+
+	// Cada comando emite su propia línea con \n; los dos últimos pares son
+	// snapshots separados 1 s para calcular tasas de red y disco.
+	cmd := `awk 'NR==1{idle=$5;total=$2+$3+$4+$5+$6+$7+$8;printf "%.0f\n",(1-idle/total)*100}' /proc/stat 2>/dev/null||echo 0` +
+		`; free -b 2>/dev/null|awk '/Mem:/{printf "%d %d\n",$3,$2}'||echo '0 0'` +
+		`; df -B1 / 2>/dev/null|awk 'NR==2{printf "%d %d\n",$3,$2}'||echo '0 0'` +
+		`; awk '{printf "%.0f\n",$1}' /proc/uptime 2>/dev/null||echo 0` +
+		`; awk 'NR>2{gsub(/:/,"",$1);if($1!="lo"){rx+=$2;tx+=$10}} END{print rx+0,tx+0}' /proc/net/dev 2>/dev/null||echo '0 0'` +
+		`; awk '$3!~/^loop/{r+=$6;w+=$10} END{print r+0,w+0}' /proc/diskstats 2>/dev/null||echo '0 0'` +
+		`; sleep 1` +
+		`; awk 'NR>2{gsub(/:/,"",$1);if($1!="lo"){rx+=$2;tx+=$10}} END{print rx+0,tx+0}' /proc/net/dev 2>/dev/null||echo '0 0'` +
+		`; awk '$3!~/^loop/{r+=$6;w+=$10} END{print r+0,w+0}' /proc/diskstats 2>/dev/null||echo '0 0'`
+
+	output, err := cmdSession.Output(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(lines) < 8 {
+		return nil, fmt.Errorf("unexpected stats output")
+	}
+
+	const gb = 1073741824.0
+	stats := &SystemStats{}
+
+	fmt.Sscanf(strings.TrimSpace(lines[0]), "%f", &stats.CPUPercent)
+
+	var memUsed, memTotal float64
+	fmt.Sscanf(strings.TrimSpace(lines[1]), "%f %f", &memUsed, &memTotal)
+	stats.MemUsedGB = memUsed / gb
+	stats.MemTotalGB = memTotal / gb
+	stats.MemFreeGB = (memTotal - memUsed) / gb
+
+	var diskUsed, diskTotal float64
+	fmt.Sscanf(strings.TrimSpace(lines[2]), "%f %f", &diskUsed, &diskTotal)
+	stats.DiskUsedGB = diskUsed / gb
+	stats.DiskTotalGB = diskTotal / gb
+	stats.DiskFreeGB = (diskTotal - diskUsed) / gb
+
+	fmt.Sscanf(strings.TrimSpace(lines[3]), "%f", &stats.UptimeSecs)
+
+	// Tasas de red: bytes/s entre los dos snapshots (1 segundo de diferencia)
+	var netRx1, netTx1, netRx2, netTx2 float64
+	fmt.Sscanf(strings.TrimSpace(lines[4]), "%f %f", &netRx1, &netTx1)
+	fmt.Sscanf(strings.TrimSpace(lines[6]), "%f %f", &netRx2, &netTx2)
+	if rx := netRx2 - netRx1; rx > 0 { stats.NetRxBps = rx }
+	if tx := netTx2 - netTx1; tx > 0 { stats.NetTxBps = tx }
+
+	// Tasas de disco: sectores/s × 512 bytes/sector
+	var diskR1, diskW1, diskR2, diskW2 float64
+	fmt.Sscanf(strings.TrimSpace(lines[5]), "%f %f", &diskR1, &diskW1)
+	fmt.Sscanf(strings.TrimSpace(lines[7]), "%f %f", &diskR2, &diskW2)
+	if r := (diskR2 - diskR1) * 512; r > 0 { stats.DiskReadBps = r }
+	if w := (diskW2 - diskW1) * 512; w > 0 { stats.DiskWriteBps = w }
+
+	return stats, nil
+}
+
 func (a *App) emitLog(logType string, message string, class string) {
 	if a.ctx == nil {
 		return
@@ -861,8 +1130,7 @@ func (a *App) GetDockerContainers(sessionID string) ([]models.DockerContainer, e
 	}
 	defer cmdSession.Close()
 
-	// Comando óptimo que formatea el output nativo a filas JSON procesables
-	output, err := cmdSession.Output("docker ps -a --format '{\"id\":\"{{.ID}}\",\"names\":\"{{.Names}}\",\"image\":\"{{.Image}}\",\"status\":\"{{.Status}}\",\"state\":\"{{.State}}\"}'")
+	output, err := cmdSession.Output("docker ps -a --format '{\"id\":\"{{.ID}}\",\"names\":\"{{.Names}}\",\"image\":\"{{.Image}}\",\"status\":\"{{.Status}}\",\"state\":\"{{.State}}\",\"ports\":\"{{.Ports}}\"}'")
 	if err != nil {
 		return nil, fmt.Errorf("docker no responde, puede que no esté instalado en el servidor remoto o requiera privilegios de sudo")
 	}
@@ -875,22 +1143,75 @@ func (a *App) GetDockerContainers(sessionID string) ([]models.DockerContainer, e
 		if line == "" {
 			continue
 		}
-		// Deserializar línea o mapearla manualmente de forma segura
-		// Nota: En entornos de desarrollo si el string falla, puedes parsearlo usando json.Unmarshal
 		var c models.DockerContainer
-		// Implementación de parseo rápido basado en el formato JSON inyectado:
-		c.ID = extractJSONField(line, "id")
-		c.Names = extractJSONField(line, "names")
-		c.Image = extractJSONField(line, "image")
+		c.ID     = extractJSONField(line, "id")
+		c.Names  = extractJSONField(line, "names")
+		c.Image  = extractJSONField(line, "image")
 		c.Status = extractJSONField(line, "status")
-		c.State = extractJSONField(line, "state")
-		
+		c.State  = extractJSONField(line, "state")
+		c.Ports  = extractJSONField(line, "ports")
+
 		if c.ID != "" {
 			containers = append(containers, c)
 		}
 	}
 
 	return containers, nil
+}
+
+func (a *App) GetListeningPorts(sessionID string) ([]models.PortInfo, error) {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session not found")
+	}
+
+	cmdSession, err := session.Client.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	defer cmdSession.Close()
+
+	// Extrae proto, puerto, dirección y proceso de ss -tlnp / ss -ulnp
+	awkProg := `NR>1{n=split($4,addr,":");port=addr[n];line=$0;proc="-";` +
+		`if(index(line,"users:((\"")>0){sub(/.*users:\(\("/, "",line);sub(/".*/, "",line);proc=line};` +
+		`print proto" "port" "$4" "proc}`
+
+	cmd := `ss -tlnp 2>/dev/null | awk -v proto=TCP '` + awkProg + `'` +
+		`; ss -ulnp 2>/dev/null | awk -v proto=UDP '` + awkProg + `'`
+
+	output, err := cmdSession.Output(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	var ports []models.PortInfo
+	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) < 3 {
+			continue
+		}
+		var port int
+		fmt.Sscanf(parts[1], "%d", &port)
+		if port == 0 {
+			continue
+		}
+		proc := "-"
+		if len(parts) >= 4 {
+			proc = parts[3]
+		}
+		ports = append(ports, models.PortInfo{
+			Proto:   parts[0],
+			Port:    port,
+			Address: parts[2],
+			Process: proc,
+		})
+	}
+
+	return ports, nil
 }
 
 // ToggleContainer ejecuta las acciones vitales: start, stop o restart
@@ -918,6 +1239,252 @@ func (a *App) ToggleContainer(sessionID string, containerID string, action strin
 		a.emitLog("DOCKER", fmt.Sprintf("Error en contenedor %s: %s", containerID, string(output)), "error")
 	}
 	return string(output), err
+}
+
+// StartDockerLogs abre docker logs -f en el contenedor y emite cada línea como evento Wails
+func (a *App) StartDockerLogs(sessionID string, containerID string) error {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+
+	a.StopDockerLogs(sessionID, containerID)
+
+	cmdSession, err := session.Client.NewSession()
+	if err != nil {
+		return err
+	}
+
+	stdout, err := cmdSession.StdoutPipe()
+	if err != nil {
+		cmdSession.Close()
+		return err
+	}
+
+	if err := cmdSession.Start(fmt.Sprintf("docker logs -f --tail=300 %s 2>&1", containerID)); err != nil {
+		cmdSession.Close()
+		return err
+	}
+
+	key := sessionID + ":" + containerID
+	a.dockerLogMu.Lock()
+	if a.dockerLogSessions == nil {
+		a.dockerLogSessions = make(map[string]*ssh.Session)
+	}
+	a.dockerLogSessions[key] = cmdSession
+	a.dockerLogMu.Unlock()
+
+	go func() {
+		defer func() {
+			cmdSession.Close()
+			a.dockerLogMu.Lock()
+			delete(a.dockerLogSessions, key)
+			a.dockerLogMu.Unlock()
+			runtime.EventsEmit(a.ctx, "docker-log-end-"+containerID)
+		}()
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			runtime.EventsEmit(a.ctx, "docker-log-"+containerID, scanner.Text())
+		}
+	}()
+
+	return nil
+}
+
+// StopDockerLogs detiene el stream de logs cerrando la sesión SSH
+func (a *App) StopDockerLogs(sessionID string, containerID string) {
+	key := sessionID + ":" + containerID
+	a.dockerLogMu.Lock()
+	sess, ok := a.dockerLogSessions[key]
+	if ok {
+		delete(a.dockerLogSessions, key)
+	}
+	a.dockerLogMu.Unlock()
+	if ok {
+		sess.Close()
+	}
+}
+
+// --- Detección de bases de datos ---
+
+var knownDBPorts = map[int]string{
+	1433:  "SQL Server",
+	1521:  "Oracle",
+	3306:  "MySQL / MariaDB",
+	5432:  "PostgreSQL",
+	5433:  "PostgreSQL",
+	5984:  "CouchDB",
+	6379:  "Redis",
+	6380:  "Redis",
+	7474:  "Neo4j",
+	8086:  "InfluxDB",
+	8088:  "InfluxDB",
+	9042:  "Cassandra",
+	9200:  "Elasticsearch",
+	9300:  "Elasticsearch",
+	19042: "Cassandra",
+	27017: "MongoDB",
+	27018: "MongoDB",
+	27019: "MongoDB",
+}
+
+var knownDBImages = []struct{ sub, name string }{
+	{"postgres", "PostgreSQL"},
+	{"timescale", "TimescaleDB"},
+	{"mysql", "MySQL"},
+	{"mariadb", "MariaDB"},
+	{"mongo", "MongoDB"},
+	{"redis", "Redis"},
+	{"elasticsearch", "Elasticsearch"},
+	{"opensearch", "OpenSearch"},
+	{"cassandra", "Cassandra"},
+	{"scylladb", "ScyllaDB"},
+	{"couchdb", "CouchDB"},
+	{"influxdb", "InfluxDB"},
+	{"mssql", "SQL Server"},
+	{"sqlserver", "SQL Server"},
+	{"oracle", "Oracle"},
+	{"neo4j", "Neo4j"},
+	{"clickhouse", "ClickHouse"},
+	{"cockroach", "CockroachDB"},
+	{"rethinkdb", "RethinkDB"},
+	{"arangodb", "ArangoDB"},
+}
+
+func (a *App) GetDatabases(sessionID string) ([]models.DatabaseInfo, error) {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session not found")
+	}
+
+	cmdSession, err := session.Client.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	defer cmdSession.Close()
+
+	// SYS <port> <addr>  — puertos escuchando
+	// DOC <name>|<image>|<ports>  — contenedores docker
+	cmd := `ss -tlnp 2>/dev/null | awk 'NR>1{n=split($4,a,":");if(a[n]+0>0)print "SYS",a[n]+0,$4}'` +
+		`; docker ps --format 'DOC {{.Names}}|{{.Image}}|{{.Ports}}' 2>/dev/null || true`
+
+	output, _ := cmdSession.CombinedOutput(cmd)
+
+	// Primera pasada: recoger puertos Docker mapeados para deduplicar
+	dockerPorts := map[int]bool{}
+	for _, line := range strings.Split(string(output), "\n") {
+		if !strings.HasPrefix(line, "DOC ") {
+			continue
+		}
+		parts := strings.SplitN(strings.TrimPrefix(line, "DOC "), "|", 3)
+		if len(parts) < 3 {
+			continue
+		}
+		for _, pm := range strings.Split(parts[2], ", ") {
+			if idx := strings.Index(pm, "->"); idx > 0 {
+				hostPart := pm[:idx]
+				if ci := strings.LastIndex(hostPart, ":"); ci >= 0 {
+					if p, err := strconv.Atoi(hostPart[ci+1:]); err == nil {
+						dockerPorts[p] = true
+					}
+				}
+			}
+		}
+	}
+
+	var dbs []models.DatabaseInfo
+	seen := map[string]bool{}
+
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		if strings.HasPrefix(line, "SYS ") {
+			fields := strings.Fields(line)
+			if len(fields) < 2 {
+				continue
+			}
+			port, _ := strconv.Atoi(fields[1])
+			name, ok := knownDBPorts[port]
+			if !ok || dockerPorts[port] {
+				continue // desconocido o ya cubierto por Docker
+			}
+			addr := ""
+			if len(fields) > 2 {
+				addr = fields[2]
+			}
+			key := fmt.Sprintf("sys:%d", port)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			dbs = append(dbs, models.DatabaseInfo{
+				Name:    name,
+				Port:    port,
+				Address: addr,
+				Source:  "system",
+			})
+
+		} else if strings.HasPrefix(line, "DOC ") {
+			parts := strings.SplitN(strings.TrimPrefix(line, "DOC "), "|", 3)
+			if len(parts) < 2 {
+				continue
+			}
+			containerName := parts[0]
+			image := parts[1]
+			portsStr := ""
+			if len(parts) > 2 {
+				portsStr = parts[2]
+			}
+
+			imageLower := strings.ToLower(image)
+			dbName := ""
+			for _, kd := range knownDBImages {
+				if strings.Contains(imageLower, kd.sub) {
+					dbName = kd.name
+					break
+				}
+			}
+			if dbName == "" {
+				continue
+			}
+
+			// Puerto contenedor (interno, destino del ->)
+			port := 0
+			addr := ""
+			for _, pm := range strings.Split(portsStr, ", ") {
+				if idx := strings.Index(pm, "->"); idx > 0 {
+					inner := strings.Split(pm[idx+2:], "/")[0]
+					if p, err := strconv.Atoi(inner); err == nil && port == 0 {
+						port = p
+					}
+					// dirección host
+					hostPart := pm[:idx]
+					if !strings.HasPrefix(hostPart, ":::") {
+						addr = hostPart
+					}
+				}
+			}
+
+			key := fmt.Sprintf("docker:%s", containerName)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			dbs = append(dbs, models.DatabaseInfo{
+				Name:      dbName,
+				Port:      port,
+				Address:   addr,
+				Source:    "docker",
+				Container: containerName,
+				Image:     image,
+			})
+		}
+	}
+
+	return dbs, nil
 }
 
 // Función utilitaria limpia para parsear los campos string JSON devueltos por el comando docker sin romper el flujo

@@ -8,19 +8,47 @@ import {
   EditTunnel,
   GetDockerContainers,
   ToggleContainer,
+  GetListeningPorts,
+  GetDatabases,
+  OpenDockerLogWindow,
 } from "../../wailsjs/go/main/App";
-import { FaTrash, FaDocker, FaEdit, FaPause, FaPlay, FaStop } from "react-icons/fa";
-import { LuLogs } from "react-icons/lu";
+import { FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase } from "react-icons/fa";
+import { LuLogs, LuNetwork } from "react-icons/lu";
 import { BiTransfer } from "react-icons/bi";
 import { GiWarpPipe } from "react-icons/gi";
 import { IoIosAdd } from "react-icons/io";
 import { GrRefresh } from "react-icons/gr";
 
+const DB_COLORS = {
+  "PostgreSQL":    "#3b82f6",
+  "TimescaleDB":   "#3b82f6",
+  "MySQL":         "#f97316",
+  "MySQL / MariaDB": "#f97316",
+  "MariaDB":       "#c084fc",
+  "MongoDB":       "#4ade80",
+  "Redis":         "#ef4444",
+  "Elasticsearch": "#fbbf24",
+  "OpenSearch":    "#fbbf24",
+  "Cassandra":     "#a855f7",
+  "ScyllaDB":      "#a855f7",
+  "CouchDB":       "#fb923c",
+  "InfluxDB":      "#22d3ee",
+  "SQL Server":    "#64748b",
+  "Oracle":        "#f43f5e",
+  "Neo4j":         "#4ade80",
+  "ClickHouse":    "#facc15",
+  "CockroachDB":   "#3b82f6",
+  "RethinkDB":     "#f97316",
+  "ArangoDB":      "#a855f7",
+};
+
 const TABS = [
-  { id: "logs", label: "Logs", icon: <LuLogs /> },
+  { id: "logs",      label: "Logs",      icon: <LuLogs /> },
   { id: "transfers", label: "Transfers", icon: <BiTransfer /> },
-  { id: "tunnels", label: "Tunnels", icon: <GiWarpPipe /> },
-  { id: "docker", label: "Docker", icon: <FaDocker /> },
+  { id: "tunnels",   label: "Tunnels",   icon: <GiWarpPipe /> },
+  { id: "ports",     label: "Ports",     icon: <LuNetwork /> },
+  { id: "docker",    label: "Docker",    icon: <FaDocker /> },
+  { id: "databases", label: "Databases", icon: <FaDatabase /> },
 ];
 
 export default function BottomPanel({ sessionId }) {
@@ -31,6 +59,9 @@ export default function BottomPanel({ sessionId }) {
   const [transfers, setTransfers] = useState({});
   const [tunnels, setTunnels] = useState([]);
   const [containers, setContainers] = useState([]);
+  const [ports, setPorts] = useState([]);
+  const [databases, setDatabases] = useState([]);
+
 
   // Estados para la Modal del Túnel (Crea y Edita)
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,14 +103,20 @@ export default function BottomPanel({ sessionId }) {
     }
 
     if (activeTab === "docker") {
-      fetchContainers(); // Carga inicial inmediata
+      fetchContainers();
+      const intervalId = setInterval(fetchContainers, 4000);
+      return () => clearInterval(intervalId);
+    }
 
-      // Configura el intervalo de refresco automático cada 4 segundos
-      const intervalId = setInterval(() => {
-        fetchContainers();
-      }, 4000);
+    if (activeTab === "ports") {
+      fetchPorts();
+      const intervalId = setInterval(fetchPorts, 5000);
+      return () => clearInterval(intervalId);
+    }
 
-      // Limpiar el intervalo cuando cambies de pestaña o se cierre la sesión
+    if (activeTab === "databases") {
+      fetchDatabases();
+      const intervalId = setInterval(fetchDatabases, 10000);
       return () => clearInterval(intervalId);
     }
   }, [activeTab, sessionId]);
@@ -163,6 +200,28 @@ export default function BottomPanel({ sessionId }) {
       await fetchTunnels();
     } catch (err) {
       console.error("Error al eliminar túnel:", err);
+    }
+  };
+
+  // --- Puertos ---
+  const fetchPorts = async () => {
+    try {
+      const res = await GetListeningPorts(sessionId);
+      // Ordenar por número de puerto
+      const sorted = (res || []).sort((a, b) => a.port - b.port);
+      setPorts(sorted);
+    } catch (err) {
+      console.error("Error al obtener puertos:", err);
+    }
+  };
+
+  // --- Bases de datos ---
+  const fetchDatabases = async () => {
+    try {
+      const res = await GetDatabases(sessionId);
+      setDatabases(res || []);
+    } catch (err) {
+      console.error("Error al obtener bases de datos:", err);
     }
   };
 
@@ -296,10 +355,15 @@ export default function BottomPanel({ sessionId }) {
               <FaTrash /> Clear
             </button>
           )}
-          {(activeTab === "tunnels" || activeTab === "docker") && (
+          {(activeTab === "tunnels" || activeTab === "docker" || activeTab === "ports" || activeTab === "databases") && (
             <button
               className="bottom-action-btn"
-              onClick={activeTab === "tunnels" ? fetchTunnels : fetchContainers}
+              onClick={
+                activeTab === "tunnels"   ? fetchTunnels   :
+                activeTab === "ports"     ? fetchPorts     :
+                activeTab === "databases" ? fetchDatabases :
+                fetchContainers
+              }
               style={{
                 background: "none",
                 border: "1px solid var(--border)",
@@ -603,6 +667,47 @@ export default function BottomPanel({ sessionId }) {
             )}
           </div>
         )}
+        {/* PESTAÑA: PORTS */}
+        {activeTab === "ports" && (
+          <div className="ports-tab-content" style={{ padding: "12px" }}>
+            {ports.length === 0 ? (
+              <div style={{ color: "var(--text-muted)", textAlign: "center", padding: "40px" }}>
+                No se encontraron puertos en escucha.
+              </div>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                <thead>
+                  <tr style={{ color: "var(--text-secondary)", background: "var(--bg-hover)", borderBottom: "1px solid var(--border)" }}>
+                    <th style={{ padding: "7px 12px", textAlign: "left", width: "70px" }}>Proto</th>
+                    <th style={{ padding: "7px 12px", textAlign: "left", width: "80px" }}>Port</th>
+                    <th style={{ padding: "7px 12px", textAlign: "left" }}>Address</th>
+                    <th style={{ padding: "7px 12px", textAlign: "left" }}>Process</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ports.map((p, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                      <td style={{ padding: "7px 12px" }}>
+                        <span className={`port-proto-badge ${p.proto.toLowerCase()}`}>
+                          {p.proto}
+                        </span>
+                      </td>
+                      <td style={{ padding: "7px 12px", fontWeight: 700, color: "var(--accent)", fontFamily: "monospace" }}>
+                        {p.port}
+                      </td>
+                      <td style={{ padding: "7px 12px", color: "var(--text-secondary)", fontFamily: "monospace", fontSize: "11px" }}>
+                        {p.address}
+                      </td>
+                      <td style={{ padding: "7px 12px", color: p.process === "-" ? "var(--text-muted)" : "var(--text-primary)", fontWeight: p.process !== "-" ? 500 : 400 }}>
+                        {p.process}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
         {/* PESTAÑA: DOCKER */}
         {activeTab === "docker" && (
           <div
@@ -692,6 +797,15 @@ export default function BottomPanel({ sessionId }) {
                       >
                         {c.image}
                       </span>
+                      {c.ports && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "3px", marginTop: "2px" }}>
+                          {c.ports.split(", ").filter(p => p && !p.startsWith(":::")).map((p, i) => (
+                            <span key={i} className="docker-port-badge">
+                              {p.replace("0.0.0.0:", "").replace(/->(\d+)\/tcp/, "→$1")}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* 2. ESTADO INTEGRADO (Badge + Mensaje juntos en un bloque) */}
@@ -744,8 +858,36 @@ export default function BottomPanel({ sessionId }) {
                         flex: "0 0 auto",
                         display: "flex",
                         alignItems: "center",
+                        gap: "6px",
                       }}
                     >
+                      <button
+                        title="Ver logs en ventana externa"
+                        onClick={() => OpenDockerLogWindow(sessionId, c.id, c.names).catch(console.error)}
+                        style={{
+                          padding: "5px 7px",
+                          cursor: "pointer",
+                          backgroundColor: "transparent",
+                          color: "var(--text-secondary)",
+                          border: "1px solid var(--border-subtle)",
+                          borderRadius: "4px",
+                          fontSize: "12px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "all 0.15s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = "var(--accent)";
+                          e.currentTarget.style.color = "var(--accent)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = "var(--border-subtle)";
+                          e.currentTarget.style.color = "var(--text-secondary)";
+                        }}
+                      >
+                        <LuLogs />
+                      </button>
                       <button
                         onClick={() => handleToggleContainer(c.id, c.state)}
                         style={{
@@ -782,7 +924,97 @@ export default function BottomPanel({ sessionId }) {
             )}
           </div>
         )}
-        .
+
+        {/* ===================== TAB: DATABASES ===================== */}
+        {activeTab === "databases" && (
+          <div className="docker-tab-content">
+            {databases.length === 0 ? (
+              <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
+                No se detectaron bases de datos activas
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {databases.map((db, i) => {
+                  const isDocker = db.source === "docker";
+                  const color = DB_COLORS[db.name] || "var(--accent)";
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        background: "var(--bg-surface)",
+                        border: "1px solid var(--border-subtle)",
+                        borderLeft: `3px solid ${color}`,
+                        borderRadius: "6px",
+                        padding: "10px 14px",
+                        gap: "14px",
+                        transition: "border-color 0.15s, background-color 0.15s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = "var(--border)";
+                        e.currentTarget.style.backgroundColor = "var(--bg-hover)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "var(--border-subtle)";
+                        e.currentTarget.style.backgroundColor = "var(--bg-surface)";
+                      }}
+                    >
+                      {/* Icono */}
+                      <div style={{ fontSize: "20px", color, flexShrink: 0 }}>
+                        <FaDatabase />
+                      </div>
+
+                      {/* Info principal */}
+                      <div style={{ flex: "1 1 0", minWidth: 0 }}>
+                        <div style={{ fontWeight: "600", fontSize: "13px", color: "var(--text-primary)", marginBottom: "2px" }}>
+                          {db.name}
+                        </div>
+                        {isDocker && db.container && (
+                          <div style={{ fontSize: "10.5px", fontFamily: "var(--font-mono, monospace)", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {db.container}
+                            {db.image && <span style={{ opacity: 0.6 }}> · {db.image}</span>}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Puerto */}
+                      {db.port > 0 && (
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>Puerto</div>
+                          <div style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "13px", fontWeight: "600", color }}>
+                            {db.port}
+                          </div>
+                          {db.address && !db.address.startsWith("0.0.0.0") && (
+                            <div style={{ fontSize: "9.5px", fontFamily: "var(--font-mono, monospace)", color: "var(--text-muted)" }}>
+                              {db.address}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Fuente badge */}
+                      <div style={{ flexShrink: 0 }}>
+                        <span style={{
+                          padding: "2px 8px",
+                          borderRadius: "4px",
+                          fontSize: "10px",
+                          fontWeight: "700",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px",
+                          backgroundColor: isDocker ? "rgba(59,130,246,0.15)" : "rgba(34,197,94,0.12)",
+                          color: isDocker ? "#60a5fa" : "var(--green)",
+                        }}>
+                          {isDocker ? "Docker" : "Sistema"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* MODAL INTERNA COMPARTIDA: CREACIÓN / EDICIÓN DE TÚNELES */}
@@ -956,6 +1188,7 @@ export default function BottomPanel({ sessionId }) {
           </div>
         </div>
       )}
+
     </div>
   );
 }

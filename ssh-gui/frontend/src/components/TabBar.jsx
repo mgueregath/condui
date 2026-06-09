@@ -1,4 +1,11 @@
-export default function TabBar({ tabs, activeTab, onSelect, onClose }) {
+export default function TabBar({
+  tabs,
+  activeTab,
+  onSelect,
+  onClose,
+  onReconnect,
+  connectingId,
+}) {
   return (
     <div className="tabbar">
       {tabs.length === 0 && (
@@ -15,12 +22,30 @@ export default function TabBar({ tabs, activeTab, onSelect, onClose }) {
       {tabs.map((tab) => (
         <div
           key={tab.id}
-          className={activeTab === tab.id ? "tab active" : "tab"}
+          className={
+            "tab" +
+            (activeTab === tab.id ? " active" : "") +
+            (tab.disconnected ? " disconnected" : "")
+          }
           onClick={() => onSelect(tab.id)}
         >
+          {tab.disconnected && <span className="tab-disconnect-dot" />}
           <span style={{ color: tab.color || "var(--bg-hover)" }}>
             {tab.title}
           </span>
+          {tab.disconnected && onReconnect && (
+            <button
+              className="tab-reconnect"
+              title="Reconnect"
+              disabled={connectingId === tab.connectionId}
+              onClick={(e) => {
+                e.stopPropagation();
+                onReconnect(tab);
+              }}
+            >
+              ↺
+            </button>
+          )}
           {onClose && (
             <button
               className="tab-close"
@@ -34,10 +59,6 @@ export default function TabBar({ tabs, activeTab, onSelect, onClose }) {
           )}
         </div>
       ))}
-      {/* 
-            <button className="tab-add" title="New tab">+</button>
-
-*/}
     </div>
   );
 }

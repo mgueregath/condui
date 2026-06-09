@@ -58,12 +58,24 @@ export function GetConnections() {
   return window['go']['main']['App']['GetConnections']();
 }
 
+export function GetDatabases(arg1) {
+  return window['go']['main']['App']['GetDatabases'](arg1);
+}
+
 export function GetDockerContainers(arg1) {
   return window['go']['main']['App']['GetDockerContainers'](arg1);
 }
 
 export function GetFolders() {
   return window['go']['main']['App']['GetFolders']();
+}
+
+export function GetListeningPorts(arg1) {
+  return window['go']['main']['App']['GetListeningPorts'](arg1);
+}
+
+export function GetSystemStats(arg1) {
+  return window['go']['main']['App']['GetSystemStats'](arg1);
 }
 
 export function GetTunnels(arg1) {
@@ -76,6 +88,10 @@ export function ListDirectory(arg1, arg2) {
 
 export function ListSessions() {
   return window['go']['main']['App']['ListSessions']();
+}
+
+export function OpenDockerLogWindow(arg1, arg2, arg3) {
+  return window['go']['main']['App']['OpenDockerLogWindow'](arg1, arg2, arg3);
 }
 
 export function ReadRemoteFile(arg1, arg2) {
@@ -96,6 +112,14 @@ export function SaveRemoteFile(arg1, arg2, arg3) {
 
 export function SendInput(arg1, arg2) {
   return window['go']['main']['App']['SendInput'](arg1, arg2);
+}
+
+export function StartDockerLogs(arg1, arg2) {
+  return window['go']['main']['App']['StartDockerLogs'](arg1, arg2);
+}
+
+export function StopDockerLogs(arg1, arg2) {
+  return window['go']['main']['App']['StopDockerLogs'](arg1, arg2);
 }
 
 export function ToggleContainer(arg1, arg2, arg3) {
