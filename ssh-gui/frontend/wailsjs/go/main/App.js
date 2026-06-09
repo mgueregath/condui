@@ -26,6 +26,34 @@ export function CreateRemoteDirectory(arg1, arg2) {
   return window['go']['main']['App']['CreateRemoteDirectory'](arg1, arg2);
 }
 
+export function DbConnect(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['DbConnect'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function DbDisconnect(arg1) {
+  return window['go']['main']['App']['DbDisconnect'](arg1);
+}
+
+export function DbGetColumns(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['DbGetColumns'](arg1, arg2, arg3, arg4);
+}
+
+export function DbListDatabases(arg1) {
+  return window['go']['main']['App']['DbListDatabases'](arg1);
+}
+
+export function DbListSchemas(arg1, arg2) {
+  return window['go']['main']['App']['DbListSchemas'](arg1, arg2);
+}
+
+export function DbListTables(arg1, arg2, arg3) {
+  return window['go']['main']['App']['DbListTables'](arg1, arg2, arg3);
+}
+
+export function DbQuery(arg1, arg2, arg3) {
+  return window['go']['main']['App']['DbQuery'](arg1, arg2, arg3);
+}
+
 export function DeleteConnection(arg1) {
   return window['go']['main']['App']['DeleteConnection'](arg1);
 }
@@ -88,6 +116,10 @@ export function ListDirectory(arg1, arg2) {
 
 export function ListSessions() {
   return window['go']['main']['App']['ListSessions']();
+}
+
+export function OpenDbExplorerWindow(arg1, arg2, arg3) {
+  return window['go']['main']['App']['OpenDbExplorerWindow'](arg1, arg2, arg3);
 }
 
 export function OpenDockerLogWindow(arg1, arg2, arg3) {

@@ -16,6 +16,20 @@ export function CreateFolder(arg1:string):Promise<void>;
 
 export function CreateRemoteDirectory(arg1:string,arg2:string):Promise<void>;
 
+export function DbConnect(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string):Promise<string>;
+
+export function DbDisconnect(arg1:string):Promise<void>;
+
+export function DbGetColumns(arg1:string,arg2:string,arg3:string,arg4:string):Promise<Array<models.QueryColumn>>;
+
+export function DbListDatabases(arg1:string):Promise<Array<string>>;
+
+export function DbListSchemas(arg1:string,arg2:string):Promise<Array<string>>;
+
+export function DbListTables(arg1:string,arg2:string,arg3:string):Promise<Array<string>>;
+
+export function DbQuery(arg1:string,arg2:string,arg3:string):Promise<models.QueryResult>;
+
 export function DeleteConnection(arg1:string):Promise<void>;
 
 export function DeleteFolder(arg1:string):Promise<void>;
@@ -47,6 +61,8 @@ export function GetTunnels(arg1:string):Promise<Array<models.TunnelInfo>>;
 export function ListDirectory(arg1:string,arg2:string):Promise<Array<sftp.FileItem>>;
 
 export function ListSessions():Promise<Array<string>>;
+
+export function OpenDbExplorerWindow(arg1:string,arg2:string,arg3:number):Promise<void>;
 
 export function OpenDockerLogWindow(arg1:string,arg2:string,arg3:string):Promise<void>;
 

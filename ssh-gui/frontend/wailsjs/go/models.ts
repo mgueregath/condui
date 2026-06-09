@@ -38,30 +38,7 @@ export namespace main {
 }
 
 export namespace models {
-
-	export class DatabaseInfo {
-	    name: string;
-	    port: number;
-	    address: string;
-	    source: string;
-	    container: string;
-	    image: string;
-
-	    static createFrom(source: any = {}) {
-	        return new DatabaseInfo(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.port = source["port"];
-	        this.address = source["address"];
-	        this.source = source["source"];
-	        this.container = source["container"];
-	        this.image = source["image"];
-	    }
-	}
-
+	
 	export class Connection {
 	    id: string;
 	    folderId?: string;
@@ -168,6 +145,44 @@ export namespace models {
 	        this.address = source["address"];
 	        this.process = source["process"];
 	        this.proto = source["proto"];
+	    }
+	}
+	export class QueryColumn {
+	    name: string;
+	    dataType: string;
+	    nullable: boolean;
+	    default: string;
+	    key: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new QueryColumn(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.dataType = source["dataType"];
+	        this.nullable = source["nullable"];
+	        this.default = source["default"];
+	        this.key = source["key"];
+	    }
+	}
+	export class QueryResult {
+	    columns: string[];
+	    rows: string[][];
+	    rowCount: number;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new QueryResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.columns = source["columns"];
+	        this.rows = source["rows"];
+	        this.rowCount = source["rowCount"];
+	        this.error = source["error"];
 	    }
 	}
 	export class TunnelInfo {

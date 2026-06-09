@@ -541,9 +541,7 @@ function App() {
                       className="files-header-btn"
                       title="Subir archivo aquí"
                       onClick={uploadFile}
-                      style={{
-                        background: "var(--primary)",
-                      }}
+                      style={{ background: "var(--primary)" }}
                     >
                       <MdUploadFile />
                     </button>

@@ -11,8 +11,9 @@ import {
   GetListeningPorts,
   GetDatabases,
   OpenDockerLogWindow,
+  OpenDbExplorerWindow,
 } from "../../wailsjs/go/main/App";
-import { FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase } from "react-icons/fa";
+import { FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch } from "react-icons/fa";
 import { LuLogs, LuNetwork } from "react-icons/lu";
 import { BiTransfer } from "react-icons/bi";
 import { GiWarpPipe } from "react-icons/gi";
@@ -993,8 +994,8 @@ export default function BottomPanel({ sessionId }) {
                         </div>
                       )}
 
-                      {/* Fuente badge */}
-                      <div style={{ flexShrink: 0 }}>
+                      {/* Fuente badge + Explorar */}
+                      <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
                         <span style={{
                           padding: "2px 8px",
                           borderRadius: "4px",
@@ -1007,6 +1008,19 @@ export default function BottomPanel({ sessionId }) {
                         }}>
                           {isDocker ? "Docker" : "Sistema"}
                         </span>
+                        <button
+                          style={{
+                            display: "flex", alignItems: "center", gap: "4px",
+                            padding: "3px 10px", borderRadius: "4px",
+                            border: "1px solid var(--border-subtle)",
+                            background: "transparent",
+                            color: "var(--text-secondary)",
+                            fontSize: "11px", cursor: "pointer",
+                          }}
+                          onClick={() => OpenDbExplorerWindow(sessionId, db.name, db.port)}
+                        >
+                          <FaSearch style={{ fontSize: 9 }} /> Explorar
+                        </button>
                       </div>
                     </div>
                   );
@@ -1188,6 +1202,7 @@ export default function BottomPanel({ sessionId }) {
           </div>
         </div>
       )}
+
 
     </div>
   );

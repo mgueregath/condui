@@ -2179,3 +2179,191 @@ select.modern-input {
 
   line-height: 1;
 }
+/* ===================== DB CONNECT FORM ===================== */
+.db-connect-overlay {
+  position: fixed; inset: 0; z-index: 1100;
+  background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+}
+.db-connect-form {
+  background: #0d0b18; border: 1px solid var(--border);
+  border-radius: 10px; padding: 24px; width: 340px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.7);
+}
+.db-connect-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 20px; font-size: 14px; font-weight: 600; color: var(--text-primary);
+}
+.db-connect-close {
+  margin-left: auto; background: none; border: none;
+  color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 2px 6px;
+}
+.db-connect-close:hover { color: var(--red); }
+.db-form-label {
+  display: block; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); margin-bottom: 4px; margin-top: 12px;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.db-form-input {
+  width: 100%; padding: 7px 10px; border-radius: 6px;
+  border: 1px solid var(--border-subtle); background: var(--bg-surface);
+  color: var(--text-primary); font-size: 13px; font-family: inherit;
+  outline: none; transition: border-color .15s;
+}
+.db-form-input:focus { border-color: var(--accent); }
+.db-form-error {
+  margin-top: 10px; padding: 8px 10px; border-radius: 6px;
+  background: rgba(239,68,68,.12); color: var(--red); font-size: 11.5px;
+}
+.db-form-btn {
+  flex: 1; padding: 8px; border-radius: 6px; font-size: 13px;
+  font-family: inherit; cursor: pointer; font-weight: 600; transition: .15s;
+}
+.db-form-btn.primary {
+  background: var(--accent); color: #fff; border: none;
+}
+.db-form-btn.primary:hover { opacity: .88; }
+.db-form-btn.primary:disabled { opacity: .5; cursor: default; }
+.db-form-btn.secondary {
+  background: transparent; color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+.db-form-btn.secondary:hover { background: var(--bg-hover); }
+
+/* ===================== DB EXPLORER ===================== */
+.db-explorer-tab {
+  flex: 1; display: flex; flex-direction: column;
+  overflow: hidden; background: #08060f;
+}
+.db-explorer-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; background: #0d0b18;
+  border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;
+}
+.db-explorer-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.db-explorer-port  { font-size: 11px; font-family: var(--font-mono); color: var(--text-muted); }
+.db-explorer-db    { font-size: 11px; font-family: var(--font-mono); color: var(--accent); }
+.db-explorer-btn {
+  padding: 3px 9px; border-radius: 4px; border: 1px solid var(--border-subtle);
+  background: transparent; color: var(--text-secondary); font-size: 11px;
+  font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: .12s;
+}
+.db-explorer-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.db-explorer-btn.disconnect:hover { border-color: var(--red); color: var(--red); background: rgba(239,68,68,.08); }
+.db-explorer-btn.close:hover     { border-color: var(--red); color: var(--red); background: rgba(239,68,68,.08); }
+
+.db-explorer-body {
+  flex: 1; display: flex; overflow: hidden;
+}
+
+/* Tree */
+.db-tree {
+  width: 220px; min-width: 180px; flex-shrink: 0;
+  border-right: 1px solid var(--border-subtle);
+  overflow-y: auto; background: #0a0812;
+}
+.db-tree-header {
+  padding: 8px 12px; font-size: 9.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.db-tree-item {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 10px; font-size: 12px; color: var(--text-secondary);
+  cursor: pointer; transition: .12s; user-select: none;
+}
+.db-tree-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.db-tree-item.active { background: rgba(99,102,241,.15); color: var(--accent); font-weight: 600; }
+.db-tree-item.db-level     { padding-left: 10px; font-weight: 600; font-size: 12px; }
+.db-tree-item.schema-level { padding-left: 22px; font-size: 11px; color: var(--text-muted); }
+.db-tree-item.table-level  { padding-left: 38px; font-size: 11.5px; }
+.db-tree-arrow { font-size: 8px; flex-shrink: 0; opacity: .6; }
+.db-tree-schema-icon { font-size: 9px; opacity: .5; }
+
+/* Workspace */
+.db-workspace {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+.db-sql-pane {
+  display: flex; flex-direction: column;
+  border-bottom: 1px solid var(--border-subtle); height: 220px; flex-shrink: 0;
+}
+.db-sql-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; background: #0a0812;
+  border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;
+}
+.db-db-select {
+  padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border-subtle);
+  background: var(--bg-surface); color: var(--text-secondary);
+  font-size: 11px; font-family: inherit; outline: none; cursor: pointer;
+}
+.db-db-select:focus { border-color: var(--accent); }
+.db-run-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: 4px; border: none;
+  background: var(--accent); color: #fff; font-size: 11px;
+  font-family: inherit; font-weight: 600; cursor: pointer; transition: .15s;
+}
+.db-run-btn:hover   { opacity: .88; }
+.db-run-btn:disabled { opacity: .5; cursor: default; }
+.db-sql-editor {
+  flex: 1; padding: 10px 14px; background: #08060f;
+  color: #c9d1de; font-family: "JetBrains Mono","Cascadia Code","Fira Code",monospace;
+  font-size: 12.5px; line-height: 1.6; border: none; outline: none;
+  resize: none; tab-size: 2;
+}
+
+/* Results */
+.db-result-pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.db-result-tabs {
+  display: flex; gap: 2px; padding: 4px 8px;
+  border-bottom: 1px solid var(--border-subtle); background: #0a0812; flex-shrink: 0;
+}
+.db-result-tab {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 4px; border: 1px solid transparent;
+  background: transparent; color: var(--text-muted);
+  font-size: 11px; font-family: inherit; cursor: pointer; transition: .12s;
+}
+.db-result-tab:hover  { color: var(--text-secondary); background: var(--bg-hover); }
+.db-result-tab.active { border-color: var(--border-subtle); color: var(--text-primary); background: var(--bg-surface); }
+.db-tab-count {
+  padding: 0 5px; border-radius: 10px; background: rgba(99,102,241,.2);
+  color: var(--accent); font-size: 9.5px; font-weight: 700;
+}
+.db-result-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.db-result-error {
+  padding: 16px; color: var(--red); font-size: 12px;
+  font-family: var(--font-mono); white-space: pre-wrap;
+}
+.db-result-empty { padding: 32px; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+/* Grid */
+.db-grid-wrap { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.db-grid-status {
+  padding: 4px 12px; font-size: 10px; color: var(--text-muted);
+  background: #0a0812; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;
+}
+.db-grid-scroll { flex: 1; overflow: auto; }
+.db-grid { border-collapse: collapse; font-size: 12px; width: 100%; white-space: nowrap; }
+.db-grid th {
+  position: sticky; top: 0; padding: 6px 12px;
+  background: #0d0b18; color: var(--text-secondary); font-weight: 600;
+  font-size: 11px; text-align: left; border-bottom: 1px solid var(--border-subtle);
+  user-select: none;
+}
+.db-grid td {
+  padding: 5px 12px; color: var(--text-primary);
+  border-bottom: 1px solid rgba(255,255,255,.03);
+  font-family: var(--font-mono); font-size: 11.5px; max-width: 300px;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.db-grid tr:hover td { background: rgba(255,255,255,.02); }
+
+/* Key badges */
+.db-key-badge {
+  padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700;
+  background: rgba(99,102,241,.2); color: var(--accent);
+}
+.db-key-badge.pk { background: rgba(251,191,36,.2); color: #fbbf24; }
