@@ -14,33 +14,128 @@ import {
   OpenDbExplorerWindow,
 } from "../../wailsjs/go/main/App";
 import { FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch } from "react-icons/fa";
+import {
+  SiPostgresql,
+  SiTimescale,
+  SiMysql,
+  SiMariadb,
+  SiMongodb,
+  SiRedis,
+  SiElastic,
+  SiInfluxdb,
+  SiNeo4J,
+  SiCockroachlabs,
+  SiApachecouchdb,
+  SiApachecassandra,
+  SiScylladb,
+  SiOpensearch,
+} from "react-icons/si";
 import { LuLogs, LuNetwork } from "react-icons/lu";
 import { BiTransfer } from "react-icons/bi";
 import { GiWarpPipe } from "react-icons/gi";
 import { IoIosAdd } from "react-icons/io";
 import { GrRefresh } from "react-icons/gr";
 
-const DB_COLORS = {
-  "PostgreSQL":    "#3b82f6",
-  "TimescaleDB":   "#3b82f6",
-  "MySQL":         "#f97316",
-  "MySQL / MariaDB": "#f97316",
-  "MariaDB":       "#c084fc",
-  "MongoDB":       "#4ade80",
-  "Redis":         "#ef4444",
-  "Elasticsearch": "#fbbf24",
-  "OpenSearch":    "#fbbf24",
-  "Cassandra":     "#a855f7",
-  "ScyllaDB":      "#a855f7",
-  "CouchDB":       "#fb923c",
-  "InfluxDB":      "#22d3ee",
-  "SQL Server":    "#64748b",
-  "Oracle":        "#f43f5e",
-  "Neo4j":         "#4ade80",
-  "ClickHouse":    "#facc15",
-  "CockroachDB":   "#3b82f6",
-  "RethinkDB":     "#f97316",
-  "ArangoDB":      "#a855f7",
+const DB_TYPES = {
+  PostgreSQL: {
+    color: "#3b82f6",
+    icon: SiPostgresql,
+  },
+
+  TimescaleDB: {
+    color: "#b6c41d",
+    icon: SiTimescale,
+  },
+
+  MySQL: {
+    color: "#f97316",
+    icon: SiMysql,
+  },
+
+  "MySQL / MariaDB": {
+    color: "#f97316",
+    icon: SiMysql,
+  },
+
+  MariaDB: {
+    color: "#c084fc",
+    icon: SiMariadb,
+  },
+
+  MongoDB: {
+    color: "#4ade80",
+    icon: SiMongodb,
+  },
+
+  Redis: {
+    color: "#ef4444",
+    icon: SiRedis,
+  },
+
+  Elasticsearch: {
+    color: "#fbbf24",
+    icon: SiElastic,
+  },
+
+  OpenSearch: {
+    color: "#fbbf24",
+    icon: SiOpensearch,
+  },
+
+  Cassandra: {
+    color: "#a855f7",
+    icon: SiApachecassandra,
+  },
+
+  ScyllaDB: {
+    color: "#a855f7",
+    icon: SiScylladb,
+  },
+
+  CouchDB: {
+    color: "#fb923c",
+    icon: SiApachecouchdb,
+  },
+
+  InfluxDB: {
+    color: "#22d3ee",
+    icon: SiInfluxdb,
+  },
+
+  "SQL Server": {
+    color: "#64748b",
+    icon: FaDatabase,
+  },
+
+  Oracle: {
+    color: "#f43f5e",
+    icon: FaDatabase,
+  },
+
+  Neo4j: {
+    color: "#4ade80",
+    icon: SiNeo4J,
+  },
+
+  ClickHouse: {
+    color: "#facc15",
+    icon: FaDatabase,
+  },
+
+  CockroachDB: {
+    color: "#3b82f6",
+    icon: SiCockroachlabs,
+  },
+
+  RethinkDB: {
+    color: "#f97316",
+    icon: FaDatabase,
+  },
+
+  ArangoDB: {
+    color: "#a855f7",
+    icon: FaDatabase,
+  },
 };
 
 const TABS = [
@@ -937,7 +1032,9 @@ export default function BottomPanel({ sessionId }) {
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {databases.map((db, i) => {
                   const isDocker = db.source === "docker";
-                  const color = DB_COLORS[db.name] || "var(--accent)";
+                  const dbMeta = DB_TYPES[db.name] || {};
+                  const color = dbMeta.color || "var(--accent)";
+                  const Icon = dbMeta.icon || FaDatabase;
                   return (
                     <div
                       key={i}
@@ -963,7 +1060,7 @@ export default function BottomPanel({ sessionId }) {
                     >
                       {/* Icono */}
                       <div style={{ fontSize: "20px", color, flexShrink: 0 }}>
-                        <FaDatabase />
+                        <Icon />
                       </div>
 
                       {/* Info principal */}

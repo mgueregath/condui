@@ -72,7 +72,7 @@ function LeftSidebar({
 
   return (
     <div className="sidebar-container">
-      <div class="sidebar">
+      <div className="sidebar">
         <div className="sidebar-header">
           <span className="sidebar-title">Connections</span>
           <div className="sidebar-header-actions">
@@ -420,7 +420,7 @@ function App() {
     <div className="app-shell">
       <div className="topbar">
         <span className="topbar-logo">
-          condu<span class="i">i</span>
+          condu<span className="i">i</span>
         </span>
       </div>
       {/* TOP BAR */}
