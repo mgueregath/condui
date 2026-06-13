@@ -6,7 +6,7 @@ import {
 import {
   GetFolders,
   GetConnections,
-} from "../../wailsjs/go/main/App";
+} from "../../bindings/ssh-gui/app";
 
 export function useConnections() {
 

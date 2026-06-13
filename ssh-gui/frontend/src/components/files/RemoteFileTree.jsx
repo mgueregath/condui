@@ -8,7 +8,7 @@ import {
   DownloadFile,
   ReadRemoteFile,
   SaveRemoteFile,
-} from "../../../wailsjs/go/main/App";
+} from "../../../bindings/ssh-gui/app";
 
 import RemoteFileNode from "./RemoteFileNode";
 import FileContextMenu from "./FileContextMenu";
