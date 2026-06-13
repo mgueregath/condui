@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build --mode production",
     "build:dev": "vite build --minify false --mode development",
     "preview": "vite preview"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
+    "@wailsio/runtime": "latest",
     "bootstrap": "^5.3.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

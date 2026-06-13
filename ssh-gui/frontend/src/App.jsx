@@ -5,7 +5,7 @@ import "xterm/css/xterm.css";
 import conduiLogo from "./assets/images/condui-transparent.png";
 import { FaFolder, FaFolderOpen, FaFile } from "react-icons/fa";
 
-import { EventsOn, EventsOff } from "../wailsjs/runtime/runtime";
+import { Events } from "@wailsio/runtime";
 import RemoteFileTree from "./components/files/RemoteFileTree";
 import {
   ConnectSSH,
@@ -19,7 +19,7 @@ import {
   DeleteFolder,
   UploadFile,
   EditTunnel,
-} from "../wailsjs/go/main/App";
+} from "../bindings/ssh-gui/app";;
 
 import { BsUpload } from "react-icons/bs";
 import { GrRefresh } from "react-icons/gr";
@@ -209,7 +209,7 @@ function App() {
   const { folders, connections, reload } = useConnections();
 
   useEffect(() => {
-    const unsub = EventsOn("session-disconnected", (payload) => {
+    const unsub = Events.On("session-disconnected", (payload) => {
       setTabs((prev) =>
         prev.map((t) =>
           t.id === payload.sessionId ? { ...t, disconnected: true } : t,
@@ -311,7 +311,7 @@ function App() {
       SendInput(activeTab, data);
     });
 
-    const unsubscribe = EventsOn("terminal-output", (payload) => {
+    const unsubscribe = Events.On("terminal-output", (payload) => {
       if (!terminalBuffers.current[payload.sessionId]) {
         terminalBuffers.current[payload.sessionId] = "";
       }

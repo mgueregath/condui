@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { EventsOn } from "../../wailsjs/runtime/runtime";
-import { StartDockerLogs, StopDockerLogs } from "../../wailsjs/go/main/App";
+import { Events } from "@wailsio/runtime";
+import { StartDockerLogs, StopDockerLogs } from "../../bindings/ssh-gui/app";
 
 const ANSI_RE = /\x1B\[[0-9;]*[mGKHFABCDJsunhl]|\x1B\][^\x07]*\x07|\x1B[()][AB012]|\r/g;
 
@@ -34,14 +34,14 @@ export default function DockerLogModal({ open, sessionId, containerId, container
 
     StartDockerLogs(sessionId, containerId).catch(console.error);
 
-    const offLine = EventsOn("docker-log-" + containerId, (line) => {
+    const offLine = Events.On("docker-log-" + containerId, (line) => {
       setLines((prev) => {
         const next = [...prev, String(line).replace(ANSI_RE, "")];
         return next.length > 2000 ? next.slice(next.length - 2000) : next;
       });
     });
 
-    const offEnd = EventsOn("docker-log-end-" + containerId, () => setEnded(true));
+    const offEnd = Events.On("docker-log-end-" + containerId, () => setEnded(true));
 
     return () => {
       offLine?.();

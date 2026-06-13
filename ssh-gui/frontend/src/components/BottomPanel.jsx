@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { EventsOn } from "../../wailsjs/runtime/runtime";
+import { Events } from "@wailsio/runtime";
 import {
   GetTunnels,
   ToggleTunnel,
@@ -12,7 +12,7 @@ import {
   GetDatabases,
   OpenDockerLogWindow,
   OpenDbExplorerWindow,
-} from "../../wailsjs/go/main/App";
+} from "../../bindings/ssh-gui/app";;
 import { FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch } from "react-icons/fa";
 import {
   SiPostgresql,
@@ -170,14 +170,14 @@ export default function BottomPanel({ sessionId }) {
   useEffect(() => {
     // Usamos actualizaciones funcionales (prev) => ... para que React no necesite
     // meter el estado en las dependencias del useEffect y no se pierdan los eventos
-    const offLog = EventsOn("log-event", (log) => {
+    const offLog = Events.On("log-event", (log) => {
       setLogs((prev) => {
         // Evitar duplicados rápidos en renderizado y limitar a 200 líneas
         return [log, ...prev].slice(0, 200);
       });
     });
 
-    const offTransfer = EventsOn("transfer-status", (data) => {
+    const offTransfer = Events.On("transfer-status", (data) => {
       setTransfers((prev) => ({
         ...prev,
         [data.id]: data,

@@ -4,7 +4,7 @@ import { LuRefreshCw } from "react-icons/lu";
 import {
   DbConnect, DbDisconnect, DbListDatabases, DbListSchemas,
   DbListTables, DbGetColumns, DbQuery,
-} from "../../wailsjs/go/main/App";
+} from "../../bindings/ssh-gui/app";
 
 const DB_TYPE_COLOR = {
   postgresql: "#3b82f6", timescaledb: "#3b82f6",
