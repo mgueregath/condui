@@ -7,8 +7,6 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
-
 	"ssh-gui/backend/dockerinfo"
 	"ssh-gui/backend/models"
 )
@@ -84,11 +82,11 @@ func (a *App) StartDockerLogs(sessionID string, containerID string) error {
 			a.dockerLogMu.Lock()
 			delete(a.dockerLogSessions, key)
 			a.dockerLogMu.Unlock()
-			runtime.EventsEmit(a.ctx, "docker-log-end-"+containerID)
+			a.app.Event.Emit("docker-log-end-"+containerID, nil)
 		}()
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
-			runtime.EventsEmit(a.ctx, "docker-log-"+containerID, scanner.Text())
+			a.app.Event.Emit("docker-log-"+containerID, scanner.Text())
 		}
 	}()
 

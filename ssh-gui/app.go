@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"ssh-gui/backend/dbexplorer"
 	"ssh-gui/backend/sessions"
@@ -17,7 +17,7 @@ import (
 )
 
 type App struct {
-	ctx context.Context
+	app *application.App
 
 	sessionManager *sessions.SessionManager
 
@@ -34,7 +34,7 @@ type App struct {
 	tunnelManager *tunnels.Manager
 }
 
-func NewApp() *App {
+func NewApp(app *application.App) *App {
 
 	dbPath, err :=
 		storage.DatabasePath()
@@ -57,29 +57,26 @@ func NewApp() *App {
 	}
 
 	return &App{
-		sessionManager:
-			sessions.NewSessionManager(),
-		transferManager:
-			transfers.NewManager(),
-		dbExplorer:
-			dbexplorer.NewManager(),
-		tunnelManager:
-			tunnels.NewManager(),
+		app:             app,
+		sessionManager:  sessions.NewSessionManager(),
+		transferManager: transfers.NewManager(),
+		dbExplorer:      dbexplorer.NewManager(),
+		tunnelManager:   tunnels.NewManager(),
 
 		database: db,
 	}
 }
 
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
+func (a *App) ServiceStartup(ctx context.Context, options application.ServerOptions) error {
 	go a.startDockerLogServer()
+	return nil
 }
 
 func (a *App) emitLog(logType string, message string, class string) {
-	if a.ctx == nil {
+	if a.app == nil {
 		return
 	}
-	runtime.EventsEmit(a.ctx, "log-event", map[string]string{
+	a.app.Event.Emit("log-event", map[string]string{
 		"time": time.Now().Format("15:04:05"),
 		"type": logType,
 		"msg":  message,

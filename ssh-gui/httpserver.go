@@ -116,7 +116,7 @@ func (a *App) OpenDockerLogWindow(sessionID string, containerID string, containe
 		neturl.QueryEscape(containerID),
 		neturl.QueryEscape(containerName),
 	)
-	runtime.BrowserOpenURL(a.ctx, url)
+	runtime.BrowserOpenURL(a.app.Context(), url)
 	return nil
 }
 
@@ -131,7 +131,7 @@ func (a *App) OpenDbExplorerWindow(sessionID, dbType string, port int) error {
 		neturl.QueryEscape(dbType),
 		port,
 	)
-	runtime.BrowserOpenURL(a.ctx, url)
+	runtime.BrowserOpenURL(a.app.Context(), url)
 	return nil
 }
 

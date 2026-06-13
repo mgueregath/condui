@@ -1,11 +1,13 @@
 {
-  "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "Condui",
+  "frontend": {
+    "dir": "frontend",
+    "install": "npm install",
+    "build": "npm run build",
+    "dev": "npm run dev",
+    "devServerUrl": "auto"
+  },
   "outputfilename": "Condui",
-  "frontend:install": "npm install",
-  "frontend:build": "npm run build",
-  "frontend:dev:watcher": "npm run dev",
-  "frontend:dev:serverUrl": "auto",
   "author": {
     "name": "Mirko Gueregat",
     "email": "mgueregath@gmail.com"
