@@ -7,7 +7,6 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/pkg/sftp v1.13.10
-	github.com/wailsapp/wails/v2 v2.12.0
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.98-tui
 	golang.org/x/crypto v0.52.0
 	modernc.org/sqlite v1.51.0
@@ -39,8 +38,6 @@ require (
 	github.com/kevinburke/ssh_config v1.4.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
-	github.com/leaanthony/slicer v1.6.0 // indirect
-	github.com/leaanthony/u v1.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
@@ -59,5 +56,3 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
-
-// replace github.com/wailsapp/wails/v2 v2.12.0 => /Users/mgueregath/go/pkg/mod

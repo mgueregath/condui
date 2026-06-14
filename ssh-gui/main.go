@@ -10,7 +10,7 @@ import (
 var assets embed.FS
 
 func main() {
-	app := NewApp(nil)
+	app := NewApp()
 
 	a := application.New(application.Options{
 		Name:        "Condui",

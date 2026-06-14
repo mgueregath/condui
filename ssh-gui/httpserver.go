@@ -8,7 +8,7 @@ import (
 	neturl "net/url"
 	"strings"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"ssh-gui/backend/dbexplorer"
 	"ssh-gui/backend/weblog"
@@ -116,8 +116,7 @@ func (a *App) OpenDockerLogWindow(sessionID string, containerID string, containe
 		neturl.QueryEscape(containerID),
 		neturl.QueryEscape(containerName),
 	)
-	runtime.BrowserOpenURL(a.app.Context(), url)
-	return nil
+	return application.Get().Browser.OpenURL(url)
 }
 
 // OpenDbExplorerWindow abre el explorador de BD en una ventana del navegador del sistema
@@ -131,8 +130,7 @@ func (a *App) OpenDbExplorerWindow(sessionID, dbType string, port int) error {
 		neturl.QueryEscape(dbType),
 		port,
 	)
-	runtime.BrowserOpenURL(a.app.Context(), url)
-	return nil
+	return application.Get().Browser.OpenURL(url)
 }
 
 func (a *App) handleDbExplorer(w http.ResponseWriter, r *http.Request) {

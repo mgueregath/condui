@@ -58,7 +58,7 @@ func (a *App) UploadFile(sessionID string, remoteDirectory string) error {
 		return fmt.Errorf("session not found")
 	}
 
-	localPath, err := a.app.Dialog.OpenFileWithOptions(&application.OpenFileDialogOptions{
+	localPath, err := application.Get().Dialog.OpenFileWithOptions(&application.OpenFileDialogOptions{
 		Title: "Subir archivo",
 	}).PromptForSingleSelection()
 	if err != nil || localPath == "" {
@@ -101,7 +101,6 @@ func (a *App) UploadFile(sessionID string, remoteDirectory string) error {
 		ID:        transferID,
 		FileName:  fileName,
 		Direction: "upload",
-		AppCtx:    a.app.Context(),
 	}
 
 	// MultiWriter escribe en el archivo remoto y a la vez computa el progreso
@@ -109,12 +108,12 @@ func (a *App) UploadFile(sessionID string, remoteDirectory string) error {
 	_, err = io.Copy(mw, localFile)
 
 	if err != nil {
-		a.app.Event.Emit("transfer-status", map[string]any{"id": transferID, "status": "error"})
+		application.Get().Event.Emit("transfer-status", map[string]any{"id": transferID, "status": "error"})
 		a.emitLog("SFTP", "Error al subir "+fileName, "error")
 		return err
 	}
 
-	a.app.Event.Emit("transfer-status", map[string]any{"id": transferID, "name": fileName, "progress": 100, "status": "done"})
+	application.Get().Event.Emit("transfer-status", map[string]any{"id": transferID, "name": fileName, "progress": 100, "status": "done"})
 	a.emitLog("SFTP", "Subida completada: "+fileName, "success")
 	return nil
 }
@@ -135,7 +134,7 @@ func (a *App) DownloadFile(
 	// 1. Abrir diálogo nativo para guardar archivo
 	fileName := sftpservice.GetFileName(remotePath) // O usa path.Base(remotePath)
 
-	chosenLocalPath, err := a.app.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
+	chosenLocalPath, err := application.Get().Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
 		Title:    "Descargar archivo remoto",
 		Filename: fileName,
 	}).PromptForSingleSelection()

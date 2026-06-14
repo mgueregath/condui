@@ -17,8 +17,6 @@ import (
 )
 
 type App struct {
-	app *application.App
-
 	sessionManager *sessions.SessionManager
 
 	database *storage.Database
@@ -34,7 +32,7 @@ type App struct {
 	tunnelManager *tunnels.Manager
 }
 
-func NewApp(app *application.App) *App {
+func NewApp() *App {
 
 	dbPath, err :=
 		storage.DatabasePath()
@@ -57,7 +55,6 @@ func NewApp(app *application.App) *App {
 	}
 
 	return &App{
-		app:             app,
 		sessionManager:  sessions.NewSessionManager(),
 		transferManager: transfers.NewManager(),
 		dbExplorer:      dbexplorer.NewManager(),
@@ -67,16 +64,13 @@ func NewApp(app *application.App) *App {
 	}
 }
 
-func (a *App) ServiceStartup(ctx context.Context, options application.ServerOptions) error {
+func (a *App) ServiceStartup(ctx context.Context, options application.ServiceOptions) error {
 	go a.startDockerLogServer()
 	return nil
 }
 
 func (a *App) emitLog(logType string, message string, class string) {
-	if a.app == nil {
-		return
-	}
-	a.app.Event.Emit("log-event", map[string]string{
+	application.Get().Event.Emit("log-event", map[string]string{
 		"time": time.Now().Format("15:04:05"),
 		"type": logType,
 		"msg":  message,
