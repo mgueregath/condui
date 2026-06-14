@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"ssh-gui/backend/sessions"
 )
@@ -130,8 +130,7 @@ func (a *App) ConnectSSH(
 			n, err := stdout.Read(buffer)
 
 			if err != nil {
-				runtime.EventsEmit(
-					a.ctx,
+				application.Get().Event.Emit(
 					"session-disconnected",
 					map[string]any{
 						"sessionId": sessionID,
@@ -140,8 +139,7 @@ func (a *App) ConnectSSH(
 				return
 			}
 
-			runtime.EventsEmit(
-				a.ctx,
+			application.Get().Event.Emit(
 				"terminal-output",
 				map[string]any{
 					"sessionId": sessionID,
@@ -163,8 +161,7 @@ func (a *App) ConnectSSH(
 				return
 			}
 
-			runtime.EventsEmit(
-				a.ctx,
+			application.Get().Event.Emit(
 				"terminal-output",
 				map[string]any{
 					"sessionId": sessionID,

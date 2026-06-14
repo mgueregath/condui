@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"ssh-gui/backend/models"
 	sftpservice "ssh-gui/backend/sftp"
@@ -59,7 +59,7 @@ func (a *App) UploadFile(sessionID string, remoteDirectory string) error {
 		return fmt.Errorf("session not found")
 	}
 
-	localPath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{Title: "Subir archivo"})
+	localPath, err := application.Get().Dialog.OpenFile().SetTitle("Subir archivo").PromptForSingleSelection()
 	if err != nil || localPath == "" {
 		return fmt.Errorf("cancelado")
 	}
@@ -96,11 +96,10 @@ func (a *App) UploadFile(sessionID string, remoteDirectory string) error {
 
 	// Envolver el destino en nuestro ProgressWriter
 	progress := &models.ProgressWriter{
-		Total:       stat.Size(),
-		ID:          transferID,
-		FileName:    fileName,
-		Direction:   "upload",
-		AppCtx:      a.ctx,
+		Total:     stat.Size(),
+		ID:        transferID,
+		FileName:  fileName,
+		Direction: "upload",
 	}
 
 	// MultiWriter escribe en el archivo remoto y a la vez computa el progreso
@@ -108,12 +107,12 @@ func (a *App) UploadFile(sessionID string, remoteDirectory string) error {
 	_, err = io.Copy(mw, localFile)
 
 	if err != nil {
-		runtime.EventsEmit(a.ctx, "transfer-status", map[string]any{"id": transferID, "status": "error"})
+		application.Get().Event.Emit("transfer-status", map[string]any{"id": transferID, "status": "error"})
 		a.emitLog("SFTP", "Error al subir "+fileName, "error")
 		return err
 	}
 
-	runtime.EventsEmit(a.ctx, "transfer-status", map[string]any{"id": transferID, "name": fileName, "progress": 100, "status": "done"})
+	application.Get().Event.Emit("transfer-status", map[string]any{"id": transferID, "name": fileName, "progress": 100, "status": "done"})
 	a.emitLog("SFTP", "Subida completada: "+fileName, "success")
 	return nil
 }
@@ -134,10 +133,10 @@ func (a *App) DownloadFile(
 	// 1. Abrir diálogo nativo para guardar archivo
 	fileName := sftpservice.GetFileName(remotePath) // O usa path.Base(remotePath)
 
-	chosenLocalPath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
-		Title:           "Descargar archivo remoto",
-		DefaultFilename: fileName,
-	})
+	chosenLocalPath, err := application.Get().Dialog.SaveFile().
+		SetTitle("Descargar archivo remoto").
+		SetFilename(fileName).
+		PromptForSingleSelection()
 
 	if err != nil || chosenLocalPath == "" {
 		return fmt.Errorf("descarga cancelada por el usuario")

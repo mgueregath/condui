@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"ssh-gui/backend/dbexplorer"
 	"ssh-gui/backend/sessions"
@@ -70,16 +70,14 @@ func NewApp() *App {
 	}
 }
 
-func (a *App) startup(ctx context.Context) {
+func (a *App) ServiceStartup(ctx context.Context, options application.ServiceOptions) error {
 	a.ctx = ctx
 	go a.startDockerLogServer()
+	return nil
 }
 
 func (a *App) emitLog(logType string, message string, class string) {
-	if a.ctx == nil {
-		return
-	}
-	runtime.EventsEmit(a.ctx, "log-event", map[string]string{
+	application.Get().Event.Emit("log-event", map[string]string{
 		"time": time.Now().Format("15:04:05"),
 		"type": logType,
 		"msg":  message,
