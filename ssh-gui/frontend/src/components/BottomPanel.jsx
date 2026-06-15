@@ -34,7 +34,7 @@ import { LuLogs, LuNetwork } from "react-icons/lu";
 import { BiTransfer } from "react-icons/bi";
 import { GiWarpPipe } from "react-icons/gi";
 import { IoIosAdd } from "react-icons/io";
-import { GrRefresh } from "react-icons/gr";
+import { GrRefresh, GrFormRefresh } from "react-icons/gr";
 
 const DB_TYPES = {
   PostgreSQL: {
@@ -338,6 +338,15 @@ export default function BottomPanel({ sessionId }) {
       await fetchContainers();
     } catch (err) {
       console.error(`Error al ejecutar ${action} en contenedor:`, err);
+    }
+  };
+
+  const handleRestartContainer = async (containerId) => {
+    try {
+      await ToggleContainer(sessionId, containerId, "restart");
+      await fetchContainers();
+    } catch (err) {
+      console.error("Error al reiniciar contenedor:", err);
     }
   };
 
@@ -990,8 +999,8 @@ export default function BottomPanel({ sessionId }) {
                           padding: "5px 5px",
                           cursor: "pointer",
                           backgroundColor: isRunning
-                            ? "var(--yellow)"
-                            : "var(--accent)",
+                            ? "var(--red)"
+                            : "var(--green)",
                           color: "#fff",
                           border: "none",
                           borderRadius: "4px",
@@ -1012,6 +1021,33 @@ export default function BottomPanel({ sessionId }) {
                         }
                       >
                         {isRunning ? <FaStop /> : <FaPlay /> }
+                      </button>
+                      <button
+                        onClick={() => handleRestartContainer(c.id)}
+                        style={{
+                          padding: "5px 5px",
+                          cursor: "pointer",
+                          backgroundColor: "var(--yellow)",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "4px",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                          transition: "opacity 0.15s",
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.opacity = "0.85")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.opacity = "1")
+                        }
+                      >
+                        <GrRefresh />
                       </button>
                     </div>
                   </div>
