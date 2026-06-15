@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	neturl "net/url"
+	"regexp"
 	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -13,6 +14,8 @@ import (
 	"ssh-gui/backend/dbexplorer"
 	"ssh-gui/backend/weblog"
 )
+
+var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 
 func (a *App) startDockerLogServer() {
 	mux := http.NewServeMux()
@@ -85,7 +88,7 @@ func (a *App) handleLogStream(w http.ResponseWriter, r *http.Request) {
 	flusher, canFlush := w.(http.Flusher)
 	ctx := r.Context()
 
-	ansiRe := strings.NewReplacer("\r", "")
+	lineCleaner := strings.NewReplacer("\r", "")
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
 		select {
@@ -93,7 +96,13 @@ func (a *App) handleLogStream(w http.ResponseWriter, r *http.Request) {
 			return
 		default:
 		}
-		line := ansiRe.Replace(scanner.Text())
+
+		line := scanner.Text()
+		// Remove CR characters
+		line = lineCleaner.Replace(line)
+		// Remove ANSI escape sequences
+		line = ansiRegex.ReplaceAllString(line, "")
+
 		fmt.Fprintf(w, "data: %s\n\n", strings.ReplaceAll(line, "\n", " "))
 		if canFlush {
 			flusher.Flush()
@@ -117,7 +126,8 @@ func (a *App) OpenDockerLogWindow(sessionID string, containerID string, containe
 		neturl.QueryEscape(containerName),
 	)
 	window := application.Get().Window.NewWithOptions(application.WebviewWindowOptions{
-		URL: url,
+		URL:   url,
+		Title: containerName,
 	})
 	window.Show()
 
@@ -136,12 +146,12 @@ func (a *App) OpenDbExplorerWindow(sessionID, dbType string, port int) error {
 		port,
 	)
 	window := application.Get().Window.NewWithOptions(application.WebviewWindowOptions{
-		URL: url,
-		Title: fmt.Sprintf("DB Explorer - %s:%d", dbType, port),
-		Width:            1400,
-		Height:           900,
-		MinWidth:         1000,
-		MinHeight:        700,
+		URL:       url,
+		Title:     fmt.Sprintf("DB Explorer - %s:%d", dbType, port),
+		Width:     1400,
+		Height:    900,
+		MinWidth:  1000,
+		MinHeight: 700,
 	})
 	window.Show()
 
