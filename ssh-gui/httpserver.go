@@ -116,7 +116,12 @@ func (a *App) OpenDockerLogWindow(sessionID string, containerID string, containe
 		neturl.QueryEscape(containerID),
 		neturl.QueryEscape(containerName),
 	)
-	return application.Get().Browser.OpenURL(url)
+	window := application.Get().Window.NewWithOptions(application.WebviewWindowOptions{
+		URL: url,
+	})
+	window.Show()
+
+	return nil
 }
 
 // OpenDbExplorerWindow abre el explorador de BD en una ventana del navegador del sistema
@@ -130,7 +135,17 @@ func (a *App) OpenDbExplorerWindow(sessionID, dbType string, port int) error {
 		neturl.QueryEscape(dbType),
 		port,
 	)
-	return application.Get().Browser.OpenURL(url)
+	window := application.Get().Window.NewWithOptions(application.WebviewWindowOptions{
+		URL: url,
+		Title: fmt.Sprintf("DB Explorer - %s:%d", dbType, port),
+		Width:            1400,
+		Height:           900,
+		MinWidth:         1000,
+		MinHeight:        700,
+	})
+	window.Show()
+
+	return nil
 }
 
 func (a *App) handleDbExplorer(w http.ResponseWriter, r *http.Request) {

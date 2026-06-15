@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Logs — {{TITLE}}</title>
+  <style>{{CSS}}</style>
+</head>
+
+<body>
+  <div id="header">
+    <div style="display:flex;align-items:center;gap:10px;min-width:0">
+      <span id="title">{{TITLE}}</span>
+      <span id="badge" class="live">● LIVE</span>
+      <span id="count">0 líneas</span>
+    </div>
+    <div id="controls">
+      <button onclick="document.getElementById('logs').innerHTML='';lineCount=0;updateCount()">Limpiar</button>
+      <button id="follow-btn" onclick="enableFollow()">↓ Seguir</button>
+    </div>
+  </div>
+  <div id="logs"></div>
+  <script>
+  window.LOG_STREAM_URL = "{{STREAM_URL}}";
+  </script>
+  <script>{{JS}}</script>
+</body>
+
+</html>
