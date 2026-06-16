@@ -22,7 +22,8 @@ APP_NAME="Condui"
 
 EXE_NAME="${APP_NAME}.exe"
 
-EXE_PATH="$WAILS_DIR/build/bin/$EXE_NAME"
+# Wails v3 outputs to bin/ (lowercase app name) inside the project dir
+EXE_PATH="$WAILS_DIR/bin/condui.exe"
 
 RELEASE_PATH="$WINDOWS_DIST/$EXE_NAME"
 
@@ -41,8 +42,8 @@ echo ""
 # ==========================================
 
 
-command -v wails >/dev/null || {
-    echo "wails not installed"
+command -v wails3 >/dev/null || {
+    echo "wails3 not installed"
     exit 1
 }
 
@@ -59,7 +60,7 @@ echo ""
 
 
 # limpia bin temporal de wails
-rm -rf "$WAILS_DIR/build/bin"
+rm -rf "$WAILS_DIR/bin"
 
 # limpia SOLO windows dentro de dist
 rm -rf "$WINDOWS_DIST"
@@ -80,11 +81,8 @@ echo ""
 
 cd "$WAILS_DIR"
 
-
-wails build \
--clean \
--platform windows/amd64
-
+# Wails v3: compila para Windows amd64 (cross-compile sin CGO)
+wails3 task windows:build ARCH=amd64
 
 cd "$ROOT_DIR"
 

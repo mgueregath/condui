@@ -209,7 +209,8 @@ function App() {
   const { folders, connections, reload } = useConnections();
 
   useEffect(() => {
-    const unsub = Events.On("session-disconnected", (payload) => {
+    const unsub = Events.On("session-disconnected", (event) => {
+      const payload = event.data;
       setTabs((prev) =>
         prev.map((t) =>
           t.id === payload.sessionId ? { ...t, disconnected: true } : t,
@@ -311,7 +312,8 @@ function App() {
       SendInput(activeTab, data);
     });
 
-    const unsubscribe = Events.On("terminal-output", (payload) => {
+    const unsubscribe = Events.On("terminal-output", (event) => {
+      const payload = event.data;
       if (!terminalBuffers.current[payload.sessionId]) {
         terminalBuffers.current[payload.sessionId] = "";
       }

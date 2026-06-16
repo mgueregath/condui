@@ -34,7 +34,8 @@ export default function DockerLogModal({ open, sessionId, containerId, container
 
     StartDockerLogs(sessionId, containerId).catch(console.error);
 
-    const offLine = Events.On("docker-log-" + containerId, (line) => {
+    const offLine = Events.On("docker-log-" + containerId, (event) => {
+      const line = event.data;
       setLines((prev) => {
         const next = [...prev, String(line).replace(ANSI_RE, "")];
         return next.length > 2000 ? next.slice(next.length - 2000) : next;
