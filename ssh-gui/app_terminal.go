@@ -16,10 +16,7 @@ func (a *App) ConnectSSH(
 	connectionID string,
 ) (string, error) {
 
-	connection, err :=
-		a.database.GetConnectionByID(
-			connectionID,
-		)
+	connection, err := a.database.GetConnectionByID(connectionID)
 
 	if err != nil {
 		return "", err
@@ -28,22 +25,12 @@ func (a *App) ConnectSSH(
 	config := &ssh.ClientConfig{
 		User: connection.Username,
 		Auth: []ssh.AuthMethod{
-			ssh.Password(
-				*connection.Password,
-			),
+			ssh.Password(*connection.Password),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	client, err := ssh.Dial(
-		"tcp",
-		fmt.Sprintf(
-			"%s:%d",
-			connection.Host,
-			connection.Port,
-		),
-		config,
-	)
+	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", connection.Host, connection.Port), config)
 
 	if err != nil {
 		return "", err
@@ -65,12 +52,7 @@ func (a *App) ConnectSSH(
 		ssh.ECHO: 1,
 	}
 
-	err = session.RequestPty(
-		"xterm",
-		40,
-		120,
-		modes,
-	)
+	err = session.RequestPty("xterm", 40, 120, modes)
 
 	if err != nil {
 		return "", err

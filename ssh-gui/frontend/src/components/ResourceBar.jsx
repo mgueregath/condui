@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { GetSystemStats } from "../../bindings/ssh-gui/app";;
+import { GetSystemStats } from "../../bindings/ssh-gui/app";
 
 function fmtGB(gb) {
   if (gb >= 1000) return `${(gb / 1024).toFixed(1)}T`;

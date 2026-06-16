@@ -502,9 +502,7 @@ export default function BottomPanel({ sessionId }) {
           <div
             className="logs-tab-content"
             style={{
-              padding: "12px",
-              fontFamily: "var(--font-mono, monospace)",
-              fontSize: "12px",
+              padding: "12px"
             }}
           >
             {logs.length === 0 ? (

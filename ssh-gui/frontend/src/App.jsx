@@ -25,6 +25,7 @@ import { BsUpload } from "react-icons/bs";
 import { GrRefresh } from "react-icons/gr";
 import { MdUploadFile } from "react-icons/md";
 import { FaLevelUpAlt } from "react-icons/fa";
+import { TiFlashOutline } from "react-icons/ti";
 
 import TabBar from "./components/TabBar";
 import BottomPanel from "./components/BottomPanel";
@@ -611,7 +612,7 @@ function App() {
               style={{ alignItems: "center", justifyContent: "center" }}
             >
               <div style={{ textAlign: "center", color: "var(--text-muted)" }}>
-                <div style={{ fontSize: "32px", marginBottom: "12px" }}>⚡</div>
+                <div style={{ fontSize: "32px", marginBottom: "12px" }}> <TiFlashOutline /></div>
                 <div
                   style={{
                     fontSize: "14px",
