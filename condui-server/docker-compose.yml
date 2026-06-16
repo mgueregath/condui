@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  server:
+    build: .
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      DB_PATH: /data/condui.db
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRY_MINUTES: ${JWT_EXPIRY_MINUTES:-15}
+      REFRESH_EXPIRY_DAYS: ${REFRESH_EXPIRY_DAYS:-30}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+    volumes:
+      - condui_data:/data
+    networks:
+      - condui_net
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - condui_net
+    depends_on:
+      - server
+
+volumes:
+  condui_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  condui_net:

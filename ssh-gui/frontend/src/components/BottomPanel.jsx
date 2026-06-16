@@ -144,10 +144,11 @@ const TABS = [
   { id: "tunnels",   label: "Tunnels",   icon: <GiWarpPipe /> },
   { id: "ports",     label: "Ports",     icon: <LuNetwork /> },
   { id: "docker",    label: "Docker",    icon: <FaDocker /> },
-  { id: "databases", label: "Databases", icon: <FaDatabase /> },
+  { id: "databases", label: "Databases", icon: <FaDatabase />, pro: true },
 ];
 
-export default function BottomPanel({ sessionId }) {
+export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
+  const isPro = accountStatus?.tier === "pro";
   const [activeTab, setActiveTab] = useState("logs");
 
   // Estados de datos
@@ -374,49 +375,56 @@ export default function BottomPanel({ sessionId }) {
           flexShrink: 0,
         }}
       >
-        {TABS.map((t) => (
-          <div
-            key={t.id}
-            className={activeTab === t.id ? "bottom-tab active" : "bottom-tab"}
-            onClick={() => setActiveTab(t.id)}
-            style={{
-              padding: "10px 16px",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: activeTab === t.id ? "600" : "400",
-              color:
-                activeTab === t.id ? "var(--accent)" : "var(--text-secondary)",
-              borderBottom:
-                activeTab === t.id
+        {TABS.map((t) => {
+          const locked = t.pro && !isPro;
+          const isActive = activeTab === t.id;
+          return (
+            <div
+              key={t.id}
+              className={isActive ? "bottom-tab active" : "bottom-tab"}
+              onClick={() => locked ? onUpgrade?.() : setActiveTab(t.id)}
+              title={locked ? "Disponible en plan Pro" : undefined}
+              style={{
+                padding: "10px 16px",
+                cursor: "pointer",
+                fontSize: "13px",
+                fontWeight: isActive ? "600" : "400",
+                color: locked
+                  ? "var(--text-muted)"
+                  : isActive ? "var(--accent)" : "var(--text-secondary)",
+                borderBottom: isActive
                   ? "2px solid var(--accent)"
                   : "2px solid transparent",
-            }}
-          >
-            {t.icon}
-            {t.label}
-            {t.id === "transfers" &&
-              Object.values(transfers).filter((t) => t.status === "active")
-                .length > 0 && (
-                <span
-                  className="badge-active-count"
-                  style={{
-                    marginLeft: "6px",
-                    background: "var(--accent)",
-                    color: "#fff",
-                    borderRadius: "10px",
-                    padding: "1px 6px",
-                    fontSize: "10px",
-                  }}
-                >
-                  {
-                    Object.values(transfers).filter(
-                      (t) => t.status === "active",
-                    ).length
-                  }
-                </span>
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                opacity: locked ? 0.6 : 1,
+              }}
+            >
+              {t.icon}
+              {t.label}
+              {locked && (
+                <span style={{ fontSize: 9, marginLeft: 2, opacity: 0.8 }}>🔒</span>
               )}
-          </div>
-        ))}
+              {t.id === "transfers" &&
+                Object.values(transfers).filter((t) => t.status === "active").length > 0 && (
+                  <span
+                    className="badge-active-count"
+                    style={{
+                      marginLeft: "4px",
+                      background: "var(--accent)",
+                      color: "#fff",
+                      borderRadius: "10px",
+                      padding: "1px 6px",
+                      fontSize: "10px",
+                    }}
+                  >
+                    {Object.values(transfers).filter((t) => t.status === "active").length}
+                  </span>
+                )}
+            </div>
+          );
+        })}
 
         <div
           className="bottom-tab-actions"
@@ -1060,7 +1068,31 @@ export default function BottomPanel({ sessionId }) {
         )}
 
         {/* ===================== TAB: DATABASES ===================== */}
-        {activeTab === "databases" && (
+        {activeTab === "databases" && !isPro && (
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            height: "100%", gap: 12, padding: 32, textAlign: "center",
+          }}>
+            <FaDatabase style={{ fontSize: 28, color: "var(--text-muted)", opacity: 0.5 }} />
+            <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>
+              Database Explorer — Plan Pro
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", maxWidth: 280, lineHeight: 1.6 }}>
+              Detecta y explora bases de datos en tus servidores remotos. Disponible en el plan Pro.
+            </div>
+            <button
+              onClick={onUpgrade}
+              style={{
+                marginTop: 4, padding: "6px 18px", borderRadius: 8,
+                background: "var(--accent)", color: "#fff",
+                border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
+              }}
+            >
+              Ver planes →
+            </button>
+          </div>
+        )}
+        {activeTab === "databases" && isPro && (
           <div className="docker-tab-content">
             {databases.length === 0 ? (
               <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>

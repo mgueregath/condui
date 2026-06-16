@@ -7,6 +7,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as account$0 from "./backend/account/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as models$0 from "./backend/models/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -17,12 +20,47 @@ import * as sftp$0 from "./backend/sftp/models.js";
 import * as $models from "./models.js";
 
 /**
+ * AcceptShare accepts an incoming share invite and imports the connection locally.
+ */
+export function AcceptShare(shareID: string, encryptedKey: string, blobID: string): $CancellablePromise<void> {
+    return $Call.ByID(3935935700, shareID, encryptedKey, blobID);
+}
+
+/**
+ * AccountLogin authenticates against the sync server.
+ */
+export function AccountLogin(serverURL: string, email: string, password: string): $CancellablePromise<void> {
+    return $Call.ByID(1969818985, serverURL, email, password);
+}
+
+/**
+ * AccountLogout logs out and clears local account data.
+ */
+export function AccountLogout(): $CancellablePromise<void> {
+    return $Call.ByID(1746620394);
+}
+
+/**
+ * AccountRegister creates a new account on the sync server.
+ */
+export function AccountRegister(serverURL: string, email: string, password: string): $CancellablePromise<void> {
+    return $Call.ByID(1372759869, serverURL, email, password);
+}
+
+/**
  * AddTunnel registra un nuevo túnel dinámico en la sesión actual
  */
 export function AddTunnel(sessionID: string, localPort: number, remoteHost: string, remotePort: number): $CancellablePromise<models$0.TunnelInfo> {
     return $Call.ByID(1252415046, sessionID, localPort, remoteHost, remotePort).then(($result: any) => {
         return $$createType0($result);
     });
+}
+
+/**
+ * ApproveHostKey is called by the frontend in response to a host-key-verify event.
+ */
+export function ApproveHostKey(channelKey: string, approved: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2428770811, channelKey, approved);
 }
 
 export function CloseSession(sessionID: string): $CancellablePromise<void> {
@@ -33,6 +71,9 @@ export function ConnectSSH(connectionID: string): $CancellablePromise<string> {
     return $Call.ByID(2333793685, connectionID);
 }
 
+/**
+ * CreateConnection encrypts the password before persisting it.
+ */
 export function CreateConnection(connection: models$0.Connection): $CancellablePromise<void> {
     return $Call.ByID(1454115897, connection);
 }
@@ -136,45 +177,77 @@ export function EditTunnel(sessionID: string, tunnelID: string, localPort: numbe
     });
 }
 
-export function GetConnectionByID(id: string): $CancellablePromise<models$0.Connection | null> {
-    return $Call.ByID(3650713919, id).then(($result: any) => {
-        return $$createType6($result);
+/**
+ * GetAccountStatus returns the current account and sync status.
+ */
+export function GetAccountStatus(): $CancellablePromise<account$0.AccountStatus> {
+    return $Call.ByID(1877956068).then(($result: any) => {
+        return $$createType5($result);
     });
 }
 
+/**
+ * GetConnectionByID returns a connection with password redacted (use ConnectSSH to connect).
+ */
+export function GetConnectionByID(id: string): $CancellablePromise<models$0.Connection | null> {
+    return $Call.ByID(3650713919, id).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
+ * GetConnections returns all connections with passwords redacted.
+ * The frontend never receives plaintext passwords.
+ */
 export function GetConnections(): $CancellablePromise<models$0.Connection[]> {
     return $Call.ByID(1541859132).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
 export function GetDatabases(sessionID: string): $CancellablePromise<models$0.DatabaseInfo[]> {
     return $Call.ByID(2970679019, sessionID).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType10($result);
     });
 }
 
 export function GetDockerContainers(sessionID: string): $CancellablePromise<models$0.DockerContainer[]> {
     return $Call.ByID(3789202067, sessionID).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType12($result);
     });
 }
 
 export function GetFolders(): $CancellablePromise<models$0.Folder[]> {
     return $Call.ByID(452841144).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType14($result);
+    });
+}
+
+/**
+ * GetIncomingShares returns pending/accepted share invites.
+ */
+export function GetIncomingShares(): $CancellablePromise<account$0.ShareInfo[]> {
+    return $Call.ByID(2759342007).then(($result: any) => {
+        return $$createType16($result);
     });
 }
 
 export function GetListeningPorts(sessionID: string): $CancellablePromise<models$0.PortInfo[]> {
     return $Call.ByID(3826983416, sessionID).then(($result: any) => {
-        return $$createType15($result);
+        return $$createType18($result);
     });
+}
+
+/**
+ * GetPublicKey returns this account's X25519 public key.
+ */
+export function GetPublicKey(): $CancellablePromise<string> {
+    return $Call.ByID(1425211265);
 }
 
 export function GetSystemStats(sessionID: string): $CancellablePromise<$models.SystemStats | null> {
     return $Call.ByID(549671605, sessionID).then(($result: any) => {
-        return $$createType17($result);
+        return $$createType20($result);
     });
 }
 
@@ -183,13 +256,27 @@ export function GetSystemStats(sessionID: string): $CancellablePromise<$models.S
  */
 export function GetTunnels(sessionID: string): $CancellablePromise<models$0.TunnelInfo[]> {
     return $Call.ByID(2458647734, sessionID).then(($result: any) => {
-        return $$createType18($result);
+        return $$createType21($result);
     });
+}
+
+/**
+ * IsVaultLocked returns true if the master key is not loaded in memory.
+ */
+export function IsVaultLocked(): $CancellablePromise<boolean> {
+    return $Call.ByID(4122673697);
+}
+
+/**
+ * IsVaultSetup returns true if a master password salt has been stored.
+ */
+export function IsVaultSetup(): $CancellablePromise<boolean> {
+    return $Call.ByID(3586881096);
 }
 
 export function ListDirectory(sessionID: string, path: string): $CancellablePromise<sftp$0.FileItem[]> {
     return $Call.ByID(3882022436, sessionID, path).then(($result: any) => {
-        return $$createType20($result);
+        return $$createType23($result);
     });
 }
 
@@ -197,6 +284,13 @@ export function ListSessions(): $CancellablePromise<string[]> {
     return $Call.ByID(827108744).then(($result: any) => {
         return $$createType3($result);
     });
+}
+
+/**
+ * LockVault clears the master key from memory.
+ */
+export function LockVault(): $CancellablePromise<void> {
+    return $Call.ByID(563136070);
 }
 
 /**
@@ -234,6 +328,20 @@ export function SendInput(sessionID: string, data: string): $CancellablePromise<
 }
 
 /**
+ * SetupMasterPassword creates the vault for the first time.
+ */
+export function SetupMasterPassword(password: string): $CancellablePromise<void> {
+    return $Call.ByID(429511141, password);
+}
+
+/**
+ * ShareConnection shares a connection with another Condui user by email.
+ */
+export function ShareConnection(connectionID: string, recipientEmail: string, readOnly: boolean): $CancellablePromise<void> {
+    return $Call.ByID(3307276152, connectionID, recipientEmail, readOnly);
+}
+
+/**
  * StartDockerLogs abre docker logs -f en el contenedor y emite cada línea como evento Wails
  */
 export function StartDockerLogs(sessionID: string, containerID: string): $CancellablePromise<void> {
@@ -245,6 +353,13 @@ export function StartDockerLogs(sessionID: string, containerID: string): $Cancel
  */
 export function StopDockerLogs(sessionID: string, containerID: string): $CancellablePromise<void> {
     return $Call.ByID(3177717606, sessionID, containerID);
+}
+
+/**
+ * SyncNow encrypts all local connections and uploads to the sync server.
+ */
+export function SyncNow(): $CancellablePromise<void> {
+    return $Call.ByID(2954670258);
 }
 
 /**
@@ -261,6 +376,16 @@ export function ToggleTunnel(sessionID: string, tunnelID: string, localPort: num
     return $Call.ByID(1290322095, sessionID, tunnelID, localPort, remoteHost, remotePort, activate);
 }
 
+/**
+ * UnlockVault derives the master key from password and verifies it.
+ */
+export function UnlockVault(password: string): $CancellablePromise<void> {
+    return $Call.ByID(2387715367, password);
+}
+
+/**
+ * UpdateConnection encrypts the password before updating.
+ */
 export function UpdateConnection(connection: models$0.Connection): $CancellablePromise<void> {
     return $Call.ByID(619964812, connection);
 }
@@ -279,19 +404,22 @@ const $$createType1 = models$0.QueryColumn.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = $Create.Array($Create.Any);
 const $$createType4 = models$0.QueryResult.createFrom;
-const $$createType5 = models$0.Connection.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = $Create.Array($$createType5);
-const $$createType8 = models$0.DatabaseInfo.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = models$0.DockerContainer.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = models$0.Folder.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = models$0.PortInfo.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = $models.SystemStats.createFrom;
-const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = $Create.Array($$createType0);
-const $$createType19 = sftp$0.FileItem.createFrom;
-const $$createType20 = $Create.Array($$createType19);
+const $$createType5 = account$0.AccountStatus.createFrom;
+const $$createType6 = models$0.Connection.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = $Create.Array($$createType6);
+const $$createType9 = models$0.DatabaseInfo.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = models$0.DockerContainer.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = models$0.Folder.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = account$0.ShareInfo.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = models$0.PortInfo.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = $models.SystemStats.createFrom;
+const $$createType20 = $Create.Nullable($$createType19);
+const $$createType21 = $Create.Array($$createType0);
+const $$createType22 = sftp$0.FileItem.createFrom;
+const $$createType23 = $Create.Array($$createType22);

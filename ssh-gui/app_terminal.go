@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"net"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/pkg/sftp"
@@ -22,15 +24,91 @@ func (a *App) ConnectSSH(
 		return "", err
 	}
 
-	config := &ssh.ClientConfig{
-		User: connection.Username,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(*connection.Password),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	// Decrypt password if vault is unlocked
+	password := ""
+	if connection.Password != nil {
+		key := a.getMasterKey()
+		if key != nil {
+			decrypted, err := decryptConnectionPassword(*connection.Password, key)
+			if err != nil {
+				return "", fmt.Errorf("vault error: %w", err)
+			}
+			password = decrypted
+		} else {
+			// Vault is locked — cannot connect
+			return "", fmt.Errorf("vault is locked: please unlock the vault before connecting")
+		}
 	}
 
-	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", connection.Host, connection.Port), config)
+	host := connection.Host
+	port := connection.Port
+
+	hostKeyCallback := func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		fingerprint := ssh.FingerprintSHA256(key)
+
+		stored, err := a.database.GetKnownHost(host, port)
+		if err != nil {
+			return err
+		}
+
+		if stored == fingerprint {
+			// Known and matches — allow
+			return nil
+		}
+
+		if stored != "" && stored != fingerprint {
+			// Fingerprint changed — MITM warning
+			return fmt.Errorf(
+				"HOST KEY CHANGED for %s:%d\nExpected: %s\nGot: %s\n\nConnection rejected to prevent potential MITM attack.",
+				host, port, stored, fingerprint,
+			)
+		}
+
+		// First time seeing this host — ask user
+		channelKey := fmt.Sprintf("%s:%d", host, port)
+		ch := make(chan bool, 1)
+		a.hostKeyChannels.Store(channelKey, ch)
+		defer a.hostKeyChannels.Delete(channelKey)
+
+		application.Get().Event.Emit("host-key-verify", map[string]any{
+			"hostname":    host,
+			"port":        port,
+			"fingerprint": fingerprint,
+			"channelKey":  channelKey,
+		})
+
+		select {
+		case approved := <-ch:
+			if !approved {
+				return fmt.Errorf("host key rejected by user")
+			}
+			// Store approved fingerprint
+			return a.database.UpsertKnownHost(host, port, fingerprint)
+		case <-time.After(90 * time.Second):
+			return fmt.Errorf("host key verification timed out")
+		}
+	}
+
+	var authMethods []ssh.AuthMethod
+
+	if connection.AuthType == "private_key" && connection.PrivateKeyPath != nil {
+		signer, err := loadPrivateKey(*connection.PrivateKeyPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to load private key: %w", err)
+		}
+		authMethods = append(authMethods, ssh.PublicKeys(signer))
+	} else {
+		authMethods = append(authMethods, ssh.Password(password))
+	}
+
+	config := &ssh.ClientConfig{
+		User:            connection.Username,
+		Auth:            authMethods,
+		HostKeyCallback: hostKeyCallback,
+		Timeout:         15 * time.Second,
+	}
+
+	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", host, port), config)
 
 	if err != nil {
 		return "", err
@@ -153,6 +231,11 @@ func (a *App) ConnectSSH(
 	}()
 
 	return sessionID, nil
+}
+
+// ApproveHostKey is called by the frontend in response to a host-key-verify event.
+func (a *App) ApproveHostKey(channelKey string, approved bool) {
+	a.approveHostKeyChannel(channelKey, approved)
 }
 
 func (a *App) SendInput(

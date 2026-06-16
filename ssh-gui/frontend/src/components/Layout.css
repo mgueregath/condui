@@ -109,18 +109,34 @@ body,
 }
 
 .topbar-logo {
-  font-family: "NeuropolX", sans-serif;
-  font-size: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   margin-left: 80px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.4px;
-  margin-right: 10px;
-  transform: scaleY(1.4);
+  margin-right: 16px;
+  line-height: 1;
+  gap: 2px;
 }
 
-.topbar-logo span.i {
+.topbar-logo-wordmark {
+  font-family: "NeuropolX", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+}
+
+.topbar-logo-wordmark span.i {
   color: var(--accent);
+}
+
+.topbar-logo-tagline {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-left: 1px;
 }
 
 .topbar-actions {
@@ -2367,3 +2383,152 @@ select.modern-input {
   background: rgba(99,102,241,.2); color: var(--accent);
 }
 .db-key-badge.pk { background: rgba(251,191,36,.2); color: #fbbf24; }
+
+/* ══════════════════════════════════════════
+   VAULT & ACCOUNT STYLES
+   ══════════════════════════════════════════ */
+
+/* Vault unlock / setup fullscreen */
+.vault-screen {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-base);
+  z-index: 9999;
+}
+.vault-card {
+  width: 360px; padding: 40px 32px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(99,102,241,.08);
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+.vault-logo { margin-bottom: 4px; }
+.vault-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+.vault-subtitle {
+  font-size: 12px; color: var(--text-muted); text-align: center; line-height: 1.5;
+}
+.vault-form {
+  width: 100%; display: flex; flex-direction: column; gap: 10px;
+}
+.vault-error {
+  font-size: 12px; color: var(--red);
+  background: rgba(239,68,68,.08); border-radius: 6px;
+  padding: 8px 12px;
+}
+.vault-success {
+  font-size: 12px; color: var(--green);
+  background: rgba(34,197,94,.08); border-radius: 6px;
+  padding: 8px 12px;
+}
+
+/* Sidebar footer — logo only */
+.sidebar-footer {
+  padding: 16px 12px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.logo-image-sm { height: 44px; opacity: .55; }
+
+/* Topbar account button (right side) */
+.topbar-account {
+  margin-left: auto;
+  display: flex; align-items: center;
+}
+.topbar-account-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer;
+  padding: 5px 10px;
+  color: var(--text-secondary); font-size: 12px;
+  white-space: nowrap;
+  transition: background .15s, border-color .15s;
+}
+.topbar-account-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong, var(--accent));
+  color: var(--text-primary);
+}
+.topbar-avatar-sm {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.topbar-account-email {
+  max-width: 160px;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.tier-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+.tier-dot.tier-free { background: var(--text-muted); }
+.tier-dot.tier-pro { background: #f59e0b; }
+
+/* Account modal internals */
+.account-tabs {
+  display: flex; gap: 4px;
+  background: var(--bg-elevated); border-radius: 8px; padding: 3px;
+  margin-bottom: 16px;
+}
+.account-tab {
+  flex: 1; padding: 6px 0; border-radius: 6px;
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; color: var(--text-muted); transition: all .15s;
+}
+.account-tab.active {
+  background: var(--bg-surface); color: var(--text-primary);
+  font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+.account-info-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; background: var(--bg-elevated);
+  border-radius: 10px; margin-bottom: 16px;
+}
+.account-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 18px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.account-info-details { display: flex; flex-direction: column; gap: 4px; }
+.account-email { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.account-sync-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.tier-badge {
+  display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 4px;
+}
+.tier-badge.tier-free { background: rgba(168,159,196,.15); color: var(--text-muted); }
+.tier-badge.tier-pro { background: rgba(245,158,11,.15); color: #f59e0b; }
+
+.upgrade-banner {
+  font-size: 11px; color: var(--text-secondary);
+  background: rgba(245,158,11,.08); border-radius: 8px; padding: 10px 12px;
+  margin-top: 8px; line-height: 1.5;
+}
+.upgrade-banner a { color: var(--accent); text-decoration: none; }
+.upgrade-banner a:hover { text-decoration: underline; }
+.btn-sm { font-size: 11px !important; padding: 4px 10px !important; }
+.link-btn {
+  background: none; border: none; cursor: pointer; padding: 0;
+  text-decoration: underline; color: inherit;
+}
+
+/* Share modal */
+.permission-toggle {
+  display: flex; gap: 4px;
+  background: var(--bg-elevated); border-radius: 8px; padding: 3px;
+}
+.perm-option {
+  flex: 1; text-align: center; padding: 6px;
+  border-radius: 6px; cursor: pointer; font-size: 12px; color: var(--text-muted);
+  transition: all .15s;
+}
+.perm-option.active {
+  background: var(--bg-surface); color: var(--text-primary);
+  font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}

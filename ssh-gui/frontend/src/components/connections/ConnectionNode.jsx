@@ -1,4 +1,4 @@
-import { FaTrash, FaPlay, FaEdit } from "react-icons/fa";
+import { FaTrash, FaPlay, FaEdit, FaShareAlt } from "react-icons/fa";
 
 export default function ConnectionNode({
   connection,
@@ -6,34 +6,30 @@ export default function ConnectionNode({
   onOpen,
   onEdit,
   onDelete,
+  onShare,
 }) {
   const connect = (e) => {
     e?.stopPropagation();
-
-    if (!connecting) {
-      onOpen(connection);
-    }
+    if (!connecting) onOpen(connection);
   };
 
   return (
-    <div className="drawer-conn-item" onDoubleClick={connect} 
-    style={{
-      "--connection-color": connection.color,
-    }}>
+    <div
+      className="drawer-conn-item"
+      onDoubleClick={connect}
+      style={{ "--connection-color": connection.color }}
+    >
       <div className="conn-status">
-        <span
-          className={`conn-dot ${connection.online > 0 ? "online" : "offline"}`}
-        />
-
+        <span className={`conn-dot ${connection.online > 0 ? "online" : "offline"}`} />
         {connection.online > 1 && (
           <span className="conn-count">{connection.online}</span>
         )}
       </div>
+
       <div className="conn-info">
         <div className="conn-name" style={{ color: connection.color }}>
           {connection.name}
         </div>
-
         <div className="conn-host">
           {connection.username}@{connection.host}
         </div>
@@ -53,13 +49,21 @@ export default function ConnectionNode({
           className="conn-action-btn"
           title="Edit"
           disabled={connecting}
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(connection);
-          }}
+          onClick={(e) => { e.stopPropagation(); onEdit(connection); }}
         >
           <FaEdit />
         </button>
+
+        {onShare && (
+          <button
+            className="conn-action-btn"
+            title="Share"
+            disabled={connecting}
+            onClick={(e) => { e.stopPropagation(); onShare(connection); }}
+          >
+            <FaShareAlt />
+          </button>
+        )}
 
         <button
           className="conn-action-btn delete"
@@ -67,10 +71,7 @@ export default function ConnectionNode({
           disabled={connecting}
           onClick={(e) => {
             e.stopPropagation();
-
-            if (confirm(`Delete "${connection.name}"?`)) {
-              onDelete(connection);
-            }
+            if (confirm(`Delete "${connection.name}"?`)) onDelete(connection);
           }}
         >
           <FaTrash />
@@ -79,4 +80,3 @@ export default function ConnectionNode({
     </div>
   );
 }
-

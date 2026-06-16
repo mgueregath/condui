@@ -26,7 +26,7 @@ func DatabasePath() (string, error) {
 	err =
 		os.MkdirAll(
 			appDir,
-			0755,
+			0700,
 		)
 
 	if err != nil {

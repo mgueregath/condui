@@ -3,7 +3,7 @@ import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 import conduiLogo from "./assets/images/condui-transparent.png";
-import { FaFolder, FaFolderOpen, FaFile } from "react-icons/fa";
+import { FaFolder, FaFolderOpen, FaFile, FaUser } from "react-icons/fa";
 
 import { Events } from "@wailsio/runtime";
 import RemoteFileTree from "./components/files/RemoteFileTree";
@@ -19,7 +19,13 @@ import {
   DeleteFolder,
   UploadFile,
   EditTunnel,
-} from "../bindings/ssh-gui/app";;
+  ApproveHostKey,
+  GetAccountStatus,
+} from "../bindings/ssh-gui/app";
+
+import VaultUnlock from "./components/account/VaultUnlock";
+import AccountModal from "./components/account/AccountModal";
+import ShareModal from "./components/account/ShareModal";
 
 import { BsUpload } from "react-icons/bs";
 import { GrRefresh } from "react-icons/gr";
@@ -55,6 +61,9 @@ function LeftSidebar({
   onAssignFolder,
   onEditFolder,
   onDeleteFolder,
+  onShareConnection,
+  onOpenAccount,
+  accountStatus,
   activeSessionId,
 }) {
   const [search, setSearch] = useState("");
@@ -130,6 +139,7 @@ function LeftSidebar({
                     onEdit={onEditConnection}
                     onDelete={onDeleteConnection}
                     onAssignFolder={onAssignFolder}
+                    onShare={accountStatus?.loggedIn ? onShareConnection : undefined}
                   />
                 ))}
               </FolderNode>
@@ -157,6 +167,7 @@ function LeftSidebar({
                     onEdit={onEditConnection}
                     onDelete={onDeleteConnection}
                     onAssignFolder={onAssignFolder}
+                    onShare={accountStatus?.loggedIn ? onShareConnection : undefined}
                   />
                 ))}
             </div>
@@ -189,8 +200,8 @@ function LeftSidebar({
         )}
       </div>
 
-      <div className="app-logo">
-        <img className="logo-image" src={conduiLogo} />
+      <div className="sidebar-footer">
+        <img className="logo-image-sm" src={conduiLogo} />
       </div>
     </div>
   );
@@ -209,6 +220,26 @@ function App() {
   const [sshError, setSshError] = useState(null);
   const { folders, connections, reload } = useConnections();
 
+  // Vault & account state
+  const [vaultUnlocked, setVaultUnlocked] = useState(false);
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [accountStatus, setAccountStatus] = useState(null);
+  const [shareTarget, setShareTarget] = useState(null); // connection to share
+
+  // Host key verification
+  const [hostKeyPrompt, setHostKeyPrompt] = useState(null);
+
+  const refreshAccountStatus = async () => {
+    try {
+      const s = await GetAccountStatus();
+      setAccountStatus(s);
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    if (vaultUnlocked) refreshAccountStatus();
+  }, [vaultUnlocked]);
+
   useEffect(() => {
     const unsub = Events.On("session-disconnected", (event) => {
       const payload = event.data;
@@ -217,6 +248,14 @@ function App() {
           t.id === payload.sessionId ? { ...t, disconnected: true } : t,
         ),
       );
+    });
+    return () => unsub();
+  }, []);
+
+  // Host key verification event
+  useEffect(() => {
+    const unsub = Events.On("host-key-verify", (event) => {
+      setHostKeyPrompt(event.data);
     });
     return () => unsub();
   }, []);
@@ -272,6 +311,7 @@ function App() {
   });
 
   useEffect(() => {
+    if (!terminalRef.current) return; // Guard: terminal div not mounted (vault screen showing)
     const term = new Terminal({
       cursorBlink: true,
       convertEol: true,
@@ -343,7 +383,7 @@ function App() {
       ro.disconnect();
       term.dispose();
     };
-  }, [activeTab]);
+  }, [activeTab, vaultUnlocked]);
 
   useEffect(() => {
     if (!activeTab || !termRef.current) return;
@@ -419,12 +459,44 @@ function App() {
     }
   };
 
+  // Show vault screen before main UI
+  if (!vaultUnlocked) {
+    return <VaultUnlock onUnlocked={() => setVaultUnlocked(true)} />;
+  }
+
   return (
     <div className="app-shell">
       <div className="topbar">
-        <span className="topbar-logo">
-          condu<span className="i">i</span>
-        </span>
+        <div className="topbar-logo">
+          <span className="topbar-logo-wordmark">
+            condu<span className="i">i</span>
+          </span>
+          <span className="topbar-logo-tagline">SSH Manager</span>
+        </div>
+        <div className="topbar-account">
+          <button
+            className="topbar-account-btn"
+            onClick={() => setAccountModalOpen(true)}
+            title={accountStatus?.loggedIn ? accountStatus.email : "Sign in to sync"}
+          >
+            {accountStatus?.loggedIn ? (
+              <>
+                <span className="topbar-avatar-sm">
+                  {accountStatus.email?.[0]?.toUpperCase()}
+                </span>
+                <span className="topbar-account-email">{accountStatus.email}</span>
+                <span className={`tier-badge tier-${accountStatus.tier}`}>
+                  {accountStatus.tier === "pro" ? "Pro" : "Free"}
+                </span>
+              </>
+            ) : (
+              <>
+                <FaUser style={{ fontSize: 12 }} />
+                <span>Sign in</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
       {/* TOP BAR */}
       {/*
@@ -506,6 +578,9 @@ function App() {
           }}
           connectingId={connectingId}
           activeSessionId={activeTab}
+          onShareConnection={(c) => setShareTarget(c)}
+          onOpenAccount={() => setAccountModalOpen(true)}
+          accountStatus={accountStatus}
         />
 
         {/* Main card — tarjeta única con solapas arriba */}
@@ -603,7 +678,7 @@ function App() {
                 />
               </div>
             </div>
-            <BottomPanel sessionId={activeTab} />
+            <BottomPanel sessionId={activeTab} accountStatus={accountStatus} onUpgrade={() => setAccountModalOpen(true)} />
           </div>
 
           {tabs.length === 0 && (
@@ -738,6 +813,57 @@ function App() {
           </div>
         </div>
       </Modal>
+      {/* Account modal */}
+      <Modal open={accountModalOpen} onClose={() => { setAccountModalOpen(false); refreshAccountStatus(); }}>
+        <AccountModal onClose={() => { setAccountModalOpen(false); refreshAccountStatus(); }} />
+      </Modal>
+
+      {/* Share modal */}
+      <Modal open={!!shareTarget} onClose={() => setShareTarget(null)}>
+        {shareTarget && (
+          <ShareModal connection={shareTarget} onClose={() => setShareTarget(null)} />
+        )}
+      </Modal>
+
+      {/* Host key verification modal */}
+      <Modal open={!!hostKeyPrompt} onClose={() => {
+        if (hostKeyPrompt) ApproveHostKey(hostKeyPrompt.channelKey, false);
+        setHostKeyPrompt(null);
+      }}>
+        {hostKeyPrompt && (
+          <div>
+            <div className="modal-header">
+              <h2>Unknown host key</h2>
+              <p>First connection to {hostKeyPrompt.hostname}:{hostKeyPrompt.port}</p>
+            </div>
+            <div className="modal-body">
+              <div className="ssh-error-box" style={{ borderColor: "var(--yellow)" }}>
+                <div className="ssh-error-title" style={{ color: "var(--yellow)" }}>
+                  Verify the host fingerprint
+                </div>
+                <div style={{ fontFamily: "monospace", fontSize: 12, marginTop: 8, wordBreak: "break-all" }}>
+                  {hostKeyPrompt.fingerprint}
+                </div>
+                <p style={{ marginTop: 12, fontSize: 12, color: "var(--text-muted)" }}>
+                  If you trust this host, click <strong>Trust & Connect</strong>.
+                  The fingerprint will be saved for future connections.
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => {
+                ApproveHostKey(hostKeyPrompt.channelKey, false);
+                setHostKeyPrompt(null);
+              }}>Cancel</button>
+              <button className="btn-primary" onClick={() => {
+                ApproveHostKey(hostKeyPrompt.channelKey, true);
+                setHostKeyPrompt(null);
+              }}>Trust & Connect</button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       <Modal
         open={!!connectionChoice}
         onClose={() => setConnectionChoice(null)}
