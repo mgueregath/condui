@@ -13,7 +13,7 @@ import {
   OpenDockerLogWindow,
   OpenDbExplorerWindow,
 } from "../../bindings/ssh-gui/app";;
-import { FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch } from "react-icons/fa";
+import { FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch, FaPlus,FaRedoAlt } from "react-icons/fa";
 import {
   SiPostgresql,
   SiTimescale,
@@ -34,7 +34,7 @@ import { LuLogs, LuNetwork } from "react-icons/lu";
 import { BiTransfer } from "react-icons/bi";
 import { GiWarpPipe } from "react-icons/gi";
 import { IoIosAdd } from "react-icons/io";
-import { GrRefresh, GrFormRefresh } from "react-icons/gr";
+import { GrRefresh, GrAdd, GrFormRefresh } from "react-icons/gr";
 
 const DB_TYPES = {
   PostgreSQL: {
@@ -430,6 +430,7 @@ export default function BottomPanel({ sessionId }) {
         >
           {activeTab === "tunnels" && (
             <button
+            className="bottom-action-btn"
               onClick={openCreateModal}
               style={{
                 background: "var(--accent)",
@@ -442,7 +443,7 @@ export default function BottomPanel({ sessionId }) {
                 cursor: "pointer",
               }}
             >
-              ➕ Nuevo Túnel
+              <FaPlus /> Nuevo Túnel
             </button>
           )}
           {activeTab === "logs" && (
@@ -453,8 +454,9 @@ export default function BottomPanel({ sessionId }) {
                 background: "none",
                 border: "1px solid var(--border)",
                 borderRadius: "4px",
-                padding: "4px 8px",
+                padding: "4px 10px",
                 fontSize: "11px",
+                fontWeight: "600",
                 cursor: "pointer",
                 color: "var(--text-secondary)",
               }}
@@ -481,7 +483,7 @@ export default function BottomPanel({ sessionId }) {
                 color: "var(--text-secondary)",
               }}
             >
-              <GrRefresh /> Refresh
+              <FaRedoAlt /> Refresh
             </button>
           )}
         </div>
