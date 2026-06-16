@@ -63,6 +63,8 @@ function extractTimestamp(text) {
         /^\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?/,
         // 2026-06-15
         /^\d{4}-\d{2}-\d{2}/,
+        // 2026/06/13 12:05PM
+        /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}(?:AM|PM)?/,
     ];
 
     for (const pattern of patterns) {
@@ -120,7 +122,7 @@ function extractTimestamp(text) {
 function detectLevel(text) {
 
   const match = text.match(
-    /\b(FATAL|ERROR|WARNING|WARN|INFO|DEBUG|TRACE)\b/i
+    /\b(FATAL|ERROR|ERR|WARNING|WARN|WRN|INFO|INF|DEBUG|TRACE)\b/i
   );
 
   if (!match)
@@ -134,13 +136,16 @@ function detectLevel(text) {
       return ['FATL', 'level-error', level];
 
     case 'ERROR':
+    case 'ERR':
       return ['ERRO', 'level-error', level];
 
     case 'WARNING':
     case 'WARN':
+    case 'WRN':
       return ['WARN', 'level-warning', level];
 
     case 'INFO':
+    case 'INF':
       return ['INFO', 'level-info', level];
 
     case 'DEBUG':

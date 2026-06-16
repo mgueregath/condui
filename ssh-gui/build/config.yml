@@ -7,7 +7,7 @@ version: '3'
 info:
   companyName: "Codeffeine" # The name of the company
   productName: "Condui" # The name of the application
-  productIdentifier: "com.codeffeine.condui" # The unique product identifier
+  productIdentifier: "io.codeffeine.condui" # The unique product identifier
   description: "A program that does X" # The application description
   copyright: "(c) 2026, Codeffeine" # Copyright text
   comments: "Some Product Comments" # Comments

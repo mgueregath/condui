@@ -9,7 +9,9 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+
 func main() {
+
 	app := NewApp()
 
 	a := application.New(application.Options{
@@ -33,7 +35,10 @@ func main() {
 		StartState:       application.WindowStateMaximised,
 		Mac: application.MacWindow{
 			TitleBar: application.MacTitleBar{
-				Hide: true,
+				AppearsTransparent: true,
+				Hide:               false,
+				HideTitle:          true,
+				FullSizeContent:    true,
 			},
 			CollectionBehavior: application.MacWindowCollectionBehaviorFullScreenPrimary | application.MacWindowCollectionBehaviorFullScreenAuxiliary,
 			Backdrop:           application.MacBackdropNormal,
@@ -50,6 +55,9 @@ func main() {
 
 	err := a.Run()
 	if err != nil {
-		panic(err)
+		println(
+			"Error:",
+			err.Error(),
+		)
 	}
 }
