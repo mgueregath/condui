@@ -27,7 +27,8 @@ fi
 source "$ROOT_DIR/.env"
 
 
-APP_PATH="$WAILS_DIR/build/bin/${APP_NAME}.app"
+# Wails v3 outputs to bin/ (lowercase app name) inside the project dir
+APP_PATH="$WAILS_DIR/bin/condui.app"
 
 ZIP="$ROOT_DIR/${APP_NAME}.zip"
 
@@ -57,8 +58,8 @@ echo ""
 # ==========================================
 
 
-command -v wails >/dev/null || {
-    echo "wails not installed"
+command -v wails3 >/dev/null || {
+    echo "wails3 not installed"
     exit 1
 }
 
@@ -85,7 +86,7 @@ echo "Cleaning..."
 echo ""
 
 
-rm -rf "$WAILS_DIR/build/bin"
+rm -rf "$WAILS_DIR/bin"
 rm -rf "$DIST"
 rm -f "$ZIP"
 
@@ -105,10 +106,8 @@ echo ""
 
 cd "$WAILS_DIR"
 
-
-wails build \
--platform darwin/universal
-
+# Wails v3: construye universal (arm64 + amd64) y empaqueta el .app bundle
+wails3 task darwin:package:universal
 
 cd "$ROOT_DIR"
 

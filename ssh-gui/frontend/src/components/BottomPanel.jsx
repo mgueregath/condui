@@ -170,14 +170,16 @@ export default function BottomPanel({ sessionId }) {
   useEffect(() => {
     // Usamos actualizaciones funcionales (prev) => ... para que React no necesite
     // meter el estado en las dependencias del useEffect y no se pierdan los eventos
-    const offLog = Events.On("log-event", (log) => {
+    const offLog = Events.On("log-event", (event) => {
+      const log = event.data;
       setLogs((prev) => {
         // Evitar duplicados rápidos en renderizado y limitar a 200 líneas
         return [log, ...prev].slice(0, 200);
       });
     });
 
-    const offTransfer = Events.On("transfer-status", (data) => {
+    const offTransfer = Events.On("transfer-status", (event) => {
+      const data = event.data;
       setTransfers((prev) => ({
         ...prev,
         [data.id]: data,
