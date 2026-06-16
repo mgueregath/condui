@@ -70,7 +70,7 @@ sshstudio.db
 # Frontend
 # -----------------------------------------------------
 
-node_modules/
+**/node_modules/
 
 frontend/dist/
 frontend/node_modules/
@@ -115,11 +115,11 @@ yarn-error.log*
 # OS files
 # -----------------------------------------------------
 
-.DS_Store
-.AppleDouble
-.LSOverride
+**/.DS_Store
+**/.AppleDouble
+**/.LSOverride
 
-Thumbs.db
+**/Thumbs.db
 
 
 
@@ -130,5 +130,5 @@ Thumbs.db
 tmp/
 temp/
 
-*.log
-*.tmp
+**/*.log
+**/*.tmp
