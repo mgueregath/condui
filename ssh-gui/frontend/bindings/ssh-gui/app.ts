@@ -217,9 +217,19 @@ export function GetDockerContainers(sessionID: string): $CancellablePromise<mode
     });
 }
 
+/**
+ * GetDockerStats returns a one-shot snapshot of CPU and memory usage
+ * for all running containers. Non-running containers are absent from the result.
+ */
+export function GetDockerStats(sessionID: string): $CancellablePromise<models$0.DockerStats[]> {
+    return $Call.ByID(438894218, sessionID).then(($result: any) => {
+        return $$createType14($result);
+    });
+}
+
 export function GetFolders(): $CancellablePromise<models$0.Folder[]> {
     return $Call.ByID(452841144).then(($result: any) => {
-        return $$createType14($result);
+        return $$createType16($result);
     });
 }
 
@@ -228,13 +238,13 @@ export function GetFolders(): $CancellablePromise<models$0.Folder[]> {
  */
 export function GetIncomingShares(): $CancellablePromise<account$0.ShareInfo[]> {
     return $Call.ByID(2759342007).then(($result: any) => {
-        return $$createType16($result);
+        return $$createType18($result);
     });
 }
 
 export function GetListeningPorts(sessionID: string): $CancellablePromise<models$0.PortInfo[]> {
     return $Call.ByID(3826983416, sessionID).then(($result: any) => {
-        return $$createType18($result);
+        return $$createType20($result);
     });
 }
 
@@ -247,7 +257,7 @@ export function GetPublicKey(): $CancellablePromise<string> {
 
 export function GetSystemStats(sessionID: string): $CancellablePromise<$models.SystemStats | null> {
     return $Call.ByID(549671605, sessionID).then(($result: any) => {
-        return $$createType20($result);
+        return $$createType22($result);
     });
 }
 
@@ -256,7 +266,17 @@ export function GetSystemStats(sessionID: string): $CancellablePromise<$models.S
  */
 export function GetTunnels(sessionID: string): $CancellablePromise<models$0.TunnelInfo[]> {
     return $Call.ByID(2458647734, sessionID).then(($result: any) => {
-        return $$createType21($result);
+        return $$createType23($result);
+    });
+}
+
+/**
+ * GetVirtualBoxVMs lists all VMs on the remote host.
+ * Returns an error if VBoxManage is not installed.
+ */
+export function GetVirtualBoxVMs(sessionID: string): $CancellablePromise<models$0.VMInfo[]> {
+    return $Call.ByID(3094937307, sessionID).then(($result: any) => {
+        return $$createType25($result);
     });
 }
 
@@ -274,9 +294,16 @@ export function IsVaultSetup(): $CancellablePromise<boolean> {
     return $Call.ByID(3586881096);
 }
 
+/**
+ * IsVirtualBoxAvailable checks whether VBoxManage is installed on the remote host.
+ */
+export function IsVirtualBoxAvailable(sessionID: string): $CancellablePromise<boolean> {
+    return $Call.ByID(2211996688, sessionID);
+}
+
 export function ListDirectory(sessionID: string, path: string): $CancellablePromise<sftp$0.FileItem[]> {
     return $Call.ByID(3882022436, sessionID, path).then(($result: any) => {
-        return $$createType23($result);
+        return $$createType27($result);
     });
 }
 
@@ -370,16 +397,6 @@ export function ToggleContainer(sessionID: string, containerID: string, action: 
 }
 
 /**
- * GetDockerStats returns a one-shot CPU/memory snapshot for running containers.
- */
-export function GetDockerStats(sessionID: string): $CancellablePromise<models$0.DockerStats[]> {
-    return $Call.ByName("main.(*App).GetDockerStats", sessionID).then(($result: any) => {
-        return $$createTypeDockerStatsArray($result);
-    });
-}
-const $$createTypeDockerStatsArray = $Create.Array(models$0.DockerStats.createFrom);
-
-/**
  * ToggleTunnel enciende o apaga el túnel SSH local port forwarding de forma asíncrona
  */
 export function ToggleTunnel(sessionID: string, tunnelID: string, localPort: number, remoteHost: string, remotePort: number, activate: boolean): $CancellablePromise<void> {
@@ -408,6 +425,15 @@ export function UploadFile(sessionID: string, remoteDirectory: string): $Cancell
     return $Call.ByID(3284072274, sessionID, remoteDirectory);
 }
 
+/**
+ * VirtualBoxAction performs a lifecycle action on a VM.
+ * Valid actions: start-gui, start-headless, stop-acpi, stop-force,
+ * pause, resume, reset, savestate.
+ */
+export function VirtualBoxAction(sessionID: string, vmName: string, action: string): $CancellablePromise<string> {
+    return $Call.ByID(196318823, sessionID, vmName, action);
+}
+
 // Private type creation functions
 const $$createType0 = models$0.TunnelInfo.createFrom;
 const $$createType1 = models$0.QueryColumn.createFrom;
@@ -418,43 +444,22 @@ const $$createType5 = account$0.AccountStatus.createFrom;
 const $$createType6 = models$0.Connection.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
 const $$createType8 = $Create.Array($$createType6);
-/**
- * GetVirtualBoxVMs lists VMs on the remote host. Errors if VBoxManage is absent.
- */
-export function GetVirtualBoxVMs(sessionID: string): $CancellablePromise<models$0.VMInfo[]> {
-    return $Call.ByName("main.(*App).GetVirtualBoxVMs", sessionID).then(($result: any) => {
-        return $$createTypeVMInfoArray($result);
-    });
-}
-
-/**
- * IsVirtualBoxAvailable checks whether VBoxManage is installed on the remote host.
- */
-export function IsVirtualBoxAvailable(sessionID: string): $CancellablePromise<boolean> {
-    return $Call.ByName("main.(*App).IsVirtualBoxAvailable", sessionID);
-}
-
-/**
- * VirtualBoxAction performs a lifecycle action on a VM.
- */
-export function VirtualBoxAction(sessionID: string, vmName: string, action: string): $CancellablePromise<string> {
-    return $Call.ByName("main.(*App).VirtualBoxAction", sessionID, vmName, action);
-}
-
-const $$createTypeVMInfoArray = $Create.Array(models$0.VMInfo.createFrom);
-
 const $$createType9 = models$0.DatabaseInfo.createFrom;
 const $$createType10 = $Create.Array($$createType9);
 const $$createType11 = models$0.DockerContainer.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = models$0.Folder.createFrom;
+const $$createType13 = models$0.DockerStats.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = account$0.ShareInfo.createFrom;
+const $$createType15 = models$0.Folder.createFrom;
 const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = models$0.PortInfo.createFrom;
+const $$createType17 = account$0.ShareInfo.createFrom;
 const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = $models.SystemStats.createFrom;
-const $$createType20 = $Create.Nullable($$createType19);
-const $$createType21 = $Create.Array($$createType0);
-const $$createType22 = sftp$0.FileItem.createFrom;
-const $$createType23 = $Create.Array($$createType22);
+const $$createType19 = models$0.PortInfo.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = $models.SystemStats.createFrom;
+const $$createType22 = $Create.Nullable($$createType21);
+const $$createType23 = $Create.Array($$createType0);
+const $$createType24 = models$0.VMInfo.createFrom;
+const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = sftp$0.FileItem.createFrom;
+const $$createType27 = $Create.Array($$createType26);

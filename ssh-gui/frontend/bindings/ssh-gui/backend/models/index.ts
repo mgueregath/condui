@@ -5,9 +5,11 @@ export {
     Connection,
     DatabaseInfo,
     DockerContainer,
+    DockerStats,
     Folder,
     PortInfo,
     QueryColumn,
     QueryResult,
-    TunnelInfo
+    TunnelInfo,
+    VMInfo
 } from "./models.js";

@@ -79,7 +79,14 @@ func (a *App) UpdateConnection(
 	connection models.Connection,
 ) error {
 
-	if connection.Password != nil && *connection.Password != "" {
+	// If password is nil (redacted from frontend), preserve the stored password
+	if connection.Password == nil {
+		existing, err := a.database.GetConnectionByID(connection.ID)
+		if err != nil {
+			return err
+		}
+		connection.Password = existing.Password
+	} else if *connection.Password != "" {
 		key := a.getMasterKey()
 		if key != nil {
 			// Only encrypt if the value is not already encrypted (no ":" = plaintext)

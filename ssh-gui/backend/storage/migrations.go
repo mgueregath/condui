@@ -69,7 +69,7 @@ func (d *Database) Migrate() error {
 
 	// ALTER TABLE migrations — idempotent via duplicate-column error suppression
 	alterations := []string{
-		`ALTER TABLE users ADD COLUMN tier_expires_at DATETIME`,
+		`ALTER TABLE account ADD COLUMN tier_expires_at DATETIME`,
 		`ALTER TABLE connections ADD COLUMN jump_host_id TEXT REFERENCES connections(id)`,
 	}
 	for _, alt := range alterations {

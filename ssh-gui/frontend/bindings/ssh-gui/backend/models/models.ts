@@ -17,6 +17,12 @@ export class Connection {
     "privateKeyPath"?: string | null;
     "color"?: string | null;
 
+    /**
+     * JumpHostID: if set, the connection is established by tunneling through
+     * the referenced connection (bastion / jump host pattern).
+     */
+    "jumpHostId"?: string | null;
+
     /** Creates a new Connection instance. */
     constructor($$source: Partial<Connection> = {}) {
         if (!("id" in $$source)) {
@@ -103,26 +109,6 @@ export class DatabaseInfo {
     }
 }
 
-export class DockerStats {
-    "id": string;
-    "cpuPerc": string;
-    "memUsage": string;
-    "memPerc": string;
-
-    constructor($$source: Partial<DockerStats> = {}) {
-        if (!("id" in $$source))       { this["id"] = ""; }
-        if (!("cpuPerc" in $$source))  { this["cpuPerc"] = ""; }
-        if (!("memUsage" in $$source)) { this["memUsage"] = ""; }
-        if (!("memPerc" in $$source))  { this["memPerc"] = ""; }
-        Object.assign(this, $$source);
-    }
-
-    static createFrom($$source: any = {}): DockerStats {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new DockerStats($$parsedSource as Partial<DockerStats>);
-    }
-}
-
 export class DockerContainer {
     "id": string;
     "names": string;
@@ -161,6 +147,51 @@ export class DockerContainer {
     static createFrom($$source: any = {}): DockerContainer {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new DockerContainer($$parsedSource as Partial<DockerContainer>);
+    }
+}
+
+export class DockerStats {
+    "id": string;
+
+    /**
+     * e.g. "0.15%"
+     */
+    "cpuPerc": string;
+
+    /**
+     * e.g. "123MiB / 8GiB"
+     */
+    "memUsage": string;
+
+    /**
+     * e.g. "1.50%"
+     */
+    "memPerc": string;
+
+    /** Creates a new DockerStats instance. */
+    constructor($$source: Partial<DockerStats> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("cpuPerc" in $$source)) {
+            this["cpuPerc"] = "";
+        }
+        if (!("memUsage" in $$source)) {
+            this["memUsage"] = "";
+        }
+        if (!("memPerc" in $$source)) {
+            this["memPerc"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DockerStats instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DockerStats {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DockerStats($$parsedSource as Partial<DockerStats>);
     }
 }
 
@@ -341,23 +372,54 @@ export class TunnelInfo {
 export class VMInfo {
     "name": string;
     "uuid": string;
+
+    /**
+     * State: "running", "paused", "saved", "stopped", "aborted", "error"
+     */
     "state": string;
+
+    /**
+     * Hardware specs (from showvminfo)
+     */
     "memoryMb": number;
     "cpus": number;
     "os": string;
+
+    /**
+     * Network — IP from Guest Additions (empty if not installed / VM off)
+     */
     "ip": string;
 
+    /** Creates a new VMInfo instance. */
     constructor($$source: Partial<VMInfo> = {}) {
-        if (!("name" in $$source))     { this["name"] = ""; }
-        if (!("uuid" in $$source))     { this["uuid"] = ""; }
-        if (!("state" in $$source))    { this["state"] = ""; }
-        if (!("memoryMb" in $$source)) { this["memoryMb"] = 0; }
-        if (!("cpus" in $$source))     { this["cpus"] = 0; }
-        if (!("os" in $$source))       { this["os"] = ""; }
-        if (!("ip" in $$source))       { this["ip"] = ""; }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("uuid" in $$source)) {
+            this["uuid"] = "";
+        }
+        if (!("state" in $$source)) {
+            this["state"] = "";
+        }
+        if (!("memoryMb" in $$source)) {
+            this["memoryMb"] = 0;
+        }
+        if (!("cpus" in $$source)) {
+            this["cpus"] = 0;
+        }
+        if (!("os" in $$source)) {
+            this["os"] = "";
+        }
+        if (!("ip" in $$source)) {
+            this["ip"] = "";
+        }
+
         Object.assign(this, $$source);
     }
 
+    /**
+     * Creates a new VMInfo instance from a string or object.
+     */
     static createFrom($$source: any = {}): VMInfo {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new VMInfo($$parsedSource as Partial<VMInfo>);
