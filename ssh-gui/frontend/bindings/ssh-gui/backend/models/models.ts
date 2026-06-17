@@ -318,6 +318,32 @@ export class TunnelInfo {
     }
 }
 
+export class VMInfo {
+    "name": string;
+    "uuid": string;
+    "state": string;
+    "memoryMb": number;
+    "cpus": number;
+    "os": string;
+    "ip": string;
+
+    constructor($$source: Partial<VMInfo> = {}) {
+        if (!("name" in $$source))     { this["name"] = ""; }
+        if (!("uuid" in $$source))     { this["uuid"] = ""; }
+        if (!("state" in $$source))    { this["state"] = ""; }
+        if (!("memoryMb" in $$source)) { this["memoryMb"] = 0; }
+        if (!("cpus" in $$source))     { this["cpus"] = 0; }
+        if (!("os" in $$source))       { this["os"] = ""; }
+        if (!("ip" in $$source))       { this["ip"] = ""; }
+        Object.assign(this, $$source);
+    }
+
+    static createFrom($$source: any = {}): VMInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new VMInfo($$parsedSource as Partial<VMInfo>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = $Create.Array($$createType0);

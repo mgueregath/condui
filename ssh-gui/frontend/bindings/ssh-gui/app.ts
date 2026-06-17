@@ -408,6 +408,31 @@ const $$createType5 = account$0.AccountStatus.createFrom;
 const $$createType6 = models$0.Connection.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
 const $$createType8 = $Create.Array($$createType6);
+/**
+ * GetVirtualBoxVMs lists VMs on the remote host. Errors if VBoxManage is absent.
+ */
+export function GetVirtualBoxVMs(sessionID: string): $CancellablePromise<models$0.VMInfo[]> {
+    return $Call.ByName("main.(*App).GetVirtualBoxVMs", sessionID).then(($result: any) => {
+        return $$createTypeVMInfoArray($result);
+    });
+}
+
+/**
+ * IsVirtualBoxAvailable checks whether VBoxManage is installed on the remote host.
+ */
+export function IsVirtualBoxAvailable(sessionID: string): $CancellablePromise<boolean> {
+    return $Call.ByName("main.(*App).IsVirtualBoxAvailable", sessionID);
+}
+
+/**
+ * VirtualBoxAction performs a lifecycle action on a VM.
+ */
+export function VirtualBoxAction(sessionID: string, vmName: string, action: string): $CancellablePromise<string> {
+    return $Call.ByName("main.(*App).VirtualBoxAction", sessionID, vmName, action);
+}
+
+const $$createTypeVMInfoArray = $Create.Array(models$0.VMInfo.createFrom);
+
 const $$createType9 = models$0.DatabaseInfo.createFrom;
 const $$createType10 = $Create.Array($$createType9);
 const $$createType11 = models$0.DockerContainer.createFrom;

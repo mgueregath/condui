@@ -12,8 +12,10 @@ import {
   GetDatabases,
   OpenDockerLogWindow,
   OpenDbExplorerWindow,
-} from "../../bindings/ssh-gui/app";;
-import { FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch, FaPlus,FaRedoAlt } from "react-icons/fa";
+  GetVirtualBoxVMs,
+  VirtualBoxAction,
+} from "../../bindings/ssh-gui/app";
+import { FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch, FaPlus, FaRedoAlt, FaDesktop, FaSave, FaPause } from "react-icons/fa";
 import {
   SiPostgresql,
   SiTimescale,
@@ -139,13 +141,51 @@ const DB_TYPES = {
 };
 
 const TABS = [
-  { id: "logs",      label: "Logs",      icon: <LuLogs /> },
-  { id: "transfers", label: "Transfers", icon: <BiTransfer /> },
-  { id: "tunnels",   label: "Tunnels",   icon: <GiWarpPipe /> },
-  { id: "ports",     label: "Ports",     icon: <LuNetwork /> },
-  { id: "docker",    label: "Docker",    icon: <FaDocker /> },
-  { id: "databases", label: "Databases", icon: <FaDatabase />, pro: true },
+  { id: "logs",       label: "Logs",       icon: <LuLogs /> },
+  { id: "transfers",  label: "Transfers",  icon: <BiTransfer /> },
+  { id: "tunnels",    label: "Tunnels",    icon: <GiWarpPipe /> },
+  { id: "ports",      label: "Ports",      icon: <LuNetwork /> },
+  { id: "docker",     label: "Docker",     icon: <FaDocker /> },
+  { id: "virtualbox", label: "VirtualBox", icon: <FaDesktop /> },
+  { id: "databases",  label: "Databases",  icon: <FaDatabase />, pro: true },
 ];
+
+function Spec({ icon, label, mono = false, muted = false }) {
+  return (
+    <span style={{
+      display: "flex", alignItems: "center", gap: 4,
+      fontSize: 11,
+      color: muted ? "var(--text-muted)" : "var(--text-secondary)",
+      fontFamily: mono ? "monospace" : undefined,
+    }}>
+      <span style={{ fontSize: 10 }}>{icon}</span>
+      {label}
+    </span>
+  );
+}
+
+function ActionBtn({ children, title, color, onClick, disabled, style = {} }) {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        padding: "5px 7px", cursor: disabled ? "default" : "pointer",
+        background: color, color: "#fff", border: "none",
+        borderRadius: 4, fontSize: 11, display: "flex",
+        alignItems: "center", justifyContent: "center",
+        opacity: disabled ? 0.5 : 1,
+        transition: "opacity .15s",
+        ...style,
+      }}
+      onMouseEnter={e => !disabled && (e.currentTarget.style.opacity = "0.82")}
+      onMouseLeave={e => !disabled && (e.currentTarget.style.opacity = "1")}
+    >
+      {children}
+    </button>
+  );
+}
 
 export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
   const isPro = accountStatus?.tier === "pro";
@@ -158,6 +198,9 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
   const [containers, setContainers] = useState([]);
   const [ports, setPorts] = useState([]);
   const [databases, setDatabases] = useState([]);
+  const [vms, setVms] = useState([]);
+  const [vboxError, setVboxError] = useState(null);
+  const [vboxActionLoading, setVboxActionLoading] = useState(null); // vmName of in-progress action
 
 
   // Estados para la Modal del Túnel (Crea y Edita)
@@ -216,6 +259,12 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
     if (activeTab === "databases") {
       fetchDatabases();
       const intervalId = setInterval(fetchDatabases, 10000);
+      return () => clearInterval(intervalId);
+    }
+
+    if (activeTab === "virtualbox") {
+      fetchVMs();
+      const intervalId = setInterval(fetchVMs, 8000);
       return () => clearInterval(intervalId);
     }
   }, [activeTab, sessionId]);
@@ -321,6 +370,30 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
       setDatabases(res || []);
     } catch (err) {
       console.error("Error al obtener bases de datos:", err);
+    }
+  };
+
+  // --- VirtualBox ---
+  const fetchVMs = async () => {
+    try {
+      const res = await GetVirtualBoxVMs(sessionId);
+      setVms(res || []);
+      setVboxError(null);
+    } catch (err) {
+      setVboxError(typeof err === "string" ? err : err?.message || "VirtualBox no disponible");
+      setVms([]);
+    }
+  };
+
+  const handleVMAction = async (vmName, action) => {
+    setVboxActionLoading(vmName + ":" + action);
+    try {
+      await VirtualBoxAction(sessionId, vmName, action);
+      await fetchVMs();
+    } catch (err) {
+      console.error("VBox action error:", err);
+    } finally {
+      setVboxActionLoading(null);
     }
   };
 
@@ -472,13 +545,14 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
               <FaTrash /> Clear
             </button>
           )}
-          {(activeTab === "tunnels" || activeTab === "docker" || activeTab === "ports" || activeTab === "databases") && (
+          {(activeTab === "tunnels" || activeTab === "docker" || activeTab === "ports" || activeTab === "databases" || activeTab === "virtualbox") && (
             <button
               className="bottom-action-btn"
               onClick={
-                activeTab === "tunnels"   ? fetchTunnels   :
-                activeTab === "ports"     ? fetchPorts     :
-                activeTab === "databases" ? fetchDatabases :
+                activeTab === "tunnels"    ? fetchTunnels   :
+                activeTab === "ports"      ? fetchPorts     :
+                activeTab === "databases"  ? fetchDatabases :
+                activeTab === "virtualbox" ? fetchVMs       :
                 fetchContainers
               }
               style={{
@@ -1064,6 +1138,156 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                 );
               })
             )}
+          </div>
+        )}
+
+        {/* ===================== TAB: VIRTUALBOX ===================== */}
+        {activeTab === "virtualbox" && (
+          <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+            {vboxError ? (
+              <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
+                <FaDesktop style={{ fontSize: 28, opacity: 0.3, display: "block", margin: "0 auto 10px" }} />
+                VirtualBox no está instalado en este servidor
+                <div style={{ fontSize: 11, marginTop: 6, opacity: 0.7 }}>{vboxError}</div>
+              </div>
+            ) : vms.length === 0 ? (
+              <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
+                No se encontraron máquinas virtuales
+              </div>
+            ) : vms.map(vm => {
+              const isRunning  = vm.state === "running";
+              const isPaused   = vm.state === "paused";
+              const isSaved    = vm.state === "saved";
+              const isStopped  = vm.state === "stopped" || vm.state === "aborted";
+              const isStuck    = isRunning || isPaused; // can force-stop
+              const isLoading  = vboxActionLoading?.startsWith(vm.name + ":");
+
+              const stateColor = isRunning  ? "var(--green)"
+                : isPaused   ? "var(--yellow)"
+                : isSaved    ? "#60a5fa"
+                : vm.state === "error" || vm.state === "aborted" ? "var(--red)"
+                : "var(--text-muted)";
+
+              const stateBg = isRunning  ? "rgba(34,197,94,0.12)"
+                : isPaused   ? "rgba(250,204,21,0.12)"
+                : isSaved    ? "rgba(96,165,250,0.12)"
+                : vm.state === "error" || vm.state === "aborted" ? "rgba(239,68,68,0.12)"
+                : "rgba(107,114,128,0.1)";
+
+              const ram = vm.memoryMb >= 1024
+                ? `${(vm.memoryMb / 1024).toFixed(vm.memoryMb % 1024 === 0 ? 0 : 1)} GB`
+                : vm.memoryMb > 0 ? `${vm.memoryMb} MB` : null;
+
+              return (
+                <div
+                  key={vm.uuid || vm.name}
+                  style={{
+                    background: "var(--bg-surface)",
+                    border: "1px solid var(--border-subtle)",
+                    borderLeft: `3px solid ${stateColor}`,
+                    borderRadius: 7, padding: "10px 14px",
+                    opacity: isLoading ? 0.65 : 1,
+                    transition: "opacity .2s",
+                  }}
+                >
+                  {/* ── Fila superior: nombre + estado + forzar apagado ── */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                    <FaDesktop style={{ color: stateColor, fontSize: 14, flexShrink: 0 }} />
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text-primary)",
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {vm.name}
+                      </div>
+                      {vm.uuid && (
+                        <div style={{ fontSize: 9.5, fontFamily: "monospace", color: "var(--text-muted)",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
+                          {vm.uuid}
+                        </div>
+                      )}
+                    </div>
+
+                    <span style={{
+                      padding: "2px 8px", borderRadius: 4, flexShrink: 0,
+                      fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px",
+                      background: stateBg, color: stateColor,
+                    }}>
+                      {vm.state}
+                    </span>
+
+                    {/* Forzar apagado — siempre visible si la VM no está detenida */}
+                    {isStuck && (
+                      <ActionBtn
+                        title="Forzar apagado (poweroff) — úsalo si la VM está colgada"
+                        color="var(--red)"
+                        disabled={isLoading}
+                        onClick={() => {
+                          if (window.confirm(`¿Forzar apagado de "${vm.name}"?\n\nEquivalente a desenchufar la corriente — se perderán los cambios no guardados.`))
+                            handleVMAction(vm.name, "stop-force");
+                        }}
+                      >
+                        ⚡
+                      </ActionBtn>
+                    )}
+                  </div>
+
+                  {/* ── Specs ── */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", marginBottom: 10 }}>
+                    {ram && <Spec icon="🧠" label={ram} />}
+                    {vm.cpus > 0 && <Spec icon="⚙️" label={`${vm.cpus} vCPU${vm.cpus !== 1 ? "s" : ""}`} />}
+                    {vm.os && <Spec icon="💿" label={vm.os} />}
+                    {vm.ip && <Spec icon="🌐" label={vm.ip} mono />}
+                    {isRunning && !vm.ip && (
+                      <Spec icon="🌐" label="IP no disponible (Guest Additions)" muted />
+                    )}
+                  </div>
+
+                  {/* ── Acciones ── */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+                    {(isStopped || isSaved) && (
+                      <>
+                        <ActionBtn title="Iniciar (con interfaz gráfica)" color="var(--green)"
+                          disabled={isLoading} onClick={() => handleVMAction(vm.name, "start-gui")}>
+                          <FaPlay style={{ marginRight: 4 }} /> GUI
+                        </ActionBtn>
+                        <ActionBtn title="Iniciar en modo headless (sin pantalla)" color="var(--accent)"
+                          disabled={isLoading} onClick={() => handleVMAction(vm.name, "start-headless")}>
+                          <FaDesktop style={{ marginRight: 4 }} /> Headless
+                        </ActionBtn>
+                      </>
+                    )}
+
+                    {isRunning && (
+                      <>
+                        <ActionBtn title="Pausar" color="var(--yellow)" disabled={isLoading}
+                          onClick={() => handleVMAction(vm.name, "pause")}>
+                          <FaPause style={{ marginRight: 4 }} /> Pausar
+                        </ActionBtn>
+                        <ActionBtn title="Guardar estado y apagar" color="#60a5fa" disabled={isLoading}
+                          onClick={() => handleVMAction(vm.name, "savestate")}>
+                          <FaSave style={{ marginRight: 4 }} /> Guardar estado
+                        </ActionBtn>
+                        <ActionBtn title="Reiniciar (equivale a resetear el hardware)" color="var(--yellow)"
+                          disabled={isLoading} onClick={() => handleVMAction(vm.name, "reset")}>
+                          <GrFormRefresh style={{ marginRight: 4 }} /> Reiniciar
+                        </ActionBtn>
+                        <ActionBtn title="Enviar señal ACPI de apagado (apagado suave)" color="var(--red)"
+                          disabled={isLoading} onClick={() => handleVMAction(vm.name, "stop-acpi")}>
+                          <FaStop style={{ marginRight: 4 }} /> Apagar
+                        </ActionBtn>
+                      </>
+                    )}
+
+                    {isPaused && (
+                      <ActionBtn title="Reanudar ejecución" color="var(--green)" disabled={isLoading}
+                        onClick={() => handleVMAction(vm.name, "resume")}>
+                        <FaPlay style={{ marginRight: 4 }} /> Reanudar
+                      </ActionBtn>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
