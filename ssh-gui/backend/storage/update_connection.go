@@ -18,7 +18,8 @@ func (d *Database) UpdateConnection(
 			auth_type=?,
 			password=?,
 			private_key_path=?,
-			color=?
+			color=?,
+			jump_host_id=?
 		WHERE id=?
 		`,
 		connection.FolderID,
@@ -30,6 +31,7 @@ func (d *Database) UpdateConnection(
 		connection.Password,
 		connection.PrivateKeyPath,
 		connection.Color,
+		connection.JumpHostID,
 		connection.ID,
 	)
 

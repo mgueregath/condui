@@ -1,5 +1,7 @@
 package storage
 
+import "strings"
+
 func (d *Database) Migrate() error {
 
 	queries := []string{
@@ -60,11 +62,21 @@ func (d *Database) Migrate() error {
 	}
 
 	for _, query := range queries {
-
-		_, err := d.DB.Exec(query)
-
-		if err != nil {
+		if _, err := d.DB.Exec(query); err != nil {
 			return err
+		}
+	}
+
+	// ALTER TABLE migrations — idempotent via duplicate-column error suppression
+	alterations := []string{
+		`ALTER TABLE users ADD COLUMN tier_expires_at DATETIME`,
+		`ALTER TABLE connections ADD COLUMN jump_host_id TEXT REFERENCES connections(id)`,
+	}
+	for _, alt := range alterations {
+		if _, err := d.DB.Exec(alt); err != nil {
+			if !strings.Contains(err.Error(), "duplicate column") && !strings.Contains(err.Error(), "already exists") {
+				return err
+			}
 		}
 	}
 

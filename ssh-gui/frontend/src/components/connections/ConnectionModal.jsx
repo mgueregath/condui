@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FaLock } from "react-icons/fa";
 
 function Field({ label, children }) {
   return (
@@ -23,11 +24,14 @@ function Input({ label, value, onChange, type = "text", placeholder }) {
   );
 }
 
-export default function ConnectionModal({ initialValue, folders, onSave, onCancel }) {
+export default function ConnectionModal({ initialValue, folders, connections = [], accountStatus, onSave, onCancel }) {
+  const isPro = accountStatus?.tier === "pro";
+
   const [form, setForm] = useState(initialValue || {
     name: "", host: "", port: 22, username: "",
     password: "", authType: "password",
     privateKeyPath: "", folderId: "", color: "#eeecf9",
+    jumpHostId: "",
   });
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
@@ -70,6 +74,42 @@ export default function ConnectionModal({ initialValue, folders, onSave, onCance
         {form.authType === "private_key" && (
           <Input label="Private Key Path" value={form.privateKeyPath} onChange={v => set("privateKeyPath", v)} placeholder="~/.ssh/id_rsa" />
         )}
+
+        <Field label={
+          <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            Jump Host
+            {!isPro && <span style={{ fontSize: 10, color: "var(--text-muted)" }}><FaLock /> Pro</span>}
+          </span>
+        }>
+          {isPro ? (
+            <select
+              className="modern-input"
+              value={form.jumpHostId || ""}
+              onChange={e => set("jumpHostId", e.target.value || null)}
+            >
+              <option value="">— Direct connection (no jump host) —</option>
+              {connections
+                .filter(c => c.id !== initialValue?.id)
+                .map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.username}@{c.host}:{c.port})
+                  </option>
+                ))}
+            </select>
+          ) : (
+            <div
+              style={{
+                padding: "7px 10px", borderRadius: 6,
+                background: "var(--bg-elevated)", border: "1px solid var(--border)",
+                fontSize: 12, color: "var(--text-muted)",
+                display: "flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <FaLock style={{ fontSize: 10 }} />
+              Disponible en el plan Pro — conecta a través de un bastion host
+            </div>
+          )}
+        </Field>
 
         <Field label="Color">
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>

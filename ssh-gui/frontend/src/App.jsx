@@ -743,6 +743,8 @@ function App() {
       >
         <ConnectionModal
           folders={folders}
+          connections={connections}
+          accountStatus={accountStatus}
           initialValue={editingConnection}
           onCancel={() => {
             setConnectionModalOpen(false);

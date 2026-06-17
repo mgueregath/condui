@@ -18,7 +18,8 @@ func (d *Database) GetConnectionByID(
 			auth_type,
 			password,
 			private_key_path,
-			color
+			color,
+			jump_host_id
 		FROM connections
 		WHERE id = ?
 		`,
@@ -38,6 +39,7 @@ func (d *Database) GetConnectionByID(
 		&connection.Password,
 		&connection.PrivateKeyPath,
 		&connection.Color,
+		&connection.JumpHostID,
 	)
 
 	if err != nil {

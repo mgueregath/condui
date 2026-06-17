@@ -20,4 +20,8 @@ type Connection struct {
 	PrivateKeyPath *string `json:"privateKeyPath,omitempty"`
 
 	Color *string `json:"color,omitempty"`
+
+	// JumpHostID: if set, the connection is established by tunneling through
+	// the referenced connection (bastion / jump host pattern).
+	JumpHostID *string `json:"jumpHostId,omitempty"`
 }

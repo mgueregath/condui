@@ -25,9 +25,11 @@ func (d *Database) CreateConnection(
 			auth_type,
 			password,
 			private_key_path,
-			color
+			color,
+			jump_host_id
 		)
 		VALUES(
+			?,
 			?,
 			?,
 			?,
@@ -50,6 +52,7 @@ func (d *Database) CreateConnection(
 		connection.Password,
 		connection.PrivateKeyPath,
 		connection.Color,
+		connection.JumpHostID,
 	)
 
 	return err

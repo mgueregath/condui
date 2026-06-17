@@ -20,7 +20,8 @@ func (d *Database) GetConnections() (
 				auth_type,
 				password,
 				private_key_path,
-				color
+				color,
+				jump_host_id
 			FROM connections
 			ORDER BY name
 			`,
@@ -50,6 +51,7 @@ func (d *Database) GetConnections() (
 			&connection.Password,
 			&connection.PrivateKeyPath,
 			&connection.Color,
+			&connection.JumpHostID,
 		)
 
 		if err != nil {

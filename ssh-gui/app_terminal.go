@@ -14,57 +14,26 @@ import (
 	"ssh-gui/backend/sessions"
 )
 
-func (a *App) ConnectSSH(
-	connectionID string,
-) (string, error) {
-
-	connection, err := a.database.GetConnectionByID(connectionID)
-
-	if err != nil {
-		return "", err
-	}
-
-	// Decrypt password if vault is unlocked
-	password := ""
-	if connection.Password != nil {
-		key := a.getMasterKey()
-		if key != nil {
-			decrypted, err := decryptConnectionPassword(*connection.Password, key)
-			if err != nil {
-				return "", fmt.Errorf("vault error: %w", err)
-			}
-			password = decrypted
-		} else {
-			// Vault is locked — cannot connect
-			return "", fmt.Errorf("vault is locked: please unlock the vault before connecting")
-		}
-	}
-
-	host := connection.Host
-	port := connection.Port
-
-	hostKeyCallback := func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+// buildHostKeyCallback returns an SSH HostKeyCallback that implements TOFU
+// verification for the given host:port, prompting the user on first connection.
+func (a *App) buildHostKeyCallback(host string, port int) ssh.HostKeyCallback {
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		fingerprint := ssh.FingerprintSHA256(key)
 
 		stored, err := a.database.GetKnownHost(host, port)
 		if err != nil {
 			return err
 		}
-
 		if stored == fingerprint {
-			// Known and matches — allow
 			return nil
 		}
-
 		if stored != "" && stored != fingerprint {
-			// Fingerprint changed — MITM warning
 			return fmt.Errorf(
 				"HOST KEY CHANGED for %s:%d\nExpected: %s\nGot: %s\n\nConnection rejected to prevent potential MITM attack.",
 				host, port, stored, fingerprint,
 			)
 		}
 
-		// First time seeing this host — ask user
 		channelKey := fmt.Sprintf("%s:%d", host, port)
 		ch := make(chan bool, 1)
 		a.hostKeyChannels.Store(channelKey, ch)
@@ -82,36 +51,128 @@ func (a *App) ConnectSSH(
 			if !approved {
 				return fmt.Errorf("host key rejected by user")
 			}
-			// Store approved fingerprint
 			return a.database.UpsertKnownHost(host, port, fingerprint)
 		case <-time.After(90 * time.Second):
 			return fmt.Errorf("host key verification timed out")
 		}
 	}
+}
 
+// buildSSHConfig builds an ssh.ClientConfig for the given credentials.
+// password must already be decrypted.
+func (a *App) buildSSHConfig(username, authType, privateKeyPath, host string, port int, password string) (*ssh.ClientConfig, error) {
 	var authMethods []ssh.AuthMethod
-
-	if connection.AuthType == "private_key" && connection.PrivateKeyPath != nil {
-		signer, err := loadPrivateKey(*connection.PrivateKeyPath)
+	if authType == "private_key" && privateKeyPath != "" {
+		signer, err := loadPrivateKey(privateKeyPath)
 		if err != nil {
-			return "", fmt.Errorf("failed to load private key: %w", err)
+			return nil, fmt.Errorf("failed to load private key: %w", err)
 		}
 		authMethods = append(authMethods, ssh.PublicKeys(signer))
 	} else {
 		authMethods = append(authMethods, ssh.Password(password))
 	}
-
-	config := &ssh.ClientConfig{
-		User:            connection.Username,
+	return &ssh.ClientConfig{
+		User:            username,
 		Auth:            authMethods,
-		HostKeyCallback: hostKeyCallback,
+		HostKeyCallback: a.buildHostKeyCallback(host, port),
 		Timeout:         15 * time.Second,
+	}, nil
+}
+
+func strVal(s *string) string {
+	if s == nil {
+		return ""
 	}
+	return *s
+}
 
-	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", host, port), config)
-
+func (a *App) ConnectSSH(connectionID string) (string, error) {
+	connection, err := a.database.GetConnectionByID(connectionID)
 	if err != nil {
 		return "", err
+	}
+
+	key := a.getMasterKey()
+	if key == nil {
+		return "", fmt.Errorf("vault is locked: please unlock the vault before connecting")
+	}
+
+	// Decrypt target password
+	password := ""
+	if connection.Password != nil {
+		password, err = decryptConnectionPassword(*connection.Password, key)
+		if err != nil {
+			return "", fmt.Errorf("vault error: %w", err)
+		}
+	}
+
+	host := connection.Host
+	port := connection.Port
+
+	targetConfig, err := a.buildSSHConfig(
+		connection.Username, connection.AuthType, strVal(connection.PrivateKeyPath),
+		host, port, password,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	var client *ssh.Client
+
+	if connection.JumpHostID != nil && *connection.JumpHostID != "" {
+		// ── Jump host (bastion) mode ──────────────────────────────────────
+		jump, err := a.database.GetConnectionByID(*connection.JumpHostID)
+		if err != nil {
+			return "", fmt.Errorf("jump host not found: %w", err)
+		}
+
+		jumpPassword := ""
+		if jump.Password != nil {
+			jumpPassword, err = decryptConnectionPassword(*jump.Password, key)
+			if err != nil {
+				return "", fmt.Errorf("vault error (jump host): %w", err)
+			}
+		}
+
+		jumpConfig, err := a.buildSSHConfig(
+			jump.Username, jump.AuthType, strVal(jump.PrivateKeyPath),
+			jump.Host, jump.Port, jumpPassword,
+		)
+		if err != nil {
+			return "", err
+		}
+
+		jumpClient, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", jump.Host, jump.Port), jumpConfig)
+		if err != nil {
+			return "", fmt.Errorf("failed to connect to jump host %s: %w", jump.Host, err)
+		}
+
+		// Dial the target through the jump host TCP tunnel
+		netConn, err := jumpClient.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
+		if err != nil {
+			jumpClient.Close()
+			return "", fmt.Errorf("failed to reach %s through jump host: %w", host, err)
+		}
+
+		conn, chans, reqs, err := ssh.NewClientConn(netConn, fmt.Sprintf("%s:%d", host, port), targetConfig)
+		if err != nil {
+			netConn.Close()
+			jumpClient.Close()
+			return "", fmt.Errorf("SSH handshake with %s failed: %w", host, err)
+		}
+		client = ssh.NewClient(conn, chans, reqs)
+
+		// Close jump client when the main connection closes
+		go func() {
+			client.Conn.Wait()
+			jumpClient.Close()
+		}()
+	} else {
+		// ── Direct connection ─────────────────────────────────────────────
+		client, err = ssh.Dial("tcp", fmt.Sprintf("%s:%d", host, port), targetConfig)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	sftpClient, err := sftp.NewClient(client)
