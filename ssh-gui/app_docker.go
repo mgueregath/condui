@@ -117,6 +117,16 @@ func (a *App) GetDatabases(sessionID string) ([]models.DatabaseInfo, error) {
 	return dockerinfo.GetDatabases(session.Client)
 }
 
+// GetDockerStats returns a one-shot snapshot of CPU and memory usage
+// for all running containers. Non-running containers are absent from the result.
+func (a *App) GetDockerStats(sessionID string) ([]models.DockerStats, error) {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session not found")
+	}
+	return dockerinfo.GetStats(session.Client)
+}
+
 type SystemStats struct {
 	CPUPercent   float64 `json:"cpuPercent"`
 	MemUsedGB    float64 `json:"memUsedGB"`

@@ -103,6 +103,26 @@ export class DatabaseInfo {
     }
 }
 
+export class DockerStats {
+    "id": string;
+    "cpuPerc": string;
+    "memUsage": string;
+    "memPerc": string;
+
+    constructor($$source: Partial<DockerStats> = {}) {
+        if (!("id" in $$source))       { this["id"] = ""; }
+        if (!("cpuPerc" in $$source))  { this["cpuPerc"] = ""; }
+        if (!("memUsage" in $$source)) { this["memUsage"] = ""; }
+        if (!("memPerc" in $$source))  { this["memPerc"] = ""; }
+        Object.assign(this, $$source);
+    }
+
+    static createFrom($$source: any = {}): DockerStats {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DockerStats($$parsedSource as Partial<DockerStats>);
+    }
+}
+
 export class DockerContainer {
     "id": string;
     "names": string;

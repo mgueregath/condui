@@ -14,6 +14,7 @@ import {
   OpenDbExplorerWindow,
   GetVirtualBoxVMs,
   VirtualBoxAction,
+  GetDockerStats,
 } from "../../bindings/ssh-gui/app";
 import { FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch, FaPlus, FaRedoAlt, FaDesktop, FaSave, FaPause } from "react-icons/fa";
 import {
@@ -150,6 +151,22 @@ const TABS = [
   { id: "databases",  label: "Databases",  icon: <FaDatabase />, pro: true },
 ];
 
+function StatPill({ label, value, sub, warn = false }) {
+  const color = warn ? "var(--red)" : "var(--accent)";
+  const bg    = warn ? "rgba(239,68,68,0.1)" : "rgba(99,102,241,0.08)";
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "baseline", gap: 4,
+      padding: "1px 7px", borderRadius: 4,
+      background: bg, fontSize: 10.5,
+    }}>
+      <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{label}</span>
+      <span style={{ color, fontWeight: 700 }}>{value}</span>
+      {sub && <span style={{ color: "var(--text-muted)", fontSize: 9.5 }}>({sub})</span>}
+    </span>
+  );
+}
+
 function Spec({ icon, label, mono = false, muted = false }) {
   return (
     <span style={{
@@ -200,7 +217,8 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
   const [databases, setDatabases] = useState([]);
   const [vms, setVms] = useState([]);
   const [vboxError, setVboxError] = useState(null);
-  const [vboxActionLoading, setVboxActionLoading] = useState(null); // vmName of in-progress action
+  const [vboxActionLoading, setVboxActionLoading] = useState(null);
+  const [dockerStats, setDockerStats] = useState({}); // map containerID → stats
 
 
   // Estados para la Modal del Túnel (Crea y Edita)
@@ -246,8 +264,10 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
 
     if (activeTab === "docker") {
       fetchContainers();
-      const intervalId = setInterval(fetchContainers, 4000);
-      return () => clearInterval(intervalId);
+      fetchStats();
+      const intContainers = setInterval(fetchContainers, 4000);
+      const intStats      = setInterval(fetchStats, 3000);
+      return () => { clearInterval(intContainers); clearInterval(intStats); };
     }
 
     if (activeTab === "ports") {
@@ -405,6 +425,17 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
     } catch (err) {
       console.error("Error al obtener contenedores:", err);
     }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const res = await GetDockerStats(sessionId);
+      if (!res) return;
+      // Index by container ID (short, 12 chars) for O(1) lookup
+      const map = {};
+      for (const s of res) map[s.id] = s;
+      setDockerStats(map);
+    } catch (_) {}
   };
 
   const handleToggleContainer = async (containerId, currentState) => {
@@ -922,6 +953,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
             ) : (
               containers.map((c) => {
                 const isRunning = c.state === "running";
+                const st = dockerStats[c.id.slice(0, 12)] || dockerStats[c.id] || null;
 
                 return (
                   <div
@@ -993,6 +1025,22 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                               {p.replace("0.0.0.0:", "").replace(/->(\d+)\/tcp/, "→$1")}
                             </span>
                           ))}
+                        </div>
+                      )}
+                      {/* Stats de CPU y RAM (solo contenedores running) */}
+                      {st && (
+                        <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                          <StatPill
+                            label="CPU"
+                            value={st.cpuPerc}
+                            warn={parseFloat(st.cpuPerc) > 80}
+                          />
+                          <StatPill
+                            label="RAM"
+                            value={st.memUsage}
+                            sub={st.memPerc}
+                            warn={parseFloat(st.memPerc) > 80}
+                          />
                         </div>
                       )}
                     </div>

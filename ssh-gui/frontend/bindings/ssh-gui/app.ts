@@ -370,6 +370,16 @@ export function ToggleContainer(sessionID: string, containerID: string, action: 
 }
 
 /**
+ * GetDockerStats returns a one-shot CPU/memory snapshot for running containers.
+ */
+export function GetDockerStats(sessionID: string): $CancellablePromise<models$0.DockerStats[]> {
+    return $Call.ByName("main.(*App).GetDockerStats", sessionID).then(($result: any) => {
+        return $$createTypeDockerStatsArray($result);
+    });
+}
+const $$createTypeDockerStatsArray = $Create.Array(models$0.DockerStats.createFrom);
+
+/**
  * ToggleTunnel enciende o apaga el túnel SSH local port forwarding de forma asíncrona
  */
 export function ToggleTunnel(sessionID: string, tunnelID: string, localPort: number, remoteHost: string, remotePort: number, activate: boolean): $CancellablePromise<void> {
