@@ -71,7 +71,7 @@ export default function ConnectionNode({
           disabled={connecting}
           onClick={(e) => {
             e.stopPropagation();
-            if (confirm(`Delete "${connection.name}"?`)) onDelete(connection);
+            onDelete(connection);
           }}
         >
           <FaTrash />

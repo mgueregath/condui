@@ -13,7 +13,12 @@ func (a *App) CreateFolder(
 			name,
 		)
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	a.triggerBackgroundSync()
+	return nil
 }
 
 func (a *App) GetFolders() (
@@ -134,19 +139,31 @@ func (a *App) UpdateFolder(
 	name string,
 ) error {
 
-	return a.database.UpdateFolder(
+	err := a.database.UpdateFolder(
 		id,
 		name,
 	)
+	if err != nil {
+		return err
+	}
+
+	a.triggerBackgroundSync()
+	return nil
 }
 
 func (a *App) DeleteFolder(
 	id string,
 ) error {
 
-	return a.database.DeleteFolder(
+	err := a.database.DeleteFolder(
 		id,
 	)
+	if err != nil {
+		return err
+	}
+
+	a.triggerBackgroundSync()
+	return nil
 }
 
 // GetConnectionByID returns a connection with password redacted (use ConnectSSH to connect).

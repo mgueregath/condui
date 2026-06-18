@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -12,6 +13,11 @@ import (
 	"ssh-gui/backend/models"
 	"ssh-gui/backend/storage"
 )
+
+type connectionsSyncData struct {
+	Connections []models.Connection `json:"connections"`
+	Folders     []models.Folder     `json:"folders"`
+}
 
 // ============================================================
 // Vault methods
@@ -164,13 +170,17 @@ func (a *App) SyncNow() error {
 	if err != nil {
 		return err
 	}
+	folders, err := a.database.GetFolders()
+	if err != nil {
+		return err
+	}
 
 	// Pro tier syncs the same connection set across all devices. Free tier
 	// keeps the previous capped upload behavior.
 	const freeSyncLimit = 5
 	if a.accountManager.GetState().Tier == "pro" {
 		shouldUpload := true
-		localHash := connectionsSetHash(connections)
+		localHash := syncSetHash(connections, folders)
 		remoteMeta, metaErr := a.accountManager.GetConnectionsMeta()
 		if metaErr != nil && !isMissingRemoteBlob(metaErr) {
 			return metaErr
@@ -184,7 +194,7 @@ func (a *App) SyncNow() error {
 		}
 
 		if remoteMeta != nil && remoteChanged {
-			connections, err = a.mergeRemoteConnections(connections, key)
+			connections, folders, err = a.mergeRemoteSyncData(connections, folders, key)
 			if err != nil {
 				return err
 			}
@@ -192,10 +202,10 @@ func (a *App) SyncNow() error {
 		}
 
 		if !shouldUpload {
-			if err := a.saveSyncSnapshot(connections); err != nil {
+			if err := a.saveSyncSnapshot(connections, folders); err != nil {
 				return err
 			}
-			if err := a.saveLocalConnectionsSetHash(connectionsSetHash(connections)); err != nil {
+			if err := a.saveLocalConnectionsSetHash(syncSetHash(connections, folders)); err != nil {
 				return err
 			}
 			if err := a.saveRemoteConnectionsMeta(remoteMeta); err != nil {
@@ -207,7 +217,10 @@ func (a *App) SyncNow() error {
 		connections = connections[:freeSyncLimit]
 	}
 
-	data, err := json.Marshal(connections)
+	data, err := json.Marshal(connectionsSyncData{
+		Connections: connections,
+		Folders:     folders,
+	})
 	if err != nil {
 		return err
 	}
@@ -221,12 +234,12 @@ func (a *App) SyncNow() error {
 		if err := a.saveRemoteConnectionsMeta(meta); err != nil {
 			return err
 		}
-		if err := a.saveLocalConnectionsSetHash(connectionsSetHash(connections)); err != nil {
+		if err := a.saveLocalConnectionsSetHash(syncSetHash(connections, folders)); err != nil {
 			return err
 		}
 	}
 
-	if err := a.saveSyncSnapshot(connections); err != nil {
+	if err := a.saveSyncSnapshot(connections, folders); err != nil {
 		return err
 	}
 
@@ -344,23 +357,112 @@ func (a *App) saveAccountState(s account.State) error {
 	})
 }
 
-func (a *App) mergeRemoteConnections(local []models.Connection, key []byte) ([]models.Connection, error) {
+func (a *App) mergeRemoteSyncData(localConnections []models.Connection, localFolders []models.Folder, key []byte) ([]models.Connection, []models.Folder, error) {
 	remoteJSON, err := a.accountManager.FetchConnections(key)
 	if err != nil {
 		if isMissingRemoteBlob(err) {
-			return local, nil
+			return localConnections, localFolders, nil
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
-	var remote []models.Connection
-	if len(remoteJSON) > 0 {
-		if err := json.Unmarshal(remoteJSON, &remote); err != nil {
-			return nil, fmt.Errorf("invalid remote connections data: %w", err)
-		}
+	remote, err := parseConnectionsSyncData(remoteJSON)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	snapshot := a.loadSyncSnapshot()
+	mergedFolders, err := a.mergeRemoteFolders(localFolders, remote.Folders, snapshot)
+	if err != nil {
+		return nil, nil, err
+	}
+	mergedConnections, err := a.mergeRemoteConnections(localConnections, remote.Connections, snapshot)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return mergedConnections, mergedFolders, nil
+}
+
+func parseConnectionsSyncData(data []byte) (connectionsSyncData, error) {
+	if len(bytes.TrimSpace(data)) == 0 {
+		return connectionsSyncData{}, nil
+	}
+
+	var payload connectionsSyncData
+	if err := json.Unmarshal(data, &payload); err == nil && (payload.Connections != nil || payload.Folders != nil) {
+		return payload, nil
+	}
+
+	var legacy []models.Connection
+	if err := json.Unmarshal(data, &legacy); err != nil {
+		return connectionsSyncData{}, fmt.Errorf("invalid remote sync data: %w", err)
+	}
+	return connectionsSyncData{Connections: legacy}, nil
+}
+
+func (a *App) mergeRemoteFolders(local []models.Folder, remote []models.Folder, snapshot map[string]string) ([]models.Folder, error) {
+	localByID := map[string]models.Folder{}
+	remoteByID := map[string]models.Folder{}
+	order := make([]string, 0, len(local)+len(remote))
+
+	for _, folder := range remote {
+		if folder.ID == "" {
+			continue
+		}
+		if _, ok := remoteByID[folder.ID]; !ok {
+			order = append(order, folder.ID)
+		}
+		remoteByID[folder.ID] = folder
+	}
+	for _, folder := range local {
+		if folder.ID == "" {
+			continue
+		}
+		if _, ok := remoteByID[folder.ID]; !ok {
+			order = append(order, folder.ID)
+		}
+		localByID[folder.ID] = folder
+	}
+
+	merged := make([]models.Folder, 0, len(order))
+	for _, id := range order {
+		localFolder, hasLocal := localByID[id]
+		remoteFolder, hasRemote := remoteByID[id]
+		snapshotKey := "folder:" + id
+
+		switch {
+		case hasLocal && hasRemote:
+			chosen := chooseFolder(localFolder, remoteFolder, snapshot[snapshotKey])
+			if folderHash(chosen) == folderHash(remoteFolder) {
+				if err := a.database.UpsertFolder(&chosen); err != nil {
+					return nil, err
+				}
+			}
+			merged = append(merged, chosen)
+		case hasLocal:
+			if snapshot[snapshotKey] != "" && folderHash(localFolder) == snapshot[snapshotKey] {
+				if err := a.database.DeleteFolder(id); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			merged = append(merged, localFolder)
+		case hasRemote:
+			if snapshot[snapshotKey] != "" {
+				continue
+			}
+			if err := a.database.UpsertFolder(&remoteFolder); err != nil {
+				return nil, err
+			}
+			merged = append(merged, remoteFolder)
+		}
+	}
+
+	return merged, nil
+}
+
+func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.Connection, snapshot map[string]string) ([]models.Connection, error) {
 	localByID := map[string]models.Connection{}
 	remoteByID := map[string]models.Connection{}
 	order := make([]string, 0, len(local)+len(remote))
@@ -388,10 +490,15 @@ func (a *App) mergeRemoteConnections(local []models.Connection, key []byte) ([]m
 	for _, id := range order {
 		localConn, hasLocal := localByID[id]
 		remoteConn, hasRemote := remoteByID[id]
+		snapshotKey := "connection:" + id
+		previousHash := snapshot[snapshotKey]
+		if previousHash == "" {
+			previousHash = snapshot[id]
+		}
 
 		switch {
 		case hasLocal && hasRemote:
-			chosen := chooseConnection(localConn, remoteConn, snapshot[id])
+			chosen := chooseConnection(localConn, remoteConn, previousHash)
 			if connectionHash(chosen) == connectionHash(remoteConn) {
 				if err := a.database.UpsertConnection(&chosen); err != nil {
 					return nil, err
@@ -399,7 +506,7 @@ func (a *App) mergeRemoteConnections(local []models.Connection, key []byte) ([]m
 			}
 			merged = append(merged, chosen)
 		case hasLocal:
-			if snapshot[id] != "" && connectionHash(localConn) == snapshot[id] {
+			if previousHash != "" && connectionHash(localConn) == previousHash {
 				if err := a.database.DeleteConnection(id); err != nil {
 					return nil, err
 				}
@@ -407,7 +514,7 @@ func (a *App) mergeRemoteConnections(local []models.Connection, key []byte) ([]m
 			}
 			merged = append(merged, localConn)
 		case hasRemote:
-			if snapshot[id] != "" {
+			if previousHash != "" {
 				continue
 			}
 			if err := a.database.UpsertConnection(&remoteConn); err != nil {
@@ -432,6 +539,18 @@ func chooseConnection(local, remote models.Connection, previousHash string) mode
 	return local
 }
 
+func chooseFolder(local, remote models.Folder, previousHash string) models.Folder {
+	localHash := folderHash(local)
+	remoteHash := folderHash(remote)
+	if localHash == remoteHash {
+		return local
+	}
+	if previousHash != "" && localHash == previousHash && remoteHash != previousHash {
+		return remote
+	}
+	return local
+}
+
 func (a *App) loadSyncSnapshot() map[string]string {
 	raw, _ := a.database.GetSetting("connections_sync_snapshot")
 	if raw == "" {
@@ -444,11 +563,16 @@ func (a *App) loadSyncSnapshot() map[string]string {
 	return snapshot
 }
 
-func (a *App) saveSyncSnapshot(connections []models.Connection) error {
-	snapshot := make(map[string]string, len(connections))
+func (a *App) saveSyncSnapshot(connections []models.Connection, folders []models.Folder) error {
+	snapshot := make(map[string]string, len(connections)+len(folders))
 	for _, conn := range connections {
 		if conn.ID != "" {
-			snapshot[conn.ID] = connectionHash(conn)
+			snapshot["connection:"+conn.ID] = connectionHash(conn)
+		}
+	}
+	for _, folder := range folders {
+		if folder.ID != "" {
+			snapshot["folder:"+folder.ID] = folderHash(folder)
 		}
 	}
 	data, err := json.Marshal(snapshot)
@@ -500,15 +624,26 @@ func (a *App) saveLocalConnectionsSetHash(hash string) error {
 	return a.database.SetSetting("connections_local_set_hash", hash)
 }
 
-func connectionsSetHash(connections []models.Connection) string {
-	hashes := make([]string, 0, len(connections))
+func syncSetHash(connections []models.Connection, folders []models.Folder) string {
+	hashes := make([]string, 0, len(connections)+len(folders))
 	for _, conn := range connections {
 		if conn.ID != "" {
-			hashes = append(hashes, conn.ID+":"+connectionHash(conn))
+			hashes = append(hashes, "connection:"+conn.ID+":"+connectionHash(conn))
+		}
+	}
+	for _, folder := range folders {
+		if folder.ID != "" {
+			hashes = append(hashes, "folder:"+folder.ID+":"+folderHash(folder))
 		}
 	}
 	sort.Strings(hashes)
 	data, _ := json.Marshal(hashes)
+	sum := sha256.Sum256(data)
+	return base64.StdEncoding.EncodeToString(sum[:])
+}
+
+func folderHash(folder models.Folder) string {
+	data, _ := json.Marshal(folder)
 	sum := sha256.Sum256(data)
 	return base64.StdEncoding.EncodeToString(sum[:])
 }

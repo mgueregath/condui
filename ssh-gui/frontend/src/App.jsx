@@ -308,6 +308,9 @@ function App() {
   const [pendingInvites, setPendingInvites] = useState([]);
   const [acceptingInviteId, setAcceptingInviteId] = useState(null);
   const [expandedFolders, setExpandedFolders] = useState([]);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   // Host key verification
   const [hostKeyPrompt, setHostKeyPrompt] = useState(null);
@@ -623,6 +626,27 @@ function App() {
     }
   };
 
+  const confirmDeleteConnection = async () => {
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    setDeleteError("");
+    try {
+      await DeleteConnection(deleteTarget.id);
+      await reload();
+      const remainingTabs = tabs.filter((tab) => tab.connectionId !== deleteTarget.id);
+      setTabs(remainingTabs);
+      if (activeTabData?.connectionId === deleteTarget.id) {
+        setActiveTab(remainingTabs.length ? remainingTabs[0].id : null);
+      }
+      setDeleteTarget(null);
+    } catch (err) {
+      console.error(err);
+      setDeleteError(typeof err === "string" ? err : err?.message || "Unable to delete connection");
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
   // Show vault screen before main UI
   if (!vaultUnlocked) {
     return <VaultUnlock onUnlocked={() => setVaultUnlocked(true)} />;
@@ -718,13 +742,9 @@ function App() {
             setEditingConnection(c);
             setConnectionModalOpen(true);
           }}
-          onDeleteConnection={async (c) => {
-            try {
-              await DeleteConnection(c.id);
-              await reload();
-            } catch (err) {
-              console.error(err);
-            }
+          onDeleteConnection={(c) => {
+            setDeleteError("");
+            setDeleteTarget(c);
           }}
           onAssignFolder={(c) => {
             setAssigningConnection(c);
@@ -959,6 +979,53 @@ function App() {
             }
           }}
         />
+      </Modal>
+
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => {
+          if (!deleteBusy) {
+            setDeleteTarget(null);
+            setDeleteError("");
+          }
+        }}
+      >
+        <div>
+          <div className="modal-header">
+            <h2>Delete connection</h2>
+            <p>{deleteTarget?.name}</p>
+          </div>
+          <div className="modal-body">
+            <div className="ssh-error-box" style={{ borderColor: "var(--red)" }}>
+              <div className="ssh-error-title" style={{ color: "var(--red)" }}>
+                This action cannot be undone
+              </div>
+              <p style={{ marginTop: 8, fontSize: 12, color: "var(--text-muted)" }}>
+                The connection will be removed from this device and from sync on the next update.
+              </p>
+            </div>
+            {deleteError && <div className="vault-error">{deleteError}</div>}
+          </div>
+          <div className="modal-footer">
+            <button
+              className="btn-secondary"
+              disabled={deleteBusy}
+              onClick={() => {
+                setDeleteTarget(null);
+                setDeleteError("");
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn-primary"
+              disabled={deleteBusy}
+              onClick={confirmDeleteConnection}
+            >
+              {deleteBusy ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+        </div>
       </Modal>
       <Modal open={!!sshError} onClose={() => setSshError(null)}>
         <div>
