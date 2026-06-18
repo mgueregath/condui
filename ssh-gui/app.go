@@ -34,8 +34,8 @@ type App struct {
 	tunnelManager *tunnels.Manager
 
 	// Security: vault encryption
-	masterKey     []byte
-	masterKeyMu   sync.RWMutex
+	masterKey   []byte
+	masterKeyMu sync.RWMutex
 
 	// Host key verification: maps "host:port" to approval channel
 	hostKeyChannels sync.Map
@@ -82,6 +82,7 @@ func NewApp() *App {
 			Tier:         row.Tier,
 			PublicKey:    row.PublicKey,
 			IdentityBlob: row.IdentityBlob,
+			SyncKey:      row.SyncKey,
 		})
 	}
 
@@ -102,7 +103,8 @@ func (a *App) ServiceStartup(ctx context.Context, options application.ServiceOpt
 }
 
 // startTokenRefreshLoop refreshes the access token (and tier) on startup and
-// once every 24 hours while the app is running.
+// every few minutes while the app is running. Server access tokens default to
+// 15 minutes, so a 24h cadence leaves the frontend holding expired tokens.
 func (a *App) startTokenRefreshLoop(parentCtx context.Context) {
 	loopCtx, cancel := context.WithCancel(parentCtx)
 	a.cancelTokenRefresh = cancel
@@ -117,7 +119,7 @@ func (a *App) startTokenRefreshLoop(parentCtx context.Context) {
 
 		a.doTokenRefresh()
 
-		ticker := time.NewTicker(24 * time.Hour)
+		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
 		for {
 			select {
@@ -128,6 +130,20 @@ func (a *App) startTokenRefreshLoop(parentCtx context.Context) {
 			}
 		}
 	}()
+}
+
+func (a *App) ensureAccessTokenFresh() error {
+	if !a.accountManager.IsLoggedIn() {
+		return nil
+	}
+	if !a.accountManager.AccessTokenStale(2 * time.Minute) {
+		return nil
+	}
+	updated, err := a.accountManager.RefreshAccessToken()
+	if err != nil {
+		return err
+	}
+	return a.saveAccountState(updated)
 }
 
 // doTokenRefresh refreshes the access token and persists the updated state.

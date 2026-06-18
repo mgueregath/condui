@@ -1,16 +1,17 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 
 	"ssh-gui/backend/account"
 	"ssh-gui/backend/models"
 	"ssh-gui/backend/storage"
 )
-
 
 // ============================================================
 // Vault methods
@@ -57,6 +58,7 @@ func (a *App) SetupMasterPassword(password string) error {
 	}
 
 	a.setMasterKey(key)
+	a.triggerBackgroundSync()
 	return nil
 }
 
@@ -82,6 +84,7 @@ func (a *App) UnlockVault(password string) error {
 	}
 
 	a.setMasterKey(key)
+	a.triggerBackgroundSync()
 	return nil
 }
 
@@ -114,6 +117,9 @@ func (a *App) AccountLogin(serverURL, email, password string) error {
 	if err := a.saveAccountState(state); err != nil {
 		return err
 	}
+	if a.getMasterKey() != nil {
+		a.triggerBackgroundSync()
+	}
 	// Immediately refresh to confirm tier from server and start the loop
 	go a.doTokenRefresh()
 	return nil
@@ -133,7 +139,7 @@ func (a *App) AccountLogout() error {
 	return a.database.ClearAccount()
 }
 
-// SyncNow encrypts all local connections and uploads to the sync server.
+// SyncNow reconciles local and remote connections, then uploads the merged set.
 func (a *App) SyncNow() error {
 	key := a.getMasterKey()
 	if key == nil {
@@ -142,15 +148,16 @@ func (a *App) SyncNow() error {
 	if !a.accountManager.IsLoggedIn() {
 		return fmt.Errorf("not logged in to sync account")
 	}
+	if err := a.ensureAccessTokenFresh(); err != nil {
+		return fmt.Errorf("failed to refresh access token: %w", err)
+	}
 
-	if a.accountManager.GetPublicKey() == "" {
-		state, err := a.accountManager.SetupIdentity(key)
-		if err != nil {
-			return fmt.Errorf("failed to set up identity: %w", err)
-		}
-		if err := a.saveAccountState(state); err != nil {
-			return err
-		}
+	state, err := a.accountManager.SetupIdentity(key)
+	if err != nil {
+		return fmt.Errorf("failed to set up identity: %w", err)
+	}
+	if err := a.saveAccountState(state); err != nil {
+		return err
 	}
 
 	connections, err := a.database.GetConnections()
@@ -158,9 +165,45 @@ func (a *App) SyncNow() error {
 		return err
 	}
 
-	// Free tier: cap remote sync at 5 connections (local storage is unlimited)
+	// Pro tier syncs the same connection set across all devices. Free tier
+	// keeps the previous capped upload behavior.
 	const freeSyncLimit = 5
-	if a.accountManager.GetState().Tier == "free" && len(connections) > freeSyncLimit {
+	if a.accountManager.GetState().Tier == "pro" {
+		shouldUpload := true
+		localHash := connectionsSetHash(connections)
+		remoteMeta, metaErr := a.accountManager.GetConnectionsMeta()
+		if metaErr != nil && !isMissingRemoteBlob(metaErr) {
+			return metaErr
+		}
+
+		remoteChanged := remoteMetaChanged(remoteMeta, a.loadRemoteConnectionsMeta())
+		localChanged := localHash != a.loadLocalConnectionsSetHash()
+
+		if remoteMeta != nil && !remoteChanged && !localChanged {
+			return a.database.SetSetting("last_sync_at", time.Now().Format(time.RFC3339))
+		}
+
+		if remoteMeta != nil && remoteChanged {
+			connections, err = a.mergeRemoteConnections(connections, key)
+			if err != nil {
+				return err
+			}
+			shouldUpload = localChanged
+		}
+
+		if !shouldUpload {
+			if err := a.saveSyncSnapshot(connections); err != nil {
+				return err
+			}
+			if err := a.saveLocalConnectionsSetHash(connectionsSetHash(connections)); err != nil {
+				return err
+			}
+			if err := a.saveRemoteConnectionsMeta(remoteMeta); err != nil {
+				return err
+			}
+			return a.database.SetSetting("last_sync_at", time.Now().Format(time.RFC3339))
+		}
+	} else if len(connections) > freeSyncLimit {
 		connections = connections[:freeSyncLimit]
 	}
 
@@ -169,7 +212,21 @@ func (a *App) SyncNow() error {
 		return err
 	}
 
-	if err := a.accountManager.SyncConnections(data, key); err != nil {
+	meta, err := a.accountManager.SyncConnections(data, key)
+	if err != nil {
+		return err
+	}
+
+	if a.accountManager.GetState().Tier == "pro" {
+		if err := a.saveRemoteConnectionsMeta(meta); err != nil {
+			return err
+		}
+		if err := a.saveLocalConnectionsSetHash(connectionsSetHash(connections)); err != nil {
+			return err
+		}
+	}
+
+	if err := a.saveSyncSnapshot(connections); err != nil {
 		return err
 	}
 
@@ -182,7 +239,7 @@ func (a *App) GetPublicKey() string {
 }
 
 // ShareConnection shares a connection with another Condui user by email.
-func (a *App) ShareConnection(connectionID, recipientEmail string, readOnly bool) error {
+func (a *App) ShareConnection(connectionID, recipientEmail string, readOnly bool, includePassword bool) error {
 	key := a.getMasterKey()
 	if key == nil {
 		return fmt.Errorf("vault is locked")
@@ -190,27 +247,56 @@ func (a *App) ShareConnection(connectionID, recipientEmail string, readOnly bool
 	if !a.accountManager.IsLoggedIn() {
 		return fmt.Errorf("not logged in to sync account")
 	}
+	if err := a.ensureAccessTokenFresh(); err != nil {
+		return fmt.Errorf("failed to refresh access token: %w", err)
+	}
 
 	conn, err := a.database.GetConnectionByID(connectionID)
 	if err != nil {
 		return err
 	}
 
-	// Sanitize: strip password from shared copy (recipient enters their own creds)
 	shareable := *conn
-	shareable.Password = nil
+	if includePassword && conn.Password != nil && *conn.Password != "" {
+		password, err := decryptConnectionPassword(*conn.Password, key)
+		if err != nil {
+			return fmt.Errorf("failed to decrypt connection password: %w", err)
+		}
+		shareable.Password = &password
+	} else {
+		shareable.Password = nil
+	}
 
 	data, err := json.Marshal(shareable)
 	if err != nil {
 		return err
 	}
 
-	return a.accountManager.ShareConnection(data, recipientEmail, readOnly, key)
+	return a.accountManager.ShareConnection(connectionID, data, recipientEmail, readOnly, key)
 }
 
 // GetIncomingShares returns pending/accepted share invites.
 func (a *App) GetIncomingShares() ([]account.ShareInfo, error) {
+	if err := a.ensureAccessTokenFresh(); err != nil {
+		return nil, err
+	}
 	return a.accountManager.GetIncomingShares()
+}
+
+// GetSentShares returns share invites created by the current user.
+func (a *App) GetSentShares() ([]account.ShareInfo, error) {
+	if err := a.ensureAccessTokenFresh(); err != nil {
+		return nil, err
+	}
+	return a.accountManager.GetSentShares()
+}
+
+// CancelShare revokes an outgoing share or declines an incoming share.
+func (a *App) CancelShare(shareID string) error {
+	if err := a.ensureAccessTokenFresh(); err != nil {
+		return err
+	}
+	return a.accountManager.DeleteShare(shareID)
 }
 
 // AcceptShare accepts an incoming share invite and imports the connection locally.
@@ -218,6 +304,9 @@ func (a *App) AcceptShare(shareID, encryptedKey, blobID string) error {
 	key := a.getMasterKey()
 	if key == nil {
 		return fmt.Errorf("vault is locked")
+	}
+	if err := a.ensureAccessTokenFresh(); err != nil {
+		return fmt.Errorf("failed to refresh access token: %w", err)
 	}
 
 	connectionJSON, err := a.accountManager.AcceptShare(shareID, encryptedKey, blobID, key)
@@ -231,11 +320,10 @@ func (a *App) AcceptShare(shareID, encryptedKey, blobID string) error {
 	}
 
 	conn.ID = "" // will be assigned by CreateConnection
-	conn.Password = nil // recipient starts without a password for this connection
 	sharedName := "[Shared] " + conn.Name
 	conn.Name = sharedName
 
-	return a.database.CreateConnection(&conn)
+	return a.CreateConnection(conn)
 }
 
 // ============================================================
@@ -252,5 +340,185 @@ func (a *App) saveAccountState(s account.State) error {
 		RefreshToken: s.RefreshToken,
 		PublicKey:    s.PublicKey,
 		IdentityBlob: s.IdentityBlob,
+		SyncKey:      s.SyncKey,
 	})
+}
+
+func (a *App) mergeRemoteConnections(local []models.Connection, key []byte) ([]models.Connection, error) {
+	remoteJSON, err := a.accountManager.FetchConnections(key)
+	if err != nil {
+		if isMissingRemoteBlob(err) {
+			return local, nil
+		}
+		return nil, err
+	}
+
+	var remote []models.Connection
+	if len(remoteJSON) > 0 {
+		if err := json.Unmarshal(remoteJSON, &remote); err != nil {
+			return nil, fmt.Errorf("invalid remote connections data: %w", err)
+		}
+	}
+
+	snapshot := a.loadSyncSnapshot()
+	localByID := map[string]models.Connection{}
+	remoteByID := map[string]models.Connection{}
+	order := make([]string, 0, len(local)+len(remote))
+
+	for _, conn := range remote {
+		if conn.ID == "" {
+			continue
+		}
+		if _, ok := remoteByID[conn.ID]; !ok {
+			order = append(order, conn.ID)
+		}
+		remoteByID[conn.ID] = conn
+	}
+	for _, conn := range local {
+		if conn.ID == "" {
+			continue
+		}
+		if _, ok := remoteByID[conn.ID]; !ok {
+			order = append(order, conn.ID)
+		}
+		localByID[conn.ID] = conn
+	}
+
+	merged := make([]models.Connection, 0, len(order))
+	for _, id := range order {
+		localConn, hasLocal := localByID[id]
+		remoteConn, hasRemote := remoteByID[id]
+
+		switch {
+		case hasLocal && hasRemote:
+			chosen := chooseConnection(localConn, remoteConn, snapshot[id])
+			if connectionHash(chosen) == connectionHash(remoteConn) {
+				if err := a.database.UpsertConnection(&chosen); err != nil {
+					return nil, err
+				}
+			}
+			merged = append(merged, chosen)
+		case hasLocal:
+			if snapshot[id] != "" && connectionHash(localConn) == snapshot[id] {
+				if err := a.database.DeleteConnection(id); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			merged = append(merged, localConn)
+		case hasRemote:
+			if snapshot[id] != "" {
+				continue
+			}
+			if err := a.database.UpsertConnection(&remoteConn); err != nil {
+				return nil, err
+			}
+			merged = append(merged, remoteConn)
+		}
+	}
+
+	return merged, nil
+}
+
+func chooseConnection(local, remote models.Connection, previousHash string) models.Connection {
+	localHash := connectionHash(local)
+	remoteHash := connectionHash(remote)
+	if localHash == remoteHash {
+		return local
+	}
+	if previousHash != "" && localHash == previousHash && remoteHash != previousHash {
+		return remote
+	}
+	return local
+}
+
+func (a *App) loadSyncSnapshot() map[string]string {
+	raw, _ := a.database.GetSetting("connections_sync_snapshot")
+	if raw == "" {
+		return map[string]string{}
+	}
+	var snapshot map[string]string
+	if err := json.Unmarshal([]byte(raw), &snapshot); err != nil {
+		return map[string]string{}
+	}
+	return snapshot
+}
+
+func (a *App) saveSyncSnapshot(connections []models.Connection) error {
+	snapshot := make(map[string]string, len(connections))
+	for _, conn := range connections {
+		if conn.ID != "" {
+			snapshot[conn.ID] = connectionHash(conn)
+		}
+	}
+	data, err := json.Marshal(snapshot)
+	if err != nil {
+		return err
+	}
+	return a.database.SetSetting("connections_sync_snapshot", string(data))
+}
+
+func (a *App) loadRemoteConnectionsMeta() *account.BlobMeta {
+	raw, _ := a.database.GetSetting("connections_remote_meta")
+	if raw == "" {
+		return nil
+	}
+	var meta account.BlobMeta
+	if err := json.Unmarshal([]byte(raw), &meta); err != nil {
+		return nil
+	}
+	return &meta
+}
+
+func (a *App) saveRemoteConnectionsMeta(meta *account.BlobMeta) error {
+	if meta == nil {
+		return nil
+	}
+	data, err := json.Marshal(meta)
+	if err != nil {
+		return err
+	}
+	return a.database.SetSetting("connections_remote_meta", string(data))
+}
+
+func remoteMetaChanged(current, previous *account.BlobMeta) bool {
+	if current == nil {
+		return previous != nil
+	}
+	if previous == nil {
+		return true
+	}
+	return current.Version != previous.Version || current.Checksum != previous.Checksum
+}
+
+func (a *App) loadLocalConnectionsSetHash() string {
+	hash, _ := a.database.GetSetting("connections_local_set_hash")
+	return hash
+}
+
+func (a *App) saveLocalConnectionsSetHash(hash string) error {
+	return a.database.SetSetting("connections_local_set_hash", hash)
+}
+
+func connectionsSetHash(connections []models.Connection) string {
+	hashes := make([]string, 0, len(connections))
+	for _, conn := range connections {
+		if conn.ID != "" {
+			hashes = append(hashes, conn.ID+":"+connectionHash(conn))
+		}
+	}
+	sort.Strings(hashes)
+	data, _ := json.Marshal(hashes)
+	sum := sha256.Sum256(data)
+	return base64.StdEncoding.EncodeToString(sum[:])
+}
+
+func connectionHash(conn models.Connection) string {
+	data, _ := json.Marshal(conn)
+	sum := sha256.Sum256(data)
+	return base64.StdEncoding.EncodeToString(sum[:])
+}
+
+func isMissingRemoteBlob(err error) bool {
+	return err != nil && (err.Error() == "blob not found" || err.Error() == "server error 404")
 }

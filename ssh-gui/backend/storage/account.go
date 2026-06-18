@@ -9,17 +9,18 @@ type AccountRow struct {
 	RefreshToken string
 	PublicKey    string
 	IdentityBlob string
+	SyncKey      string
 }
 
 func (d *Database) GetAccount() (*AccountRow, error) {
 	row := d.DB.QueryRow(
-		`SELECT server_url, user_id, email, tier, access_token, refresh_token, public_key, identity_blob
+		`SELECT server_url, user_id, email, tier, access_token, refresh_token, public_key, identity_blob, sync_key
 		 FROM account WHERE id = 1`,
 	)
 	var a AccountRow
 	err := row.Scan(
 		&a.ServerURL, &a.UserID, &a.Email, &a.Tier,
-		&a.AccessToken, &a.RefreshToken, &a.PublicKey, &a.IdentityBlob,
+		&a.AccessToken, &a.RefreshToken, &a.PublicKey, &a.IdentityBlob, &a.SyncKey,
 	)
 	if err != nil {
 		return nil, nil // no account saved
@@ -29,8 +30,8 @@ func (d *Database) GetAccount() (*AccountRow, error) {
 
 func (d *Database) SaveAccount(a *AccountRow) error {
 	_, err := d.DB.Exec(
-		`INSERT INTO account(id, server_url, user_id, email, tier, access_token, refresh_token, public_key, identity_blob)
-		 VALUES(1, ?, ?, ?, ?, ?, ?, ?, ?)
+		`INSERT INTO account(id, server_url, user_id, email, tier, access_token, refresh_token, public_key, identity_blob, sync_key)
+		 VALUES(1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(id) DO UPDATE SET
 		   server_url=excluded.server_url,
 		   user_id=excluded.user_id,
@@ -39,9 +40,10 @@ func (d *Database) SaveAccount(a *AccountRow) error {
 		   access_token=excluded.access_token,
 		   refresh_token=excluded.refresh_token,
 		   public_key=excluded.public_key,
-		   identity_blob=excluded.identity_blob`,
+		   identity_blob=excluded.identity_blob,
+		   sync_key=excluded.sync_key`,
 		a.ServerURL, a.UserID, a.Email, a.Tier,
-		a.AccessToken, a.RefreshToken, a.PublicKey, a.IdentityBlob,
+		a.AccessToken, a.RefreshToken, a.PublicKey, a.IdentityBlob, a.SyncKey,
 	)
 	return err
 }

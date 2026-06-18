@@ -45,7 +45,9 @@ export class AccountStatus {
 export class ShareInfo {
     "id": string;
     "ownerEmail": string;
+    "recipientEmail": string;
     "blobId": string;
+    "encryptedKey": string;
     "permissions": string;
     "status": string;
 
@@ -57,8 +59,14 @@ export class ShareInfo {
         if (!("ownerEmail" in $$source)) {
             this["ownerEmail"] = "";
         }
+        if (!("recipientEmail" in $$source)) {
+            this["recipientEmail"] = "";
+        }
         if (!("blobId" in $$source)) {
             this["blobId"] = "";
+        }
+        if (!("encryptedKey" in $$source)) {
+            this["encryptedKey"] = "";
         }
         if (!("permissions" in $$source)) {
             this["permissions"] = "";

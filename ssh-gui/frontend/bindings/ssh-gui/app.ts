@@ -63,6 +63,13 @@ export function ApproveHostKey(channelKey: string, approved: boolean): $Cancella
     return $Call.ByID(2428770811, channelKey, approved);
 }
 
+/**
+ * CancelShare revokes an outgoing share or declines an incoming share.
+ */
+export function CancelShare(shareID: string): $CancellablePromise<void> {
+    return $Call.ByID(4073839578, shareID);
+}
+
 export function CloseSession(sessionID: string): $CancellablePromise<void> {
     return $Call.ByID(1620748453, sessionID);
 }
@@ -255,6 +262,15 @@ export function GetPublicKey(): $CancellablePromise<string> {
     return $Call.ByID(1425211265);
 }
 
+/**
+ * GetSentShares returns share invites created by the current user.
+ */
+export function GetSentShares(): $CancellablePromise<account$0.ShareInfo[]> {
+    return $Call.ByID(1200468861).then(($result: any) => {
+        return $$createType18($result);
+    });
+}
+
 export function GetSystemStats(sessionID: string): $CancellablePromise<$models.SystemStats | null> {
     return $Call.ByID(549671605, sessionID).then(($result: any) => {
         return $$createType22($result);
@@ -364,8 +380,8 @@ export function SetupMasterPassword(password: string): $CancellablePromise<void>
 /**
  * ShareConnection shares a connection with another Condui user by email.
  */
-export function ShareConnection(connectionID: string, recipientEmail: string, readOnly: boolean): $CancellablePromise<void> {
-    return $Call.ByID(3307276152, connectionID, recipientEmail, readOnly);
+export function ShareConnection(connectionID: string, recipientEmail: string, readOnly: boolean, includePassword: boolean): $CancellablePromise<void> {
+    return $Call.ByID(3307276152, connectionID, recipientEmail, readOnly, includePassword);
 }
 
 /**
@@ -383,7 +399,7 @@ export function StopDockerLogs(sessionID: string, containerID: string): $Cancell
 }
 
 /**
- * SyncNow encrypts all local connections and uploads to the sync server.
+ * SyncNow reconciles local and remote connections, then uploads the merged set.
  */
 export function SyncNow(): $CancellablePromise<void> {
     return $Call.ByID(2954670258);

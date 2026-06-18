@@ -75,6 +75,22 @@ func (s *ShareStore) Accept(id, recipientEmail string) error {
 	return nil
 }
 
+func (s *ShareStore) CanAccessBlob(recipientEmail, blobID string) (bool, error) {
+	var count int
+	err := s.db.QueryRow(
+		`SELECT COUNT(*)
+		 FROM share_invites
+		 WHERE recipient_email = ?
+		   AND blob_id = ?
+		   AND status IN ('pending', 'accepted')`,
+		recipientEmail, blobID,
+	).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (s *ShareStore) Delete(id, actorID, actorEmail string) error {
 	// Allow owner to revoke or recipient to decline
 	result, err := s.db.Exec(

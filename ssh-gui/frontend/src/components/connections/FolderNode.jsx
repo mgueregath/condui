@@ -2,7 +2,7 @@ import { useState } from "react";
 import ContextMenu from "./ContextMenu";
 import { FaFolder, FaFolderOpen, FaFile, FaAngleLeft, FaAngleDown } from "react-icons/fa";
 
-export default function FolderNode({ folder, expanded, onToggle, onEdit, onDelete, children }) {
+export default function FolderNode({ folder, expanded, onToggle, onEdit, onDelete, children, virtual = false }) {
   const [ctx, setCtx] = useState(null);
 
   const handleContextMenu = (e) => {
@@ -24,7 +24,7 @@ export default function FolderNode({ folder, expanded, onToggle, onEdit, onDelet
       <div
         className="sidebar-item"
         onClick={() => onToggle(folder.id)}
-        onContextMenu={handleContextMenu}
+        onContextMenu={virtual ? undefined : handleContextMenu}
       >
         <span style={{ fontSize: "14px", flexShrink: 0 }}>
           {expanded ? <FaFolderOpen /> : <FaFolder />}
@@ -40,7 +40,7 @@ export default function FolderNode({ folder, expanded, onToggle, onEdit, onDelet
 
       {expanded && <div style={{ paddingLeft: "14px" }}>{children}</div>}
 
-      {ctx && (
+      {ctx && !virtual && (
         <ContextMenu
           x={ctx.x} y={ctx.y}
           items={menuItems}

@@ -17,5 +17,6 @@ type BlobMeta struct {
 	ID        string    `json:"id"`
 	BlobType  string    `json:"blobType"`
 	Version   int       `json:"version"`
+	Checksum  string    `json:"checksum"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }

@@ -9,17 +9,20 @@ type AccountStatus struct {
 }
 
 type ShareInfo struct {
-	ID          string `json:"id"`
-	OwnerEmail  string `json:"ownerEmail"`
-	BlobID      string `json:"blobId"`
-	Permissions string `json:"permissions"`
-	Status      string `json:"status"`
+	ID             string `json:"id"`
+	OwnerEmail     string `json:"ownerEmail"`
+	RecipientEmail string `json:"recipientEmail"`
+	BlobID         string `json:"blobId"`
+	EncryptedKey   string `json:"encryptedKey"`
+	Permissions    string `json:"permissions"`
+	Status         string `json:"status"`
 }
 
 type BlobMeta struct {
 	ID        string `json:"id"`
 	BlobType  string `json:"blobType"`
 	Version   int    `json:"version"`
+	Checksum  string `json:"checksum"`
 	UpdatedAt string `json:"updatedAt"`
 }
 
@@ -46,10 +49,11 @@ type loginResponse struct {
 }
 
 type userPayload struct {
-	ID        string `json:"id"`
-	Email     string `json:"email"`
-	Tier      string `json:"tier"`
-	PublicKey string `json:"publicKey"`
+	ID           string `json:"id"`
+	Email        string `json:"email"`
+	Tier         string `json:"tier"`
+	PublicKey    string `json:"publicKey"`
+	IdentityBlob string `json:"identityBlob"`
 }
 
 type registerRequest struct {

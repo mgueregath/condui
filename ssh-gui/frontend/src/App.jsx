@@ -3,11 +3,13 @@ import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 import conduiLogo from "./assets/images/condui-transparent.png";
-import { FaFolder, FaFolderOpen, FaFile, FaUser } from "react-icons/fa";
+import { FaCheck, FaFile, FaFolder, FaFolderOpen, FaInbox, FaTimes, FaUser } from "react-icons/fa";
 
 import { Events } from "@wailsio/runtime";
 import RemoteFileTree from "./components/files/RemoteFileTree";
 import {
+  AcceptShare,
+  CancelShare,
   ConnectSSH,
   SendInput,
   ResizeTerminal,
@@ -21,6 +23,8 @@ import {
   EditTunnel,
   ApproveHostKey,
   GetAccountStatus,
+  GetIncomingShares,
+  SyncNow,
 } from "../bindings/ssh-gui/app";
 
 import VaultUnlock from "./components/account/VaultUnlock";
@@ -46,10 +50,56 @@ import AssignFolderModal from "./components/connections/AssignFolderModal";
 import ContextMenu from "./components/connections/ContextMenu";
 import "./components/Layout.css";
 
+function PendingInviteNode({ invite, accepting, onAccept, onDecline }) {
+  return (
+    <div className="drawer-conn-item pending-invite-item">
+      <div className="conn-status">
+        <span className="pending-invite-dot">
+          <FaInbox />
+        </span>
+      </div>
+
+      <div className="conn-info">
+        <div className="conn-name">Shared connection</div>
+        <div className="conn-host">
+          {invite.ownerEmail || "Unknown sender"} · {invite.permissions === "write" ? "Read & write" : "Read-only"}
+        </div>
+      </div>
+
+      <div className={`conn-actions ${accepting ? "connecting" : ""}`}>
+        <button
+          className="conn-action-btn"
+          title="Accept invitation"
+          disabled={accepting}
+          onClick={(e) => {
+            e.stopPropagation();
+            onAccept(invite);
+          }}
+        >
+          {accepting ? <span className="conn-loader" /> : <FaCheck />}
+        </button>
+        <button
+          className="conn-action-btn delete"
+          title="Decline invitation"
+          disabled={accepting}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (confirm("Decline this shared connection invitation?")) onDecline(invite);
+          }}
+        >
+          <FaTimes />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function LeftSidebar({
   tabs,
   folders,
   connections,
+  pendingInvites,
+  acceptingInviteId,
   connectingId,
   expandedFolders,
   onToggleFolder,
@@ -62,6 +112,8 @@ function LeftSidebar({
   onEditFolder,
   onDeleteFolder,
   onShareConnection,
+  onAcceptInvite,
+  onDeclineInvite,
   onOpenAccount,
   accountStatus,
   activeSessionId,
@@ -79,6 +131,14 @@ function LeftSidebar({
   const filtered = connections.filter(
     (c) => !search || c.name?.toLowerCase().includes(search.toLowerCase()),
   );
+  const filteredInvites = pendingInvites.filter((invite) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      invite.ownerEmail?.toLowerCase().includes(q) ||
+      invite.permissions?.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="sidebar-container">
@@ -114,6 +174,25 @@ function LeftSidebar({
           className="sidebar-list"
           onContextMenu={handleEmptyAreaContextMenu}
         >
+          {filteredInvites.length > 0 && (
+            <FolderNode
+              folder={{ id: "__pending_invites", name: "Invitaciones pendientes" }}
+              expanded={expandedFolders.includes("__pending_invites")}
+              onToggle={onToggleFolder}
+              virtual
+            >
+              {filteredInvites.map((invite) => (
+                <PendingInviteNode
+                  key={invite.id}
+                  invite={invite}
+                  accepting={acceptingInviteId === invite.id}
+                  onAccept={onAcceptInvite}
+                  onDecline={onDeclineInvite}
+                />
+              ))}
+            </FolderNode>
+          )}
+
           {folders.map((folder) => {
             const fConns = filtered.filter((c) => c.folderId === folder.id);
             if (fConns.length === 0 && search) return null;
@@ -173,7 +252,7 @@ function LeftSidebar({
             </div>
           )}
 
-          {filtered.length === 0 && (
+          {filtered.length === 0 && filteredInvites.length === 0 && (
             <div
               style={{
                 padding: "24px 12px",
@@ -212,6 +291,7 @@ function App() {
   const termRef = useRef(null);
   const terminalBuffers = useRef({});
   const fileTreeRef = useRef(null);
+  const syncInFlightRef = useRef(false);
 
   const [tabs, setTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
@@ -225,6 +305,9 @@ function App() {
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [accountStatus, setAccountStatus] = useState(null);
   const [shareTarget, setShareTarget] = useState(null); // connection to share
+  const [pendingInvites, setPendingInvites] = useState([]);
+  const [acceptingInviteId, setAcceptingInviteId] = useState(null);
+  const [expandedFolders, setExpandedFolders] = useState([]);
 
   // Host key verification
   const [hostKeyPrompt, setHostKeyPrompt] = useState(null);
@@ -236,9 +319,61 @@ function App() {
     } catch (_) {}
   };
 
+  const refreshPendingInvites = async () => {
+    if (!accountStatus?.loggedIn) {
+      setPendingInvites([]);
+      return;
+    }
+    try {
+      const shares = await GetIncomingShares();
+      setPendingInvites((shares || []).filter((share) => share.status === "pending"));
+    } catch (err) {
+      console.error("Failed to refresh share invitations", err);
+    }
+  };
+
   useEffect(() => {
     if (vaultUnlocked) refreshAccountStatus();
   }, [vaultUnlocked]);
+
+  useEffect(() => {
+    if (!vaultUnlocked || !accountStatus?.loggedIn) {
+      setPendingInvites([]);
+      return;
+    }
+
+    refreshPendingInvites();
+    const timer = window.setInterval(refreshPendingInvites, 30000);
+    return () => window.clearInterval(timer);
+  }, [vaultUnlocked, accountStatus?.loggedIn]);
+
+  useEffect(() => {
+    if (pendingInvites.length === 0) return;
+    setExpandedFolders((prev) =>
+      prev.includes("__pending_invites") ? prev : [...prev, "__pending_invites"],
+    );
+  }, [pendingInvites.length]);
+
+  useEffect(() => {
+    if (!vaultUnlocked || accountStatus?.tier !== "pro") return;
+
+    const runProSync = async () => {
+      if (syncInFlightRef.current) return;
+      syncInFlightRef.current = true;
+      try {
+        await SyncNow();
+        await reload();
+        await refreshAccountStatus();
+      } catch (err) {
+        console.error("Pro sync check failed", err);
+      } finally {
+        syncInFlightRef.current = false;
+      }
+    };
+
+    const timer = window.setInterval(runProSync, 60000);
+    return () => window.clearInterval(timer);
+  }, [vaultUnlocked, accountStatus?.tier]);
 
   useEffect(() => {
     const unsub = Events.On("session-disconnected", (event) => {
@@ -289,7 +424,6 @@ function App() {
   const [folderModalOpen, setFolderModalOpen] = useState(false);
   const [connectionModalOpen, setConnectionModalOpen] = useState(false);
   const [assignFolderModalOpen, setAssignFolderModalOpen] = useState(false);
-  const [expandedFolders, setExpandedFolders] = useState([]);
   const [editingFolder, setEditingFolder] = useState(null);
   const [editingConnection, setEditingConnection] = useState(null);
   const [assigningConnection, setAssigningConnection] = useState(null);
@@ -459,6 +593,36 @@ function App() {
     }
   };
 
+  const handleAcceptInvite = async (invite) => {
+    setAcceptingInviteId(invite.id);
+    try {
+      await AcceptShare(invite.id, invite.encryptedKey, invite.blobId);
+      await reload();
+      await refreshPendingInvites();
+      setExpandedFolders((prev) =>
+        prev.includes("__pending_invites") ? prev : [...prev, "__pending_invites"],
+      );
+    } catch (err) {
+      console.error(err);
+      alert(typeof err === "string" ? err : err?.message || "Unable to accept invitation");
+    } finally {
+      setAcceptingInviteId(null);
+    }
+  };
+
+  const handleDeclineInvite = async (invite) => {
+    setAcceptingInviteId(invite.id);
+    try {
+      await CancelShare(invite.id);
+      await refreshPendingInvites();
+    } catch (err) {
+      console.error(err);
+      alert(typeof err === "string" ? err : err?.message || "Unable to decline invitation");
+    } finally {
+      setAcceptingInviteId(null);
+    }
+  };
+
   // Show vault screen before main UI
   if (!vaultUnlocked) {
     return <VaultUnlock onUnlocked={() => setVaultUnlocked(true)} />;
@@ -539,6 +703,8 @@ function App() {
           tabs={tabs}
           folders={folders}
           connections={connections}
+          pendingInvites={pendingInvites}
+          acceptingInviteId={acceptingInviteId}
           expandedFolders={expandedFolders}
           onToggleFolder={(id) =>
             setExpandedFolders((prev) =>
@@ -579,6 +745,8 @@ function App() {
           connectingId={connectingId}
           activeSessionId={activeTab}
           onShareConnection={(c) => setShareTarget(c)}
+          onAcceptInvite={handleAcceptInvite}
+          onDeclineInvite={handleDeclineInvite}
           onOpenAccount={() => setAccountModalOpen(true)}
           accountStatus={accountStatus}
         />

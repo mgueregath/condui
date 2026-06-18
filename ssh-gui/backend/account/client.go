@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -112,6 +113,12 @@ func (c *apiClient) getBlob(id string) (*BlobPayload, error) {
 	return &blob, err
 }
 
+func (c *apiClient) getBlobMeta(id string) (*BlobMeta, error) {
+	var meta BlobMeta
+	err := c.do("GET", "/api/v1/blobs/"+id+"/meta", nil, &meta)
+	return &meta, err
+}
+
 func (c *apiClient) upsertBlob(blob BlobPayload) error {
 	// Try PUT first (update), fall back to POST (create)
 	err := c.do("PUT", "/api/v1/blobs/"+blob.ID, blob, nil)
@@ -138,6 +145,12 @@ func (c *apiClient) getReceivedShares() ([]ShareInfo, error) {
 	return shares, err
 }
 
+func (c *apiClient) getSentShares() ([]ShareInfo, error) {
+	var shares []ShareInfo
+	err := c.do("GET", "/api/v1/shares/sent", nil, &shares)
+	return shares, err
+}
+
 func (c *apiClient) acceptShare(shareID string) error {
 	return c.do("PUT", "/api/v1/shares/"+shareID+"/accept", nil, nil)
 }
@@ -150,6 +163,6 @@ func (c *apiClient) getRecipientPublicKey(email string) (string, error) {
 	var resp struct {
 		PublicKey string `json:"publicKey"`
 	}
-	err := c.do("GET", "/api/v1/users/public-key?email="+email, nil, &resp)
+	err := c.do("GET", "/api/v1/users/public-key?email="+url.QueryEscape(email), nil, &resp)
 	return resp.PublicKey, err
 }

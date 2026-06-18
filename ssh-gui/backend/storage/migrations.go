@@ -56,7 +56,8 @@ func (d *Database) Migrate() error {
 			access_token TEXT,
 			refresh_token TEXT,
 			public_key TEXT,
-			identity_blob TEXT
+			identity_blob TEXT,
+			sync_key TEXT
 		);
 		`,
 	}
@@ -70,6 +71,7 @@ func (d *Database) Migrate() error {
 	// ALTER TABLE migrations — idempotent via duplicate-column error suppression
 	alterations := []string{
 		`ALTER TABLE account ADD COLUMN tier_expires_at DATETIME`,
+		`ALTER TABLE account ADD COLUMN sync_key TEXT`,
 		`ALTER TABLE connections ADD COLUMN jump_host_id TEXT REFERENCES connections(id)`,
 	}
 	for _, alt := range alterations {

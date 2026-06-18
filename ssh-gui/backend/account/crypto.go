@@ -24,6 +24,25 @@ const (
 	vaultTestPlaintext = "condui-vault-ok"
 )
 
+// DeriveSyncKey derives a stable per-account key from the account password.
+// Unlike the local vault key, this key is reproducible on every device.
+func DeriveSyncKey(email, password string) []byte {
+	salt := sha256.Sum256([]byte("condui-sync-v1:" + email))
+	return argon2.IDKey(
+		[]byte(password), salt[:],
+		argon2Iterations, argon2Memory, argon2Parallelism, argon2KeyLen,
+	)
+}
+
+// GenerateRandomKey returns a random 32-byte key for independent blob sharing.
+func GenerateRandomKey() ([]byte, error) {
+	key := make([]byte, argon2KeyLen)
+	if _, err := rand.Read(key); err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
 // GenerateSalt returns 16 cryptographically random bytes.
 func GenerateSalt() ([]byte, error) {
 	salt := make([]byte, saltLen)

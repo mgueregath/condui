@@ -28,7 +28,7 @@ func main() {
 
 	// Handlers
 	authH := handlers.NewAuthHandler(users, tokens, cfg)
-	syncH := handlers.NewSyncHandler(blobs)
+	syncH := handlers.NewSyncHandler(blobs, shares)
 	shareH := handlers.NewSharingHandler(shares, blobs)
 
 	// Middleware chain builders
@@ -51,6 +51,7 @@ func main() {
 	// ── Sync (blobs) ─────────────────────────────────────────────────────
 	mux.HandleFunc("GET /api/v1/blobs", chain(syncH.ListBlobs, authMW))
 	mux.HandleFunc("POST /api/v1/blobs", chain(syncH.CreateBlob, authMW))
+	mux.HandleFunc("GET /api/v1/blobs/{id}/meta", chain(syncH.GetBlobMeta, authMW))
 	mux.HandleFunc("GET /api/v1/blobs/{id}", chain(syncH.GetBlob, authMW))
 	mux.HandleFunc("PUT /api/v1/blobs/{id}", chain(syncH.UpdateBlob, authMW))
 	mux.HandleFunc("DELETE /api/v1/blobs/{id}", chain(syncH.DeleteBlob, authMW))

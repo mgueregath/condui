@@ -1,8 +1,11 @@
 package account
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -17,6 +20,7 @@ type State struct {
 	Tier         string
 	PublicKey    string
 	IdentityBlob string // encrypted private key blob
+	SyncKey      string // base64 stable per-account sync key
 }
 
 type Manager struct {
@@ -60,6 +64,20 @@ func (m *Manager) IsLoggedIn() bool {
 	return m.state.AccessToken != ""
 }
 
+func (m *Manager) AccessTokenStale(skew time.Duration) bool {
+	m.mu.RLock()
+	token := m.state.AccessToken
+	m.mu.RUnlock()
+	if token == "" {
+		return false
+	}
+	expiresAt, ok := accessTokenExpiry(token)
+	if !ok {
+		return true
+	}
+	return time.Until(expiresAt) <= skew
+}
+
 func (m *Manager) Register(serverURL, email, password string) error {
 	client := newAPIClient(serverURL, "")
 	return client.register(email, password)
@@ -81,6 +99,8 @@ func (m *Manager) Login(serverURL, email, password string) (State, error) {
 		Email:        resp.User.Email,
 		Tier:         resp.User.Tier,
 		PublicKey:    resp.User.PublicKey,
+		IdentityBlob: resp.User.IdentityBlob,
+		SyncKey:      base64.StdEncoding.EncodeToString(DeriveSyncKey(resp.User.Email, password)),
 	}
 
 	m.mu.Lock()
@@ -133,6 +153,8 @@ func (m *Manager) RefreshAccessToken() (State, error) {
 	m.mu.Lock()
 	m.state.AccessToken = newToken
 	m.state.Tier = me.Tier
+	m.state.PublicKey = me.PublicKey
+	m.state.IdentityBlob = me.IdentityBlob
 	updated := m.state
 	m.mu.Unlock()
 	return updated, nil
@@ -145,7 +167,8 @@ func (m *Manager) SetupIdentity(masterKey []byte) (State, error) {
 	s := m.state
 	m.mu.RUnlock()
 
-	if s.PublicKey != "" {
+	identityKey := m.blobKey(s, masterKey)
+	if s.PublicKey != "" && s.IdentityBlob != "" {
 		return s, nil // already set up
 	}
 
@@ -154,7 +177,7 @@ func (m *Manager) SetupIdentity(masterKey []byte) (State, error) {
 		return State{}, err
 	}
 
-	encryptedPriv, err := EncryptField(masterKey, privB64)
+	encryptedPriv, err := EncryptField(identityKey, privB64)
 	if err != nil {
 		return State{}, err
 	}
@@ -172,30 +195,46 @@ func (m *Manager) SetupIdentity(masterKey []byte) (State, error) {
 	return updated, nil
 }
 
+func (m *Manager) connectionsBlobID(s State) string {
+	return "connections-" + s.UserID
+}
+
 // SyncConnections encrypts and uploads connections JSON to the server.
-func (m *Manager) SyncConnections(connectionsJSON []byte, masterKey []byte) error {
+func (m *Manager) SyncConnections(connectionsJSON []byte, masterKey []byte) (*BlobMeta, error) {
 	m.mu.RLock()
 	s := m.state
 	m.mu.RUnlock()
 
 	if s.AccessToken == "" {
-		return fmt.Errorf("not logged in")
+		return nil, fmt.Errorf("not logged in")
 	}
 
-	cipherB64, nonceB64, checksumB64, err := EncryptBlob(masterKey, connectionsJSON)
+	cipherB64, nonceB64, checksumB64, err := EncryptBlob(m.blobKey(s, masterKey), connectionsJSON)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	blobID := "connections-" + s.UserID
+	blobID := m.connectionsBlobID(s)
 	client := newAPIClient(s.ServerURL, s.AccessToken)
-	return client.upsertBlob(BlobPayload{
+	if err := client.upsertBlob(BlobPayload{
 		ID:         blobID,
 		BlobType:   "connections",
 		CipherText: cipherB64,
 		Nonce:      nonceB64,
 		Checksum:   checksumB64,
-	})
+	}); err != nil {
+		return nil, err
+	}
+	return client.getBlobMeta(blobID)
+}
+
+func (m *Manager) GetConnectionsMeta() (*BlobMeta, error) {
+	m.mu.RLock()
+	s := m.state
+	m.mu.RUnlock()
+
+	client := newAPIClient(s.ServerURL, s.AccessToken)
+	return client.getBlobMeta(m.connectionsBlobID(s))
 }
 
 // FetchConnections downloads and decrypts the connections blob.
@@ -204,17 +243,23 @@ func (m *Manager) FetchConnections(masterKey []byte) ([]byte, error) {
 	s := m.state
 	m.mu.RUnlock()
 
-	blobID := "connections-" + s.UserID
 	client := newAPIClient(s.ServerURL, s.AccessToken)
-	blob, err := client.getBlob(blobID)
+	blob, err := client.getBlob(m.connectionsBlobID(s))
 	if err != nil {
 		return nil, err
 	}
-	return DecryptBlob(masterKey, blob.CipherText, blob.Nonce)
+	plaintext, err := DecryptBlob(m.blobKey(s, masterKey), blob.CipherText, blob.Nonce)
+	if err == nil {
+		return plaintext, nil
+	}
+	if s.SyncKey != "" {
+		return DecryptBlob(masterKey, blob.CipherText, blob.Nonce)
+	}
+	return nil, err
 }
 
 // ShareConnection encrypts a connection and creates a share invite.
-func (m *Manager) ShareConnection(connectionJSON []byte, recipientEmail string, readOnly bool, masterKey []byte) error {
+func (m *Manager) ShareConnection(connectionID string, connectionJSON []byte, recipientEmail string, readOnly bool, masterKey []byte) error {
 	m.mu.RLock()
 	s := m.state
 	m.mu.RUnlock()
@@ -226,15 +271,20 @@ func (m *Manager) ShareConnection(connectionJSON []byte, recipientEmail string, 
 		return fmt.Errorf("recipient not found or has no public key: %w", err)
 	}
 
-	cipherB64, nonceB64, checksumB64, err := EncryptBlob(masterKey, connectionJSON)
+	shareKey, err := GenerateRandomKey()
 	if err != nil {
 		return err
 	}
 
-	blobID := fmt.Sprintf("shared-%s-%d", s.UserID, time.Now().UnixNano())
+	cipherB64, nonceB64, checksumB64, err := EncryptBlob(shareKey, connectionJSON)
+	if err != nil {
+		return err
+	}
+
+	blobID := fmt.Sprintf("shared-%s-%s-%d", s.UserID, connectionID, time.Now().UnixNano())
 	if err := client.upsertBlob(BlobPayload{
-		ID:       blobID,
-		BlobType: "shared_connection",
+		ID:         blobID,
+		BlobType:   "shared_connection",
 		CipherText: cipherB64,
 		Nonce:      nonceB64,
 		Checksum:   checksumB64,
@@ -242,7 +292,7 @@ func (m *Manager) ShareConnection(connectionJSON []byte, recipientEmail string, 
 		return err
 	}
 
-	encryptedKeyForRecipient, err := WrapKey(recipientPubKey, masterKey)
+	encryptedKeyForRecipient, err := WrapKey(recipientPubKey, shareKey)
 	if err != nil {
 		return fmt.Errorf("failed to wrap key for recipient: %w", err)
 	}
@@ -268,7 +318,10 @@ func (m *Manager) AcceptShare(shareID, encryptedKey string, blobID string, maste
 	m.mu.RUnlock()
 
 	// Decrypt private key from identity blob
-	privKeyB64, err := DecryptField(masterKey, s.IdentityBlob)
+	privKeyB64, err := DecryptField(m.blobKey(s, masterKey), s.IdentityBlob)
+	if err != nil && s.SyncKey != "" {
+		privKeyB64, err = DecryptField(masterKey, s.IdentityBlob)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt identity key: %w", err)
 	}
@@ -307,6 +360,30 @@ func (m *Manager) GetIncomingShares() ([]ShareInfo, error) {
 	return client.getReceivedShares()
 }
 
+func (m *Manager) GetSentShares() ([]ShareInfo, error) {
+	m.mu.RLock()
+	s := m.state
+	m.mu.RUnlock()
+
+	if s.AccessToken == "" {
+		return nil, nil
+	}
+	client := newAPIClient(s.ServerURL, s.AccessToken)
+	return client.getSentShares()
+}
+
+func (m *Manager) DeleteShare(shareID string) error {
+	m.mu.RLock()
+	s := m.state
+	m.mu.RUnlock()
+
+	if s.AccessToken == "" {
+		return fmt.Errorf("not logged in")
+	}
+	client := newAPIClient(s.ServerURL, s.AccessToken)
+	return client.deleteShare(shareID)
+}
+
 // GetPublicKey returns the user's X25519 public key.
 func (m *Manager) GetPublicKey() string {
 	m.mu.RLock()
@@ -321,6 +398,35 @@ func (m *Manager) DoServerLogout(serverURL, accessToken, refreshToken string) {
 	}
 	client := newAPIClient(serverURL, accessToken)
 	_ = client.logout(refreshToken)
+}
+
+func (m *Manager) blobKey(s State, fallback []byte) []byte {
+	if s.SyncKey == "" {
+		return fallback
+	}
+	key, err := base64.StdEncoding.DecodeString(s.SyncKey)
+	if err != nil || len(key) == 0 {
+		return fallback
+	}
+	return key
+}
+
+func accessTokenExpiry(token string) (time.Time, bool) {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return time.Time{}, false
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return time.Time{}, false
+	}
+	var claims struct {
+		ExpiresAt int64 `json:"exp"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil || claims.ExpiresAt == 0 {
+		return time.Time{}, false
+	}
+	return time.Unix(claims.ExpiresAt, 0), true
 }
 
 func deviceName() string {

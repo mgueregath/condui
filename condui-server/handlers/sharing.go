@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -34,6 +35,7 @@ func (h *SharingHandler) CreateShare(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	req.RecipientEmail = strings.ToLower(strings.TrimSpace(req.RecipientEmail))
 	if req.BlobID == "" || req.RecipientEmail == "" {
 		writeError(w, http.StatusBadRequest, "blobId and recipientEmail are required")
 		return

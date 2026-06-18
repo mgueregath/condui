@@ -2532,3 +2532,68 @@ select.modern-input {
   background: var(--bg-surface); color: var(--text-primary);
   font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08);
 }
+
+.pending-invite-item {
+  border-color: rgba(245,158,11,.18);
+  background: rgba(245,158,11,.06);
+}
+.pending-invite-dot {
+  width: 18px; height: 18px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #f59e0b; background: rgba(245,158,11,.14);
+  font-size: 10px;
+}
+
+.share-list {
+  margin-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 14px;
+}
+.share-secret-option {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text-secondary);
+  margin: 10px 0 2px;
+  cursor: pointer;
+}
+.share-secret-option input {
+  width: 14px; height: 14px;
+  accent-color: var(--primary);
+}
+.share-list-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 10px;
+  font-size: 12px; font-weight: 700; color: var(--text-secondary);
+}
+.share-empty {
+  font-size: 12px; color: var(--text-muted);
+  padding: 12px; border: 1px dashed var(--border-subtle);
+  border-radius: 8px;
+}
+.share-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.share-row-main {
+  min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.share-row-main strong {
+  min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; color: var(--text-primary);
+}
+.share-row-main span {
+  font-size: 11px; color: var(--text-muted);
+}
+.share-status {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  padding: 3px 7px; border-radius: 4px;
+  color: var(--text-muted); background: var(--bg-elevated);
+}
+.share-status-pending { color: #f59e0b; background: rgba(245,158,11,.14); }
+.share-status-accepted { color: #22c55e; background: rgba(34,197,94,.12); }
+.share-status-revoked { color: var(--text-muted); background: var(--bg-elevated); }

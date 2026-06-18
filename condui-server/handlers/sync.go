@@ -12,11 +12,12 @@ import (
 )
 
 type SyncHandler struct {
-	blobs *queries.BlobStore
+	blobs  *queries.BlobStore
+	shares *queries.ShareStore
 }
 
-func NewSyncHandler(blobs *queries.BlobStore) *SyncHandler {
-	return &SyncHandler{blobs: blobs}
+func NewSyncHandler(blobs *queries.BlobStore, shares *queries.ShareStore) *SyncHandler {
+	return &SyncHandler{blobs: blobs, shares: shares}
 }
 
 func (h *SyncHandler) ListBlobs(w http.ResponseWriter, r *http.Request) {
@@ -32,13 +33,36 @@ func (h *SyncHandler) ListBlobs(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(metas)
 }
 
+func (h *SyncHandler) GetBlobMeta(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	id := pathParam(r, "id")
+
+	meta, err := h.blobs.GetMeta(id, userID)
+	if err == sql.ErrNoRows {
+		writeError(w, http.StatusNotFound, "blob not found")
+		return
+	} else if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get blob metadata")
+		return
+	}
+	_ = json.NewEncoder(w).Encode(meta)
+}
+
 func (h *SyncHandler) GetBlob(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
+	userEmail := middleware.GetUserEmail(r.Context())
 	id := pathParam(r, "id")
 
 	blob, err := h.blobs.Get(id, userID)
 	if err == sql.ErrNoRows {
-		// Try shared blob (recipient accessing)
+		if ok, shareErr := h.shares.CanAccessBlob(userEmail, id); shareErr != nil {
+			writeError(w, http.StatusInternalServerError, "failed to check share access")
+			return
+		} else if !ok {
+			writeError(w, http.StatusNotFound, "blob not found")
+			return
+		}
+
 		blob, err = h.blobs.GetForShare(id)
 		if err != nil {
 			writeError(w, http.StatusNotFound, "blob not found")

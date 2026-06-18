@@ -128,10 +128,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"accessToken":  accessToken,
 		"refreshToken": rawRefresh,
 		"user": map[string]string{
-			"id":        user.ID,
-			"email":     user.Email,
-			"tier":      effectiveTier,
-			"publicKey": user.PublicKey,
+			"id":           user.ID,
+			"email":        user.Email,
+			"tier":         effectiveTier,
+			"publicKey":    user.PublicKey,
+			"identityBlob": user.IdentityBlob,
 		},
 	})
 }

@@ -13,7 +13,7 @@ func NewBlobStore(db *sql.DB) *BlobStore { return &BlobStore{db} }
 
 func (s *BlobStore) List(userID string) ([]models.BlobMeta, error) {
 	rows, err := s.db.Query(
-		`SELECT id, blob_type, version, updated_at FROM blobs WHERE user_id = ? ORDER BY updated_at DESC`,
+		`SELECT id, blob_type, version, checksum, updated_at FROM blobs WHERE user_id = ? ORDER BY updated_at DESC`,
 		userID,
 	)
 	if err != nil {
@@ -25,13 +25,27 @@ func (s *BlobStore) List(userID string) ([]models.BlobMeta, error) {
 	for rows.Next() {
 		var m models.BlobMeta
 		var updatedAt string
-		if err := rows.Scan(&m.ID, &m.BlobType, &m.Version, &updatedAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.BlobType, &m.Version, &m.Checksum, &updatedAt); err != nil {
 			return nil, err
 		}
 		m.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
 		result = append(result, m)
 	}
 	return result, rows.Err()
+}
+
+func (s *BlobStore) GetMeta(id, userID string) (*models.BlobMeta, error) {
+	var m models.BlobMeta
+	var updatedAt string
+	err := s.db.QueryRow(
+		`SELECT id, blob_type, version, checksum, updated_at
+		 FROM blobs WHERE id = ? AND user_id = ?`, id, userID,
+	).Scan(&m.ID, &m.BlobType, &m.Version, &m.Checksum, &updatedAt)
+	if err != nil {
+		return nil, err
+	}
+	m.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedAt)
+	return &m, nil
 }
 
 func (s *BlobStore) Get(id, userID string) (*models.Blob, error) {
