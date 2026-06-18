@@ -37,7 +37,10 @@ import { LuLogs, LuNetwork } from "react-icons/lu";
 import { BiTransfer } from "react-icons/bi";
 import { GiWarpPipe } from "react-icons/gi";
 import { IoIosAdd } from "react-icons/io";
+import { PiCpuFill, PiMemoryFill, PiDiscBold } from "react-icons/pi";
 import { GrRefresh, GrAdd, GrFormRefresh } from "react-icons/gr";
+import { TbNetwork, TbBackground } from "react-icons/tb";
+import { TiFlashOutline } from "react-icons/ti";
 
 const DB_TYPES = {
   PostgreSQL: {
@@ -142,24 +145,25 @@ const DB_TYPES = {
 };
 
 const TABS = [
-  { id: "logs",       label: "Logs",       icon: <LuLogs /> },
-  { id: "transfers",  label: "Transfers",  icon: <BiTransfer /> },
-  { id: "tunnels",    label: "Tunnels",    icon: <GiWarpPipe /> },
-  { id: "ports",      label: "Ports",      icon: <LuNetwork /> },
-  { id: "docker",     label: "Docker",     icon: <FaDocker /> },
+  { id: "logs", label: "Logs", icon: <LuLogs /> },
+  { id: "transfers", label: "Transfers", icon: <BiTransfer /> },
+  { id: "tunnels", label: "Tunnels", icon: <GiWarpPipe /> },
+  { id: "ports", label: "Ports", icon: <LuNetwork /> },
+  { id: "docker", label: "Docker", icon: <FaDocker /> },
   { id: "virtualbox", label: "VirtualBox", icon: <FaDesktop /> },
-  { id: "databases",  label: "Databases",  icon: <FaDatabase />, pro: true },
+  { id: "databases", label: "Databases", icon: <FaDatabase />, pro: true },
 ];
 
-function StatPill({ label, value, sub, warn = false }) {
+function StatPill({ label, value, sub, warn = false, icon = null }) {
   const color = warn ? "var(--red)" : "var(--accent)";
-  const bg    = warn ? "rgba(239,68,68,0.1)" : "rgba(99,102,241,0.08)";
+  const bg = warn ? "rgba(239,68,68,0.1)" : "rgba(99,102,241,0.08)";
   return (
     <span style={{
       display: "inline-flex", alignItems: "baseline", gap: 4,
       padding: "1px 7px", borderRadius: 4,
       background: bg, fontSize: 10.5,
     }}>
+      {icon && <span>{icon}</span>}
       <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>{label}</span>
       <span style={{ color, fontWeight: 700 }}>{value}</span>
       {sub && <span style={{ color: "var(--text-muted)", fontSize: 9.5 }}>({sub})</span>}
@@ -271,7 +275,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
       fetchContainers();
       fetchStats();
       const intContainers = setInterval(fetchContainers, 4000);
-      const intStats      = setInterval(fetchStats, 3000);
+      const intStats = setInterval(fetchStats, 3000);
       return () => { clearInterval(intContainers); clearInterval(intStats); };
     }
 
@@ -440,7 +444,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
       const map = {};
       for (const s of res) map[s.id] = s;
       setDockerStats(map);
-    } catch (_) {}
+    } catch (_) { }
   };
 
   const handleToggleContainer = async (containerId, currentState) => {
@@ -547,7 +551,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
         >
           {activeTab === "tunnels" && (
             <button
-            className="bottom-action-btn"
+              className="bottom-action-btn"
               onClick={openCreateModal}
               style={{
                 background: "var(--accent)",
@@ -585,11 +589,11 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
             <button
               className="bottom-action-btn"
               onClick={
-                activeTab === "tunnels"    ? fetchTunnels   :
-                activeTab === "ports"      ? fetchPorts     :
-                activeTab === "databases"  ? fetchDatabases :
-                activeTab === "virtualbox" ? fetchVMs       :
-                fetchContainers
+                activeTab === "tunnels" ? fetchTunnels :
+                  activeTab === "ports" ? fetchPorts :
+                    activeTab === "databases" ? fetchDatabases :
+                      activeTab === "virtualbox" ? fetchVMs :
+                        fetchContainers
               }
               style={{
                 background: "none",
@@ -903,7 +907,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                 <thead>
                   <tr style={{ color: "var(--text-secondary)", background: "var(--bg-hover)", borderBottom: "1px solid var(--border)" }}>
-                    <th style={{ padding: "7px 12px", textAlign: "left", width: "70px" }}>Proto</th>
+                    <th style={{ padding: "7px 12px", textAlign: "left", width: "70px" }}>Protocol</th>
                     <th style={{ padding: "7px 12px", textAlign: "left", width: "80px" }}>Port</th>
                     <th style={{ padding: "7px 12px", textAlign: "left" }}>Address</th>
                     <th style={{ padding: "7px 12px", textAlign: "left" }}>Process</th>
@@ -957,241 +961,259 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
               </div>
             ) : (
               containers
-              .sort((a,b) => stateOrder[a.state] - stateOrder[b.state] || a.names.localeCompare(b.names))
-              .map((c) => {
-                const isRunning = c.state === "running";
-                const st = dockerStats[c.id.slice(0, 12)] || dockerStats[c.id] || null;
+                .sort((a, b) => stateOrder[a.state] - stateOrder[b.state] || a.names.localeCompare(b.names))
+                .map((c) => {
+                  const isRunning = c.state === "running";
+                  const st = dockerStats[c.id.slice(0, 12)] || dockerStats[c.id] || null;
 
-                return (
-                  <div
-                    key={c.id}
-                    className="docker-container-row"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "between",
-                      background: "var(--bg-surface)",
-                      border: "1px solid var(--border-subtle)",
-                      borderRadius: "6px",
-                      padding: "8px 12px",
-                      gap: "16px",
-                      transition: "border-color 0.15s, background-color 0.15s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = "var(--border)";
-                      e.currentTarget.style.backgroundColor = "var(--bg-hover)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor =
-                        "var(--border-subtle)";
-                      e.currentTarget.style.backgroundColor =
-                        "var(--bg-surface)";
-                    }}
-                  >
-                    {/* 1. IDENTIFICACIÓN DEL CONTENEDOR (Nombre e Imagen) */}
+                  return (
                     <div
+                      key={c.id}
+                      className="docker-container-row"
                       style={{
-                        flex: "1 1 40%",
-                        minWidth: 0,
                         display: "flex",
-                        flexDirection: "column",
-                        gap: "2px",
+                        alignItems: "center",
+                        justifyContent: "between",
+                        background: "var(--bg-surface)",
+                        border: "1px solid var(--border-subtle)",
+                        borderRadius: "6px",
+                        padding: "8px 12px",
+                        gap: "16px",
+                        transition: "border-color 0.15s, background-color 0.15s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = "var(--border)";
+                        e.currentTarget.style.backgroundColor = "var(--bg-hover)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor =
+                          "var(--border-subtle)";
+                        e.currentTarget.style.backgroundColor =
+                          "var(--bg-surface)";
                       }}
                     >
-                      <span
+                      {/* 1. IDENTIFICACIÓN DEL CONTENEDOR (Nombre e Imagen) */}
+                      <div
                         style={{
-                          fontWeight: "600",
-                          fontSize: "13px",
-                          color: isRunning
-                            ? "var(--green)"
-                            : "var(--text-secondary)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
+                          flex: "1 1 20%",
+                          minWidth: 0,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "2px",
                         }}
                       >
-                        {c.names}
-                      </span>
-                      <span
-                        style={{
-                          fontFamily: "var(--font-mono, monospace)",
-                          fontSize: "10.5px",
-                          color: "var(--text-muted)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                        title={c.image}
-                      >
-                        {c.image}
-                      </span>
-                      {c.ports && (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "3px", marginTop: "2px" }}>
-                          {c.ports.split(", ").filter(p => p && !p.startsWith(":::")).map((p, i) => (
-                            <span key={i} className="docker-port-badge">
-                              {p.replace("0.0.0.0:", "").replace(/->(\d+)\/tcp/, "→$1")}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      {/* Stats de CPU y RAM (solo contenedores running) */}
-                      {st && (
-                        <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
-                          <StatPill
-                            label="CPU"
-                            value={st.cpuPerc}
-                            warn={parseFloat(st.cpuPerc) > 80}
-                          />
-                          <StatPill
-                            label="RAM"
-                            value={st.memUsage}
-                            sub={st.memPerc}
-                            warn={parseFloat(st.memPerc) > 80}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 2. ESTADO INTEGRADO (Badge + Mensaje juntos en un bloque) */}
-                    <div
-                      style={{
-                        flex: "1 1 40%",
-                        minWidth: 0,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "flex-start",
-                        gap: "3px",
-                      }}
-                    >
-                      <span
-                        style={{
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          fontSize: "10px",
-                          fontWeight: "700",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                          backgroundColor: isRunning
-                            ? "rgba(34,197,94,0.12)"
-                            : "rgba(239,68,68,0.12)",
-                          color: isRunning ? "var(--green)" : "var(--red)",
-                          display: "inline-block",
-                        }}
-                      >
-                        {c.state}
-                      </span>
-                      {c.status && (
                         <span
                           style={{
-                            fontSize: "11px",
-                            color: "var(--text-secondary)",
+                            fontWeight: "600",
+                            fontSize: "13px",
+                            color: isRunning
+                              ? "var(--green)"
+                              : "var(--text-secondary)",
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
                           }}
-                          title={c.status}
                         >
-                          {c.status}
+                          {c.names}
                         </span>
-                      )}
-                    </div>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono, monospace)",
+                            fontSize: "10.5px",
+                            color: "var(--text-muted)",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                          title={c.image}
+                        >
+                          {c.image}
+                        </span>
+                      </div>
 
-                    {/* 3. ACCIÓN DE CONTROL (Fijada a la derecha) */}
-                    <div
-                      style={{
-                        flex: "0 0 auto",
+                      {/* 2. ESTADO INTEGRADO (Badge + Mensaje juntos en un bloque) */}
+                      <div
+                        style={{
+                          flex: "1 1 20%",
+                          minWidth: 0,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          gap: "3px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            fontSize: "10px",
+                            fontWeight: "700",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                            backgroundColor: isRunning
+                              ? "rgba(34,197,94,0.12)"
+                              : "rgba(239,68,68,0.12)",
+                            color: isRunning ? "var(--green)" : "var(--red)",
+                            display: "inline-block",
+                          }}
+                        >
+                          {c.state}
+                        </span>
+                        {c.status && (
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              color: "var(--text-secondary)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                            title={c.status}
+                          >
+                            {c.status}
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        style={{
+                          flex: "1 1 25%",
+                          minWidth: 0,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "2px",
+                        }}>
+                        {c.ports && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "3px", marginTop: "2px" }}>
+                            {c.ports.split(", ").filter(p => p && !p.startsWith(":::")).map((p, i) => (
+                              <span key={i} className="docker-port-badge">
+                                {p.replace("0.0.0.0:", "").replace(/->(\d+)\/tcp/, "→$1")}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{
+                        flex: "1 1 15%",
+                        minWidth: 0,
                         display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <button
-                        title="Ver logs en ventana externa"
-                        onClick={() => OpenDockerLogWindow(sessionId, c.id, c.names).catch(console.error)}
+                        flexDirection: "column",
+                        gap: "2px",
+                      }}>
+                        {/* Stats de CPU y RAM (solo contenedores running) */}
+                        {st && (
+                          <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+                            <StatPill
+                              label="CPU: "
+                              value={st.cpuPerc}
+                              warn={parseFloat(st.cpuPerc) > 80}
+                              icon={<PiCpuFill />}
+                            />
+                            <StatPill
+                              label="RAM: "
+                              value={st.memUsage}
+                              sub={st.memPerc}
+                              warn={parseFloat(st.memPerc) > 80}
+                              icon={<PiMemoryFill />}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      {/* 3. ACCIÓN DE CONTROL (Fijada a la derecha) */}
+                      <div
                         style={{
-                          padding: "5px 7px",
-                          cursor: "pointer",
-                          backgroundColor: "transparent",
-                          color: "var(--text-secondary)",
-                          border: "1px solid var(--border-subtle)",
-                          borderRadius: "4px",
-                          fontSize: "12px",
+                          flex: "0 0 auto",
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
-                          transition: "all 0.15s",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = "var(--accent)";
-                          e.currentTarget.style.color = "var(--accent)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = "var(--border-subtle)";
-                          e.currentTarget.style.color = "var(--text-secondary)";
+                          gap: "6px",
                         }}
                       >
-                        <LuLogs />
-                      </button>
-                      <button
-                        onClick={() => handleToggleContainer(c.id, c.state)}
-                        style={{
-                          padding: "5px 5px",
-                          cursor: "pointer",
-                          backgroundColor: isRunning
-                            ? "var(--red)"
-                            : "var(--green)",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: "4px",
-                          fontSize: "11px",
-                          fontWeight: "600",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "4px",
-                          boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                          transition: "opacity 0.15s",
-                        }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.opacity = "0.85")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.opacity = "1")
-                        }
-                      >
-                        {isRunning ? <FaStop /> : <FaPlay /> }
-                      </button>
-                      <button
-                        onClick={() => handleRestartContainer(c.id)}
-                        style={{
-                          padding: "5px 5px",
-                          cursor: "pointer",
-                          backgroundColor: "var(--yellow)",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: "4px",
-                          fontSize: "11px",
-                          fontWeight: "600",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "4px",
-                          boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                          transition: "opacity 0.15s",
-                        }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.opacity = "0.85")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.opacity = "1")
-                        }
-                      >
-                        <GrRefresh />
-                      </button>
+                        <button
+                          title="Ver logs en ventana externa"
+                          onClick={() => OpenDockerLogWindow(sessionId, c.id, c.names).catch(console.error)}
+                          style={{
+                            padding: "5px 7px",
+                            cursor: "pointer",
+                            backgroundColor: "transparent",
+                            color: "var(--text-secondary)",
+                            border: "1px solid var(--border-subtle)",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "all 0.15s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = "var(--accent)";
+                            e.currentTarget.style.color = "var(--accent)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = "var(--border-subtle)";
+                            e.currentTarget.style.color = "var(--text-secondary)";
+                          }}
+                        >
+                          <LuLogs />
+                        </button>
+                        <button
+                          onClick={() => handleToggleContainer(c.id, c.state)}
+                          style={{
+                            padding: "5px 5px",
+                            cursor: "pointer",
+                            backgroundColor: isRunning
+                              ? "var(--red)"
+                              : "var(--green)",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "4px",
+                            fontSize: "11px",
+                            fontWeight: "600",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "4px",
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                            transition: "opacity 0.15s",
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.opacity = "0.85")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.opacity = "1")
+                          }
+                        >
+                          {isRunning ? <FaStop /> : <FaPlay />}
+                        </button>
+                        <button
+                          onClick={() => handleRestartContainer(c.id)}
+                          style={{
+                            padding: "5px 5px",
+                            cursor: "pointer",
+                            backgroundColor: "var(--yellow)",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "4px",
+                            fontSize: "11px",
+                            fontWeight: "600",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "4px",
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                            transition: "opacity 0.15s",
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.opacity = "0.85")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.opacity = "1")
+                          }
+                        >
+                          <GrRefresh />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })
             )}
           </div>
         )}
@@ -1210,24 +1232,24 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                 No se encontraron máquinas virtuales
               </div>
             ) : vms.map(vm => {
-              const isRunning  = vm.state === "running";
-              const isPaused   = vm.state === "paused";
-              const isSaved    = vm.state === "saved";
-              const isStopped  = vm.state === "stopped" || vm.state === "aborted";
-              const isStuck    = isRunning || isPaused; // can force-stop
-              const isLoading  = vboxActionLoading?.startsWith(vm.name + ":");
+              const isRunning = vm.state === "running";
+              const isPaused = vm.state === "paused";
+              const isSaved = vm.state === "saved";
+              const isStopped = vm.state === "stopped" || vm.state === "aborted";
+              const isStuck = isRunning || isPaused; // can force-stop
+              const isLoading = vboxActionLoading?.startsWith(vm.name + ":");
 
-              const stateColor = isRunning  ? "var(--green)"
-                : isPaused   ? "var(--yellow)"
-                : isSaved    ? "#60a5fa"
-                : vm.state === "error" || vm.state === "aborted" ? "var(--red)"
-                : "var(--text-muted)";
+              const stateColor = isRunning ? "var(--green)"
+                : isPaused ? "var(--yellow)"
+                  : isSaved ? "#60a5fa"
+                    : vm.state === "error" || vm.state === "aborted" ? "var(--red)"
+                      : "var(--text-muted)";
 
-              const stateBg = isRunning  ? "rgba(34,197,94,0.12)"
-                : isPaused   ? "rgba(250,204,21,0.12)"
-                : isSaved    ? "rgba(96,165,250,0.12)"
-                : vm.state === "error" || vm.state === "aborted" ? "rgba(239,68,68,0.12)"
-                : "rgba(107,114,128,0.1)";
+              const stateBg = isRunning ? "rgba(34,197,94,0.12)"
+                : isPaused ? "rgba(250,204,21,0.12)"
+                  : isSaved ? "rgba(96,165,250,0.12)"
+                    : vm.state === "error" || vm.state === "aborted" ? "rgba(239,68,68,0.12)"
+                      : "rgba(107,114,128,0.1)";
 
               const ram = vm.memoryMb >= 1024
                 ? `${(vm.memoryMb / 1024).toFixed(vm.memoryMb % 1024 === 0 ? 0 : 1)} GB`
@@ -1241,77 +1263,101 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                     border: "1px solid var(--border-subtle)",
                     borderLeft: `3px solid ${stateColor}`,
                     borderRadius: 7, padding: "10px 14px",
+                    alignItems: "center",
+                    display: "flex",
+                    justifyContent: "between",
                     opacity: isLoading ? 0.65 : 1,
                     transition: "opacity .2s",
                   }}
                 >
-                  {/* ── Fila superior: nombre + estado + forzar apagado ── */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <div
+                    style={{
+                      flex: "1 1 20%",
+                      minWidth: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "2px",
+                    }}>
                     <FaDesktop style={{ color: stateColor, fontSize: 14, flexShrink: 0 }} />
 
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text-primary)",
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div style={{
+                        fontWeight: 700, fontSize: 13, color: "var(--text-primary)",
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                      }}>
                         {vm.name}
                       </div>
                       {vm.uuid && (
-                        <div style={{ fontSize: 9.5, fontFamily: "monospace", color: "var(--text-muted)",
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
+                        <div style={{
+                          fontSize: 9.5, fontFamily: "monospace", color: "var(--text-muted)",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1
+                        }}>
                           {vm.uuid}
                         </div>
                       )}
                     </div>
-
-                    <span style={{
-                      padding: "2px 8px", borderRadius: 4, flexShrink: 0,
-                      fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px",
-                      background: stateBg, color: stateColor,
-                    }}>
+                  </div>
+                  <div style={{
+                    flex: "1",
+                    minWidth: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    gap: "2px",
+                  }}>
+                    <span
+                      style={{
+                        padding: "2px 8px", borderRadius: 4, flexShrink: 0,
+                        fontSize: "10px",
+                        fontWeight: "700",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                        background: stateBg, color: stateColor,
+                        display: "inline-block",
+                      }}
+                    >
                       {vm.state}
                     </span>
-
-                    {/* Forzar apagado — siempre visible si la VM no está detenida */}
-                    {isStuck && (
-                      <ActionBtn
-                        title="Forzar apagado (poweroff) — úsalo si la VM está colgada"
-                        color="var(--red)"
-                        disabled={isLoading}
-                        onClick={() => {
-                          if (window.confirm(`¿Forzar apagado de "${vm.name}"?\n\nEquivalente a desenchufar la corriente — se perderán los cambios no guardados.`))
-                            handleVMAction(vm.name, "stop-force");
-                        }}
-                      >
-                        ⚡
-                      </ActionBtn>
-                    )}
                   </div>
-
                   {/* ── Specs ── */}
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", marginBottom: 10 }}>
-                    {ram && <Spec icon="🧠" label={ram} />}
-                    {vm.cpus > 0 && <Spec icon="⚙️" label={`${vm.cpus} vCPU${vm.cpus !== 1 ? "s" : ""}`} />}
-                    {vm.os && <Spec icon="💿" label={vm.os} />}
-                    {vm.ip && <Spec icon="🌐" label={vm.ip} mono />}
+                  <div
+                    style={{
+                      flex: "1",
+                      minWidth: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "2px",
+                    }}>
+                    {ram && <Spec icon={<PiMemoryFill />} label={ram} />}
+                    {vm.cpus > 0 && <Spec icon={<PiCpuFill />} label={`${vm.cpus} vCPU${vm.cpus !== 1 ? "s" : ""}`} />}
+                    {vm.os && <Spec icon={<PiDiscBold />} label={vm.os} />}
+                    {vm.ip && <Spec icon={<TbNetwork />} label={vm.ip} mono />}
                     {isRunning && !vm.ip && (
-                      <Spec icon="🌐" label="IP no disponible (Guest Additions)" muted />
+                      <Spec icon={<TbNetwork />} label="IP no disponible (Guest Additions)" muted />
                     )}
                   </div>
 
                   {/* ── Acciones ── */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+                  <div
+                    style={{
+                      flex: "2",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "flex-end",
+                      gap: "6px",
+                    }}>
                     {(isStopped || isSaved) && (
                       <>
                         <ActionBtn title="Iniciar (con interfaz gráfica)" color="var(--green)"
                           disabled={isLoading} onClick={() => handleVMAction(vm.name, "start-gui")}>
-                          <FaPlay style={{ marginRight: 4 }} /> GUI
+                          <FaDesktop style={{ marginRight: 4 }} /> GUI
                         </ActionBtn>
                         <ActionBtn title="Iniciar en modo headless (sin pantalla)" color="var(--accent)"
                           disabled={isLoading} onClick={() => handleVMAction(vm.name, "start-headless")}>
-                          <FaDesktop style={{ marginRight: 4 }} /> Headless
+                          <TbBackground style={{ marginRight: 4 }} /> Headless
                         </ActionBtn>
                       </>
                     )}
-
                     {isRunning && (
                       <>
                         <ActionBtn title="Pausar" color="var(--yellow)" disabled={isLoading}
@@ -1332,14 +1378,29 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                         </ActionBtn>
                       </>
                     )}
-
                     {isPaused && (
                       <ActionBtn title="Reanudar ejecución" color="var(--green)" disabled={isLoading}
                         onClick={() => handleVMAction(vm.name, "resume")}>
                         <FaPlay style={{ marginRight: 4 }} /> Reanudar
                       </ActionBtn>
                     )}
+                    {/* Forzar apagado — siempre visible si la VM no está detenida */}
+                  {isStuck && (
+                      <ActionBtn
+                        title="Forzar apagado (poweroff) — úsalo si la VM está colgada"
+                        color="var(--red)"
+                        disabled={isLoading}
+                        onClick={() => {
+                          if (window.confirm(`¿Forzar apagado de "${vm.name}"?\n\nEquivalente a desenchufar la corriente — se perderán los cambios no guardados.`))
+                            handleVMAction(vm.name, "stop-force");
+                        }}
+                      >
+                        &nbsp;<TiFlashOutline /> &nbsp;
+                      </ActionBtn>
+                  )}
                   </div>
+
+                  
                 </div>
               );
             })}
