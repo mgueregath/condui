@@ -65,6 +65,8 @@ function extractTimestamp(text) {
         /^\d{4}-\d{2}-\d{2}/,
         // 2026/06/13 12:05PM
         /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}(?:AM|PM)?/,
+        // [2026-05-07 09:16:49.448 +0000]
+        /\[[0-9\-]+ [0-9:.]+ [\+0-9]+\]/,
     ];
 
     for (const pattern of patterns) {
@@ -86,43 +88,10 @@ function extractTimestamp(text) {
     };
 }
 
-/* function detectLevel(text) {
-
-  const match = text.match(
-    /\b(FATAL|ERROR|WARNING|WARN|INFO|DEBUG|TRACE)\b/i
-  );
-
-  if (!match)
-    return [null, null];
-
-  const level = match[1].toUpperCase();
-
-  switch (level) {
-    case 'FATAL':
-    case 'ERROR':
-      return [level, 'level-error'];
-
-    case 'WARNING':
-    case 'WARN':
-      return [level, 'level-warning'];
-
-    case 'INFO':
-      return [level, 'level-info'];
-
-    case 'DEBUG':
-      return [level, 'level-debug'];
-
-    case 'TRACE':
-      return [level, 'level-trace'];
-  }
-
-  return [null, null];
-} */
-
 function detectLevel(text) {
 
   const match = text.match(
-    /\b(FATAL|ERROR|ERR|WARNING|WARN|WRN|INFO|INF|DEBUG|TRACE)\b/i
+    /\b(FATAL|ERROR|ERR|WARNING|WARN|WRN|DETAIL|INFO|INF|LOG|DEBUG|TRACE)\b/i
   );
 
   if (!match)
@@ -142,10 +111,12 @@ function detectLevel(text) {
     case 'WARNING':
     case 'WARN':
     case 'WRN':
+    case 'DETAIL':
       return ['WARN', 'level-warning', level];
 
     case 'INFO':
     case 'INF':
+    case 'LOG':
       return ['INFO', 'level-info', level];
 
     case 'DEBUG':

@@ -228,6 +228,11 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
   const [formRemoteHost, setFormRemoteHost] = useState("127.0.0.1");
   const [formRemotePort, setFormRemotePort] = useState("");
 
+  const stateOrder = {
+    running: 0,
+    exited: 1,
+  };
+
   // 1. ESCUCHAR EVENTOS GLOBALES DE WAILS (Corregido con referencias limpias)
   useEffect(() => {
     // Usamos actualizaciones funcionales (prev) => ... para que React no necesite
@@ -951,7 +956,9 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                 No se encontraron contenedores remotos.
               </div>
             ) : (
-              containers.map((c) => {
+              containers
+              .sort((a,b) => stateOrder[a.state] - stateOrder[b.state] || a.names.localeCompare(b.names))
+              .map((c) => {
                 const isRunning = c.state === "running";
                 const st = dockerStats[c.id.slice(0, 12)] || dockerStats[c.id] || null;
 
