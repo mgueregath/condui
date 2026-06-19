@@ -132,3 +132,5 @@ temp/
 
 **/*.log
 **/*.tmp
+
+**/.task/checksum
