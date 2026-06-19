@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FaLock } from "react-icons/fa";
+import { LuPlugZap } from "react-icons/lu";
 
 function Field({ label, children }) {
   return (
@@ -24,7 +25,7 @@ function Input({ label, value, onChange, type = "text", placeholder }) {
   );
 }
 
-export default function ConnectionModal({ initialValue, folders, connections = [], accountStatus, onSave, onCancel }) {
+export default function ConnectionModal({ initialValue, folders, connections = [], accountStatus, onSave, onCancel, onTestConnection }) {
   const isPro = accountStatus?.tier === "pro";
 
   const [form, setForm] = useState(initialValue || {
@@ -124,6 +125,7 @@ export default function ConnectionModal({ initialValue, folders, connections = [
       </div>
 
       <div className="modal-footer">
+        <button className="btn-secondary" onClick={() => onTestConnection(form)}><LuPlugZap />Test Connection</button>
         <button className="btn-secondary" onClick={() => onCancel()}>Cancel</button>
         <button className="btn-primary" onClick={() => onSave(form)}>Save Connection</button>
       </div>

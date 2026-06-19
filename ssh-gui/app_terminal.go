@@ -86,23 +86,22 @@ func strVal(s *string) string {
 	return *s
 }
 
-func (a *App) ConnectSSH(connectionID string) (string, error) {
+func (a *App) createSSHClient(connectionID string) (*ssh.Client, error) {
 	connection, err := a.database.GetConnectionByID(connectionID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	key := a.getMasterKey()
 	if key == nil {
-		return "", fmt.Errorf("vault is locked: please unlock the vault before connecting")
+		return nil, fmt.Errorf("vault is locked: please unlock the vault before connecting")
 	}
 
-	// Decrypt target password
 	password := ""
 	if connection.Password != nil {
 		password, err = decryptConnectionPassword(*connection.Password, key)
 		if err != nil {
-			return "", fmt.Errorf("vault error: %w", err)
+			return nil, fmt.Errorf("vault error: %w", err)
 		}
 	}
 
@@ -110,69 +109,172 @@ func (a *App) ConnectSSH(connectionID string) (string, error) {
 	port := connection.Port
 
 	targetConfig, err := a.buildSSHConfig(
-		connection.Username, connection.AuthType, strVal(connection.PrivateKeyPath),
-		host, port, password,
+		connection.Username,
+		connection.AuthType,
+		strVal(connection.PrivateKeyPath),
+		host,
+		port,
+		password,
 	)
+
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	var client *ssh.Client
-
 	if connection.JumpHostID != nil && *connection.JumpHostID != "" {
-		// ── Jump host (bastion) mode ──────────────────────────────────────
+
 		jump, err := a.database.GetConnectionByID(*connection.JumpHostID)
+
 		if err != nil {
-			return "", fmt.Errorf("jump host not found: %w", err)
+			return nil, fmt.Errorf(
+				"jump host not found: %w",
+				err,
+			)
 		}
 
 		jumpPassword := ""
+
 		if jump.Password != nil {
-			jumpPassword, err = decryptConnectionPassword(*jump.Password, key)
+
+			jumpPassword, err =
+				decryptConnectionPassword(
+					*jump.Password,
+					key,
+				)
+
 			if err != nil {
-				return "", fmt.Errorf("vault error (jump host): %w", err)
+				return nil, fmt.Errorf(
+					"vault error (jump host): %w",
+					err,
+				)
 			}
 		}
 
 		jumpConfig, err := a.buildSSHConfig(
-			jump.Username, jump.AuthType, strVal(jump.PrivateKeyPath),
-			jump.Host, jump.Port, jumpPassword,
+			jump.Username,
+			jump.AuthType,
+			strVal(jump.PrivateKeyPath),
+			jump.Host,
+			jump.Port,
+			jumpPassword,
 		)
+
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		jumpClient, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", jump.Host, jump.Port), jumpConfig)
+		jumpClient, err := ssh.Dial(
+			"tcp",
+			fmt.Sprintf(
+				"%s:%d",
+				jump.Host,
+				jump.Port,
+			),
+			jumpConfig,
+		)
+
 		if err != nil {
-			return "", fmt.Errorf("failed to connect to jump host %s: %w", jump.Host, err)
+			return nil, fmt.Errorf(
+				"failed to connect to jump host %s: %w",
+				jump.Host,
+				err,
+			)
 		}
 
-		// Dial the target through the jump host TCP tunnel
-		netConn, err := jumpClient.Dial("tcp", fmt.Sprintf("%s:%d", host, port))
+		netConn, err := jumpClient.Dial(
+			"tcp",
+			fmt.Sprintf(
+				"%s:%d",
+				host,
+				port,
+			),
+		)
+
 		if err != nil {
 			jumpClient.Close()
-			return "", fmt.Errorf("failed to reach %s through jump host: %w", host, err)
+			return nil, fmt.Errorf(
+				"failed to reach %s through jump host: %w",
+				host,
+				err,
+			)
 		}
 
-		conn, chans, reqs, err := ssh.NewClientConn(netConn, fmt.Sprintf("%s:%d", host, port), targetConfig)
+		conn, chans, reqs, err := ssh.NewClientConn(
+			netConn,
+			fmt.Sprintf("%s:%d", host, port),
+			targetConfig,
+		)
+
 		if err != nil {
 			netConn.Close()
 			jumpClient.Close()
-			return "", fmt.Errorf("SSH handshake with %s failed: %w", host, err)
-		}
-		client = ssh.NewClient(conn, chans, reqs)
 
-		// Close jump client when the main connection closes
+			return nil, fmt.Errorf(
+				"SSH handshake with %s failed: %w",
+				host,
+				err,
+			)
+		}
+
+		client := ssh.NewClient(
+			conn,
+			chans,
+			reqs,
+		)
+
 		go func() {
 			client.Conn.Wait()
 			jumpClient.Close()
 		}()
-	} else {
-		// ── Direct connection ─────────────────────────────────────────────
-		client, err = ssh.Dial("tcp", fmt.Sprintf("%s:%d", host, port), targetConfig)
-		if err != nil {
-			return "", err
-		}
+
+		return client, nil
+	}
+
+	return ssh.Dial(
+		"tcp",
+		fmt.Sprintf(
+			"%s:%d",
+			host,
+			port,
+		),
+		targetConfig,
+	)
+}
+
+func (a *App) TestConnection(
+	connectionID string,
+) error {
+
+	client, err :=
+		a.createSSHClient(
+			connectionID,
+		)
+
+	if err != nil {
+		return err
+	}
+
+	defer client.Close()
+
+	session, err :=
+		client.NewSession()
+
+	if err != nil {
+		return err
+	}
+
+	defer session.Close()
+
+	return session.Run("true")
+}
+
+func (a *App) ConnectSSH(connectionID string) (string, error) {
+	client, err := a.createSSHClient(
+		connectionID,
+	)
+
+	if err != nil {
+		return "", err
 	}
 
 	sftpClient, err := sftp.NewClient(client)

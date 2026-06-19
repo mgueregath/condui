@@ -11,6 +11,7 @@ import {
   AcceptShare,
   CancelShare,
   ConnectSSH,
+  TestConnection,
   SendInput,
   ResizeTerminal,
   CreateFolder,
@@ -573,6 +574,18 @@ function App() {
     }
   };
 
+  const handleTestConnection = async (conn) => {
+    try {
+      await TestConnection(conn.id);
+      alert("Connection successful!");
+    } catch (err) {
+      alert(
+        "Connection failed: " + (typeof err === "string" ? err : err?.message || "Unknown error"),
+      );
+    }
+  };
+
+
   const uploadFile = async () => {
     // Si no hay una sesión SSH activa, detenemos la operación
     if (!activeTab) {
@@ -951,6 +964,22 @@ function App() {
               await reload();
               setConnectionModalOpen(false);
               setEditingConnection(null);
+            } catch (err) {
+              console.error(err);
+            }
+          }}
+          onTestConnection={async (connection) => {
+            try {
+              if (editingConnection) {
+                await UpdateConnection({
+                  ...connection,
+                  id: editingConnection.id,
+                });
+              } else {
+                await CreateConnection(connection);
+              }
+              await reload();
+              await handleTestConnection(connection);              
             } catch (err) {
               console.error(err);
             }

@@ -405,6 +405,10 @@ export function SyncNow(): $CancellablePromise<void> {
     return $Call.ByID(2954670258);
 }
 
+export function TestConnection(connectionID: string): $CancellablePromise<void> {
+    return $Call.ByID(1257240193, connectionID);
+}
+
 /**
  * ToggleContainer ejecuta las acciones vitales: start, stop o restart
  */
