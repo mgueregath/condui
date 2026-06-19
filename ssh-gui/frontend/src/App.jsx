@@ -11,7 +11,7 @@ import {
   AcceptShare,
   CancelShare,
   ConnectSSH,
-  TestConnection,
+  ConnectSSHVia,
   SendInput,
   ResizeTerminal,
   CreateFolder,
@@ -113,6 +113,7 @@ function LeftSidebar({
   onEditFolder,
   onDeleteFolder,
   onShareConnection,
+  onConnectVia,
   onAcceptInvite,
   onDeclineInvite,
   onOpenAccount,
@@ -214,12 +215,14 @@ function LeftSidebar({
                       online: tabs.filter((tab) => tab.connectionId === c.id).length,
                     }}
                     connecting={connectingId === c.id}
+                    connections={connections}
                     folders={folders}
                     onOpen={onOpenConnection}
                     onEdit={onEditConnection}
                     onDelete={onDeleteConnection}
                     onAssignFolder={onAssignFolder}
                     onShare={accountStatus?.loggedIn ? onShareConnection : undefined}
+                    onConnectVia={accountStatus?.tier === "pro" ? onConnectVia : undefined}
                   />
                 ))}
               </FolderNode>
@@ -242,12 +245,14 @@ function LeftSidebar({
                       online: tabs.filter((tab) => tab.connectionId === c.id).length,
                     }}
                     connecting={connectingId === c.id}
+                    connections={connections}
                     folders={folders}
                     onOpen={onOpenConnection}
                     onEdit={onEditConnection}
                     onDelete={onDeleteConnection}
                     onAssignFolder={onAssignFolder}
                     onShare={accountStatus?.loggedIn ? onShareConnection : undefined}
+                    onConnectVia={accountStatus?.tier === "pro" ? onConnectVia : undefined}
                   />
                 ))}
             </div>
@@ -574,16 +579,31 @@ function App() {
     }
   };
 
-  const handleTestConnection = async (conn) => {
+  const handleConnectVia = async (connection, jumpHost) => {
+    setConnectingId(connection.id);
     try {
-      await TestConnection(conn.id);
-      alert("Connection successful!");
+      const sessionId = await ConnectSSHVia(connection.id, jumpHost.id);
+      setTabs((prev) => [
+        ...prev,
+        {
+          id: sessionId,
+          connectionId: connection.id,
+          title: `${connection.name} via ${jumpHost.name}`,
+          color: connection.color,
+        },
+      ]);
+      setActiveTab(sessionId);
     } catch (err) {
-      alert(
-        "Connection failed: " + (typeof err === "string" ? err : err?.message || "Unknown error"),
-      );
+      setSshError({
+        title: "Connection failed",
+        message: typeof err === "string" ? err : err?.message || "Unable to connect",
+        connection: `${connection.name} via ${jumpHost.name}`,
+      });
+    } finally {
+      setConnectingId(null);
     }
   };
+
 
 
   const uploadFile = async () => {
@@ -778,6 +798,7 @@ function App() {
           connectingId={connectingId}
           activeSessionId={activeTab}
           onShareConnection={(c) => setShareTarget(c)}
+          onConnectVia={handleConnectVia}
           onAcceptInvite={handleAcceptInvite}
           onDeclineInvite={handleDeclineInvite}
           onOpenAccount={() => setAccountModalOpen(true)}
@@ -964,22 +985,6 @@ function App() {
               await reload();
               setConnectionModalOpen(false);
               setEditingConnection(null);
-            } catch (err) {
-              console.error(err);
-            }
-          }}
-          onTestConnection={async (connection) => {
-            try {
-              if (editingConnection) {
-                await UpdateConnection({
-                  ...connection,
-                  id: editingConnection.id,
-                });
-              } else {
-                await CreateConnection(connection);
-              }
-              await reload();
-              await handleTestConnection(connection);              
             } catch (err) {
               console.error(err);
             }

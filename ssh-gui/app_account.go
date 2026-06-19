@@ -64,6 +64,7 @@ func (a *App) SetupMasterPassword(password string) error {
 	}
 
 	a.setMasterKey(key)
+	a.setSyncVaultKey(deriveSyncVaultKey(password))
 	a.triggerBackgroundSync()
 	return nil
 }
@@ -90,6 +91,8 @@ func (a *App) UnlockVault(password string) error {
 	}
 
 	a.setMasterKey(key)
+	a.setSyncVaultKey(deriveSyncVaultKey(password))
+	go a.processPendingPasswords()
 	a.triggerBackgroundSync()
 	return nil
 }
@@ -97,6 +100,7 @@ func (a *App) UnlockVault(password string) error {
 // LockVault clears the master key from memory.
 func (a *App) LockVault() {
 	a.clearMasterKey()
+	a.clearSyncVaultKey()
 }
 
 // ============================================================
@@ -173,6 +177,18 @@ func (a *App) SyncNow() error {
 	folders, err := a.database.GetFolders()
 	if err != nil {
 		return err
+	}
+
+	// Re-encrypt passwords with syncVaultKey (stable across devices) before upload.
+	// Each device uses a different vault key (random salt), so we must translate
+	// to a key derivable on any device with the same vault password.
+	syncKey := a.getSyncVaultKey()
+	if syncKey == nil {
+		return fmt.Errorf("sync vault key not available: please unlock the vault first")
+	}
+	connections, err = reencryptConnectionsForSync(connections, key, syncKey)
+	if err != nil {
+		return fmt.Errorf("failed to prepare connections for sync: %w", err)
 	}
 
 	// Pro tier syncs the same connection set across all devices. Free tier
@@ -376,7 +392,9 @@ func (a *App) mergeRemoteSyncData(localConnections []models.Connection, localFol
 	if err != nil {
 		return nil, nil, err
 	}
-	mergedConnections, err := a.mergeRemoteConnections(localConnections, remote.Connections, snapshot)
+	// localConnections arrive with vault-encrypted passwords; pass the key so
+	// mergeRemoteConnections can handle re-encryption when writing to the local DB.
+	mergedConnections, err := a.mergeRemoteConnections(localConnections, remote.Connections, snapshot, key)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -462,7 +480,8 @@ func (a *App) mergeRemoteFolders(local []models.Folder, remote []models.Folder, 
 	return merged, nil
 }
 
-func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.Connection, snapshot map[string]string) ([]models.Connection, error) {
+func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.Connection, snapshot map[string]string, key []byte) ([]models.Connection, error) {
+	syncKey := a.getSyncVaultKey()
 	localByID := map[string]models.Connection{}
 	remoteByID := map[string]models.Connection{}
 	order := make([]string, 0, len(local)+len(remote))
@@ -500,7 +519,12 @@ func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.
 		case hasLocal && hasRemote:
 			chosen := chooseConnection(localConn, remoteConn, previousHash)
 			if connectionHash(chosen) == connectionHash(remoteConn) {
-				if err := a.database.UpsertConnection(&chosen); err != nil {
+				// Remote version chosen: translate its password from syncKey → localKey.
+				toStore := chosen
+				if err := translateSyncPassword(&toStore, key, syncKey); err != nil {
+					return nil, err
+				}
+				if err := a.database.UpsertConnection(&toStore); err != nil {
 					return nil, err
 				}
 			}
@@ -517,7 +541,12 @@ func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.
 			if previousHash != "" {
 				continue
 			}
-			if err := a.database.UpsertConnection(&remoteConn); err != nil {
+			// New connection from remote: translate syncKey → localKey (or keep pending).
+			toStore := remoteConn
+			if err := translateSyncPassword(&toStore, key, syncKey); err != nil {
+				return nil, err
+			}
+			if err := a.database.UpsertConnection(&toStore); err != nil {
 				return nil, err
 			}
 			merged = append(merged, remoteConn)
@@ -648,10 +677,93 @@ func folderHash(folder models.Folder) string {
 	return base64.StdEncoding.EncodeToString(sum[:])
 }
 
+// connectionHash hashes a connection excluding the password field so that the
+// hash is consistent regardless of which encryption key was used locally.
 func connectionHash(conn models.Connection) string {
+	conn.Password = nil
 	data, _ := json.Marshal(conn)
 	sum := sha256.Sum256(data)
 	return base64.StdEncoding.EncodeToString(sum[:])
+}
+
+// reencryptConnectionsForSync translates passwords from the local vault key to the
+// syncVaultKey format ("sync:nonce:ct") so they can be decrypted on any device
+// that knows the vault password.
+func reencryptConnectionsForSync(connections []models.Connection, localKey, syncKey []byte) ([]models.Connection, error) {
+	result := make([]models.Connection, len(connections))
+	for i, conn := range connections {
+		result[i] = conn
+		if conn.Password == nil || *conn.Password == "" {
+			continue
+		}
+		// Already in sync format (pending decryption from another device) — upload as-is.
+		if isSyncEncrypted(*conn.Password) {
+			continue
+		}
+		plain, err := decryptConnectionPassword(*conn.Password, localKey)
+		if err != nil {
+			return nil, fmt.Errorf("connection %s: %w", conn.ID, err)
+		}
+		enc, err := encryptForSync(plain, syncKey)
+		if err != nil {
+			return nil, fmt.Errorf("connection %s: %w", conn.ID, err)
+		}
+		result[i].Password = &enc
+	}
+	return result, nil
+}
+
+// translateSyncPassword converts a "sync:..." password to a local-vault-encrypted
+// password. If syncKey is nil or decryption fails, leaves the password as "sync:..."
+// (pending) so it can be processed when the vault is next unlocked.
+func translateSyncPassword(conn *models.Connection, localKey, syncKey []byte) error {
+	if conn.Password == nil || *conn.Password == "" {
+		return nil
+	}
+	if !isSyncEncrypted(*conn.Password) {
+		return nil // already locally encrypted or legacy plaintext
+	}
+	if syncKey == nil {
+		return nil // vault not yet unlocked — leave as pending
+	}
+	plain, err := decryptFromSync(*conn.Password, syncKey)
+	if err != nil {
+		return nil // wrong vault password — leave as pending
+	}
+	enc, err := encryptConnectionPassword(plain, localKey)
+	if err != nil {
+		return fmt.Errorf("connection %s: %w", conn.ID, err)
+	}
+	conn.Password = &enc
+	return nil
+}
+
+// processPendingPasswords re-encrypts all connections whose password is in "sync:"
+// format (pending cross-device import) using the now-available syncVaultKey.
+func (a *App) processPendingPasswords() {
+	localKey := a.getMasterKey()
+	syncKey := a.getSyncVaultKey()
+	if localKey == nil || syncKey == nil {
+		return
+	}
+
+	connections, err := a.database.GetConnections()
+	if err != nil {
+		return
+	}
+
+	for _, conn := range connections {
+		if conn.Password == nil || !isSyncEncrypted(*conn.Password) {
+			continue
+		}
+		toStore := conn
+		if err := translateSyncPassword(&toStore, localKey, syncKey); err != nil {
+			continue
+		}
+		if toStore.Password != conn.Password {
+			_ = a.database.UpsertConnection(&toStore)
+		}
+	}
 }
 
 func isMissingRemoteBlob(err error) bool {

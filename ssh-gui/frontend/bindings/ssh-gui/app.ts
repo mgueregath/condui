@@ -79,6 +79,13 @@ export function ConnectSSH(connectionID: string): $CancellablePromise<string> {
 }
 
 /**
+ * ConnectSSHVia connects to connectionID routing through jumpHostID as the jump/bastion host.
+ */
+export function ConnectSSHVia(connectionID: string, jumpHostID: string): $CancellablePromise<string> {
+    return $Call.ByID(2333888515, connectionID, jumpHostID);
+}
+
+/**
  * CreateConnection encrypts the password before persisting it.
  */
 export function CreateConnection(connection: models$0.Connection): $CancellablePromise<void> {
@@ -407,6 +414,13 @@ export function SyncNow(): $CancellablePromise<void> {
 
 export function TestConnection(connectionID: string): $CancellablePromise<void> {
     return $Call.ByID(1257240193, connectionID);
+}
+
+/**
+ * TestConnectionParams tests a connection using raw params without requiring a saved record.
+ */
+export function TestConnectionParams(host: string, port: number, username: string, authType: string, password: string, privateKeyPath: string, jumpHostID: string): $CancellablePromise<void> {
+    return $Call.ByID(2464955863, host, port, username, authType, password, privateKeyPath, jumpHostID);
 }
 
 /**

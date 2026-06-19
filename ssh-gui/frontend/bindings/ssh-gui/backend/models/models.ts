@@ -23,6 +23,12 @@ export class Connection {
      */
     "jumpHostId"?: string | null;
 
+    /**
+     * PasswordPending is true when the password was synced from another device
+     * and is awaiting decryption (vault not yet unlocked with the correct password).
+     */
+    "passwordPending"?: boolean;
+
     /** Creates a new Connection instance. */
     constructor($$source: Partial<Connection> = {}) {
         if (!("id" in $$source)) {

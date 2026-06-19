@@ -34,8 +34,9 @@ type App struct {
 	tunnelManager *tunnels.Manager
 
 	// Security: vault encryption
-	masterKey   []byte
-	masterKeyMu sync.RWMutex
+	masterKey     []byte
+	syncVaultKey  []byte // Argon2(vaultPassword, fixedSalt) — same on all devices with same password
+	masterKeyMu   sync.RWMutex
 
 	// Host key verification: maps "host:port" to approval channel
 	hostKeyChannels sync.Map
@@ -193,6 +194,27 @@ func (a *App) clearMasterKey() {
 		a.masterKey[i] = 0
 	}
 	a.masterKey = nil
+}
+
+func (a *App) getSyncVaultKey() []byte {
+	a.masterKeyMu.RLock()
+	defer a.masterKeyMu.RUnlock()
+	return a.syncVaultKey
+}
+
+func (a *App) setSyncVaultKey(key []byte) {
+	a.masterKeyMu.Lock()
+	defer a.masterKeyMu.Unlock()
+	a.syncVaultKey = key
+}
+
+func (a *App) clearSyncVaultKey() {
+	a.masterKeyMu.Lock()
+	defer a.masterKeyMu.Unlock()
+	for i := range a.syncVaultKey {
+		a.syncVaultKey[i] = 0
+	}
+	a.syncVaultKey = nil
 }
 
 // approveHostKeyChannel sends a boolean on the channel for "host:port".

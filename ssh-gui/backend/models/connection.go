@@ -24,4 +24,8 @@ type Connection struct {
 	// JumpHostID: if set, the connection is established by tunneling through
 	// the referenced connection (bastion / jump host pattern).
 	JumpHostID *string `json:"jumpHostId,omitempty"`
+
+	// PasswordPending is true when the password was synced from another device
+	// and is awaiting decryption (vault not yet unlocked with the correct password).
+	PasswordPending bool `json:"passwordPending,omitempty"`
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { FaLock } from "react-icons/fa";
+import { FaLock, FaCheck, FaTimes } from "react-icons/fa";
 import { LuPlugZap } from "react-icons/lu";
+import { TestConnection, TestConnectionParams } from "../../../bindings/ssh-gui/app";
 
 function Field({ label, children }) {
   return (
@@ -25,7 +26,7 @@ function Input({ label, value, onChange, type = "text", placeholder }) {
   );
 }
 
-export default function ConnectionModal({ initialValue, folders, connections = [], accountStatus, onSave, onCancel, onTestConnection }) {
+export default function ConnectionModal({ initialValue, folders, connections = [], accountStatus, onSave, onCancel }) {
   const isPro = accountStatus?.tier === "pro";
 
   const [form, setForm] = useState(initialValue || {
@@ -35,7 +36,36 @@ export default function ConnectionModal({ initialValue, folders, connections = [
     jumpHostId: "",
   });
 
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const [testState, setTestState] = useState(null); // null | 'testing' | { ok: true } | { ok: false, error: string }
+
+  const set = (k, v) => {
+    setForm(p => ({ ...p, [k]: v }));
+    setTestState(null);
+  };
+
+  const handleTest = async () => {
+    setTestState("testing");
+    try {
+      if (initialValue?.id) {
+        // Editing an existing connection: use the stored (vault-encrypted) credentials
+        await TestConnection(initialValue.id);
+      } else {
+        // New connection: use raw form data (password is available in plaintext)
+        await TestConnectionParams(
+          form.host,
+          Number(form.port),
+          form.username,
+          form.authType,
+          form.password || "",
+          form.privateKeyPath || "",
+          form.jumpHostId || "",
+        );
+      }
+      setTestState({ ok: true });
+    } catch (err) {
+      setTestState({ ok: false, error: typeof err === "string" ? err : err?.message || "Connection failed" });
+    }
+  };
 
   return (
     <div>
@@ -125,7 +155,26 @@ export default function ConnectionModal({ initialValue, folders, connections = [
       </div>
 
       <div className="modal-footer">
-        <button className="btn-secondary" onClick={() => onTestConnection(form)}><LuPlugZap />Test Connection</button>
+        <div className="test-conn-wrap">
+          <button
+            className={`btn-secondary test-conn-btn${testState === "testing" ? " testing" : testState?.ok === true ? " success" : testState?.ok === false ? " failure" : ""}`}
+            onClick={handleTest}
+            disabled={testState === "testing"}
+          >
+            {testState === "testing" ? (
+              <><span className="conn-loader" />Testing...</>
+            ) : testState?.ok === true ? (
+              <><FaCheck />Connected</>
+            ) : testState?.ok === false ? (
+              <><FaTimes />Failed</>
+            ) : (
+              <><LuPlugZap />Test Connection</>
+            )}
+          </button>
+          {testState?.ok === false && testState.error && (
+            <div className="test-conn-error">{testState.error}</div>
+          )}
+        </div>
         <button className="btn-secondary" onClick={() => onCancel()}>Cancel</button>
         <button className="btn-primary" onClick={() => onSave(form)}>Save Connection</button>
       </div>

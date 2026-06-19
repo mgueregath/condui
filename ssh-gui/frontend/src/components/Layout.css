@@ -1641,6 +1641,46 @@ select.modern-input {
   color: var(--text-primary);
 }
 
+.test-conn-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-right: auto;
+}
+
+.test-conn-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 148px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.test-conn-btn.testing {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.test-conn-btn.success {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #059669;
+}
+
+.test-conn-btn.failure {
+  background: #fff1f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.test-conn-error {
+  font-size: 11px;
+  color: var(--red, #dc2626);
+  max-width: 260px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
 /* ===================== MAIN CARD (reemplaza workspace) ===================== */
 .main-card {
   flex: 1;
@@ -1792,6 +1832,49 @@ select.modern-input {
   background: var(--border);
   margin: 3px 6px;
 }
+
+.conn-pending-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 5px;
+  font-size: 9px;
+  color: var(--yellow, #f59e0b);
+  opacity: 0.8;
+  vertical-align: middle;
+}
+
+.ctx-has-submenu {
+  position: relative;
+  justify-content: space-between;
+}
+
+.ctx-has-submenu:hover {
+  background: var(--bg-hover);
+}
+
+.ctx-arrow {
+  margin-left: auto;
+  font-size: 8px;
+  opacity: 0.5;
+  padding-left: 8px;
+}
+
+.ctx-group-header {
+  padding: 5px 10px 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ctx-submenu-panel {
+  position: fixed;
+  z-index: 100000;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
 /* ==============================
    REMOTE FILE EDITOR
 ================================ */
@@ -1890,15 +1973,16 @@ select.modern-input {
    ====================================================== */
 
 .conn-loader {
-  width: 13px;
-  height: 13px;
+  width: 11px;
+  height: 11px;
 
   display: inline-block;
+  flex-shrink: 0;
 
   border-radius: 50%;
 
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  border-top-color: #35d07f;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #6366f1;
 
   animation: conn-spin 0.7s linear infinite;
 }

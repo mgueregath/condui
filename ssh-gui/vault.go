@@ -1,13 +1,45 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"os"
+	"strings"
 
 	"golang.org/x/crypto/ssh"
 
 	"ssh-gui/backend/account"
 )
+
+const syncVaultSaltInput = "condui-sync-vault-v1"
+
+// deriveSyncVaultKey returns a stable key derived only from the vault password
+// (no device-specific salt), making it reproducible on any device with the same password.
+func deriveSyncVaultKey(vaultPassword string) []byte {
+	h := sha256.Sum256([]byte(syncVaultSaltInput))
+	return account.DeriveKey(vaultPassword, h[:])
+}
+
+// encryptForSync encrypts a plaintext password with the syncVaultKey and returns
+// it in the format "sync:nonce_b64:ct_b64".
+func encryptForSync(plaintext string, syncKey []byte) (string, error) {
+	enc, err := account.EncryptField(syncKey, plaintext)
+	if err != nil {
+		return "", err
+	}
+	return "sync:" + enc, nil
+}
+
+// decryptFromSync decrypts a "sync:nonce_b64:ct_b64" value.
+func decryptFromSync(encoded string, syncKey []byte) (string, error) {
+	inner := strings.TrimPrefix(encoded, "sync:")
+	return account.DecryptField(syncKey, inner)
+}
+
+// isSyncEncrypted reports whether the value was encrypted with the sync vault key.
+func isSyncEncrypted(s string) bool {
+	return strings.HasPrefix(s, "sync:")
+}
 
 // encryptConnectionPassword encrypts a plaintext password using the vault master key.
 // Returns the encrypted string, or the original if it's empty/nil.

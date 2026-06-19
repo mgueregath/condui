@@ -42,8 +42,11 @@ func (a *App) GetConnections() (
 		return nil, err
 	}
 
-	// Redact passwords from frontend response
+	// Redact passwords; flag connections whose password is pending cross-device decryption.
 	for i := range connections {
+		if connections[i].Password != nil && isSyncEncrypted(*connections[i].Password) {
+			connections[i].PasswordPending = true
+		}
 		connections[i].Password = nil
 	}
 
