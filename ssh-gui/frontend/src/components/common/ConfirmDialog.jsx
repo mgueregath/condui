@@ -1,9 +1,12 @@
+import { useTranslation } from "react-i18next";
+
 export default function ConfirmDialog({
   open,
   title,
   onConfirm,
   onCancel,
 }) {
+  const { t } = useTranslation();
 
   if (!open) {
     return null;
@@ -27,13 +30,13 @@ export default function ConfirmDialog({
           <button
             onClick={onConfirm}
           >
-            Confirmar
+            {t("common.confirm")}
           </button>
 
           <button
             onClick={onCancel}
           >
-            Cancelar
+            {t("common.cancel")}
           </button>
 
         </div>

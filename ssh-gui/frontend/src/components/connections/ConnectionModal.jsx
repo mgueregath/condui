@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FaLock, FaCheck, FaTimes } from "react-icons/fa";
 import { LuPlugZap } from "react-icons/lu";
 import { TestConnection, TestConnectionParams } from "../../../bindings/ssh-gui/app";
+import { useTranslation } from "react-i18next";
 
 function Field({ label, children }) {
   return (
@@ -27,12 +28,13 @@ function Input({ label, value, onChange, type = "text", placeholder }) {
 }
 
 export default function ConnectionModal({ initialValue, folders, connections = [], accountStatus, onSave, onCancel }) {
+  const { t } = useTranslation();
   const isPro = accountStatus?.tier === "pro";
 
   const [form, setForm] = useState(initialValue || {
     name: "", host: "", port: 22, username: "",
     password: "", authType: "password",
-    privateKeyPath: "", folderId: "", color: "#eeecf9",
+    privateKeyPath: "", folderId: "", color: "#6b6490",
     jumpHostId: "",
   });
 
@@ -63,52 +65,52 @@ export default function ConnectionModal({ initialValue, folders, connections = [
       }
       setTestState({ ok: true });
     } catch (err) {
-      setTestState({ ok: false, error: typeof err === "string" ? err : err?.message || "Connection failed" });
+      setTestState({ ok: false, error: typeof err === "string" ? err : err?.message || t("app.connectionFailed") });
     }
   };
 
   return (
     <div>
       <div className="modal-header">
-        <h2>{initialValue ? "Edit Connection" : "New Connection"}</h2>
-        <p>Configure your SSH connection details</p>
+        <h2>{initialValue ? t("connection.editTitle") : t("connection.newTitle")}</h2>
+        <p>{t("connection.description")}</p>
       </div>
 
       <div className="modal-body">
-        <Input label="Connection Name" value={form.name} onChange={v => set("name", v)} placeholder="My Server" />
+        <Input label={t("connection.name")} value={form.name} onChange={v => set("name", v)} placeholder={t("connection.namePlaceholder")} />
 
         <div className="form-grid-2">
-          <Input label="Host" value={form.host} onChange={v => set("host", v)} placeholder="192.168.1.100" />
-          <Input label="Port" value={form.port} onChange={v => set("port", Number(v))} placeholder="22" />
+          <Input label={t("connection.host")} value={form.host} onChange={v => set("host", v)} placeholder="192.168.1.100" />
+          <Input label={t("connection.port")} value={form.port} onChange={v => set("port", Number(v))} placeholder="22" />
         </div>
 
-        <Input label="Username" value={form.username} onChange={v => set("username", v)} placeholder="root" />
+        <Input label={t("connection.username")} value={form.username} onChange={v => set("username", v)} placeholder="root" />
 
         <div className="form-grid-2">
-          <Field label="Folder">
+          <Field label={t("connection.folder")}>
             <select className="modern-input" value={form.folderId} onChange={e => set("folderId", e.target.value)}>
-              <option value="">No Folder</option>
+              <option value="">{t("connection.noFolder")}</option>
               {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
           </Field>
-          <Field label="Authentication">
+          <Field label={t("connection.authentication")}>
             <select className="modern-input" value={form.authType} onChange={e => set("authType", e.target.value)}>
-              <option value="password">Password</option>
-              <option value="private_key">Private Key</option>
+              <option value="password">{t("connection.password")}</option>
+              <option value="private_key">{t("connection.privateKey")}</option>
             </select>
           </Field>
         </div>
 
         {form.authType === "password" && (
-          <Input label="Password" type="password" value={form.password} onChange={v => set("password", v)} placeholder="••••••••" />
+          <Input label={t("connection.password")} type="password" value={form.password} onChange={v => set("password", v)} placeholder="••••••••" />
         )}
         {form.authType === "private_key" && (
-          <Input label="Private Key Path" value={form.privateKeyPath} onChange={v => set("privateKeyPath", v)} placeholder="~/.ssh/id_rsa" />
+          <Input label={t("connection.privateKeyPath")} value={form.privateKeyPath} onChange={v => set("privateKeyPath", v)} placeholder="~/.ssh/id_rsa" />
         )}
 
         <Field label={
           <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            Jump Host
+            {t("connection.jumpHost")}
             {!isPro && <span style={{ fontSize: 10, color: "var(--text-muted)" }}><FaLock /> Pro</span>}
           </span>
         }>
@@ -118,7 +120,7 @@ export default function ConnectionModal({ initialValue, folders, connections = [
               value={form.jumpHostId || ""}
               onChange={e => set("jumpHostId", e.target.value || null)}
             >
-              <option value="">— Direct connection (no jump host) —</option>
+              <option value="">{t("connection.direct")}</option>
               {connections
                 .filter(c => c.id !== initialValue?.id)
                 .map(c => (
@@ -137,12 +139,12 @@ export default function ConnectionModal({ initialValue, folders, connections = [
               }}
             >
               <FaLock style={{ fontSize: 10 }} />
-              Disponible en el plan Pro — conecta a través de un bastion host
+              {t("connection.jumpHostPro")}
             </div>
           )}
         </Field>
 
-        <Field label="Color">
+        <Field label={t("connection.color")}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <input
               type="color" value={form.color}
@@ -162,21 +164,21 @@ export default function ConnectionModal({ initialValue, folders, connections = [
             disabled={testState === "testing"}
           >
             {testState === "testing" ? (
-              <><span className="conn-loader" />Testing...</>
+              <><span className="conn-loader" />{t("connection.testing")}</>
             ) : testState?.ok === true ? (
-              <><FaCheck />Connected</>
+              <><FaCheck />{t("connection.connected")}</>
             ) : testState?.ok === false ? (
-              <><FaTimes />Failed</>
+              <><FaTimes />{t("connection.failed")}</>
             ) : (
-              <><LuPlugZap />Test Connection</>
+              <><LuPlugZap />{t("connection.test")}</>
             )}
           </button>
           {testState?.ok === false && testState.error && (
             <div className="test-conn-error">{testState.error}</div>
           )}
         </div>
-        <button className="btn-secondary" onClick={() => onCancel()}>Cancel</button>
-        <button className="btn-primary" onClick={() => onSave(form)}>Save Connection</button>
+        <button className="btn-secondary" onClick={() => onCancel()}>{t("common.cancel")}</button>
+        <button className="btn-primary" onClick={() => onSave(form)}>{t("connection.save")}</button>
       </div>
     </div>
   );

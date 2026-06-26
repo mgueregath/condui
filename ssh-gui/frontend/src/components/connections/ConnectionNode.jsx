@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FaTrash, FaPlay, FaEdit, FaShareAlt, FaNetworkWired, FaLock } from "react-icons/fa";
 import { MdOpenInNew } from "react-icons/md";
 import ContextMenu from "./ContextMenu";
+import { useTranslation } from "react-i18next";
 
 function buildViaSubmenu(connection, connections, folders, onConnectVia) {
   const others = connections.filter(c => c.id !== connection.id);
@@ -50,6 +51,7 @@ export default function ConnectionNode({
   onShare,
   onConnectVia,
 }) {
+  const { t } = useTranslation();
   const [ctx, setCtx] = useState(null);
 
   const connect = (e) => {
@@ -68,37 +70,37 @@ export default function ConnectionNode({
   const menuItems = [
     {
       icon: <FaPlay />,
-      label: "Conectar",
+      label: t("connection.connect"),
       onClick: () => !connecting && onOpen(connection),
     },
     {
       icon: <MdOpenInNew />,
-      label: "Nueva sesión",
+      label: t("connection.newSession"),
       onClick: () => !connecting && onOpen(connection, true),
     },
     { divider: true },
     {
       icon: <FaEdit />,
-      label: "Editar",
+      label: t("common.edit"),
       onClick: () => onEdit(connection),
     },
     ...(onShare ? [{
       icon: <FaShareAlt />,
-      label: "Compartir",
+      label: t("connection.share"),
       onClick: () => onShare(connection),
     }] : []),
     ...(viaSubmenu && viaSubmenu.length > 0 ? [
       { divider: true },
       {
         icon: <FaNetworkWired />,
-        label: "Conectar a través de",
+        label: t("connection.connectVia"),
         submenu: viaSubmenu,
       },
     ] : []),
     { divider: true },
     {
       icon: <FaTrash />,
-      label: "Eliminar",
+      label: t("common.delete"),
       danger: true,
       onClick: () => onDelete(connection),
     },
@@ -127,7 +129,7 @@ export default function ConnectionNode({
           {connection.passwordPending && (
             <span
               className="conn-pending-badge"
-              title="Contraseña pendiente de sincronización. Desbloquea el vault con tu contraseña para activar esta conexión."
+              title={t("connection.passwordPending")}
             >
               <FaLock />
             </span>
@@ -141,7 +143,7 @@ export default function ConnectionNode({
       <div className={`conn-actions ${connecting ? "connecting" : ""}`}>
         <button
           className="conn-action-btn"
-          title={connecting ? "Connecting..." : "Connect"}
+          title={connecting ? t("connection.connecting") : t("connection.connect")}
           disabled={connecting}
           onClick={connect}
         >
@@ -150,7 +152,7 @@ export default function ConnectionNode({
 
         <button
           className="conn-action-btn"
-          title="Edit"
+          title={t("common.edit")}
           disabled={connecting}
           onClick={(e) => { e.stopPropagation(); onEdit(connection); }}
         >
@@ -160,7 +162,7 @@ export default function ConnectionNode({
         {onShare && (
           <button
             className="conn-action-btn"
-            title="Share"
+            title={t("connection.share")}
             disabled={connecting}
             onClick={(e) => { e.stopPropagation(); onShare(connection); }}
           >
@@ -170,7 +172,7 @@ export default function ConnectionNode({
 
         <button
           className="conn-action-btn delete"
-          title="Delete"
+          title={t("common.delete")}
           disabled={connecting}
           onClick={(e) => {
             e.stopPropagation();

@@ -2,6 +2,7 @@ import React from 'react'
 import {createRoot} from 'react-dom/client'
 import './style.css'
 import App from './App'
+import './i18n'
 
 import "bootstrap/dist/css/bootstrap.min.css";
 

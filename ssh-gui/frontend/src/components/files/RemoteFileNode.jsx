@@ -1,7 +1,8 @@
 import { FaFolder, FaFile } from "react-icons/fa";
+import { useTranslation } from "react-i18next";
 
-function fmtSize(bytes, isDir) {
-  if (isDir) return "Carpeta";
+function fmtSize(bytes, isDir, folderLabel) {
+  if (isDir) return folderLabel;
   if (bytes === 0) return "0 B";
   const units = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log2(Math.max(bytes, 1)) / 10);
@@ -18,6 +19,7 @@ function fmtDate(iso) {
 }
 
 export default function RemoteFileNode({ item, onOpen, onOpenFile, onContextMenu }) {
+  const { t, i18n } = useTranslation();
   const isDir = item.isDirectory;
 
   return (
@@ -38,9 +40,9 @@ export default function RemoteFileNode({ item, onOpen, onOpenFile, onContextMenu
       <div className="file-node-info">
         <span className="file-node-name">{item.name}</span>
         <span className="file-node-meta">
-          {fmtSize(item.size, isDir)}
+          {fmtSize(item.size, isDir, t("files.folder"))}
           {item.modTime && <span className="file-node-meta-sep">·</span>}
-          {fmtDate(item.modTime)}
+          {item.modTime && new Date(item.modTime).toLocaleDateString(i18n.language, { day: "2-digit", month: "short", year: "numeric" })}
         </span>
       </div>
     </div>

@@ -1,15 +1,18 @@
+import { useTranslation } from "react-i18next";
+
 export default function Sidebar({
   tabs,
   onNewConnection,
   onSelect,
   activeTab,
 }) {
+  const { t } = useTranslation();
 
   return (
     <div className="sidebar">
 
       <div className="sidebar-title">
-        SERVIDORES
+        {t("app.connections")}
       </div>
 
       <div className="sidebar-list">
@@ -36,7 +39,7 @@ export default function Sidebar({
         className="new-connection-btn"
         onClick={onNewConnection}
       >
-        + Nueva conexión
+        + {t("app.newConnection")}
       </button>
 
     </div>

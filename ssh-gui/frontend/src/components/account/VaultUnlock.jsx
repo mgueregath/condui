@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { IsVaultSetup, SetupMasterPassword, UnlockVault } from "../../../bindings/ssh-gui/app";
 import conduiLogo from "../../assets/images/condui-transparent.png";
+import { useTranslation } from "react-i18next";
 
 export default function VaultUnlock({ onUnlocked }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState("loading"); // "loading" | "setup" | "unlock"
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -21,11 +23,11 @@ export default function VaultUnlock({ onUnlocked }) {
     e.preventDefault();
     setError("");
     if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+      setError(t("vault.passwordMinError"));
       return;
     }
     if (password !== confirm) {
-      setError("Passwords do not match");
+      setError(t("vault.passwordMismatch"));
       return;
     }
     setLoading(true);
@@ -33,7 +35,7 @@ export default function VaultUnlock({ onUnlocked }) {
       await SetupMasterPassword(password);
       onUnlocked();
     } catch (err) {
-      setError(typeof err === "string" ? err : err?.message || "Setup failed");
+      setError(typeof err === "string" ? err : err?.message || t("vault.setupFailed"));
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,7 @@ export default function VaultUnlock({ onUnlocked }) {
       await UnlockVault(password);
       onUnlocked();
     } catch (err) {
-      setError("Incorrect password");
+      setError(t("vault.incorrectPassword"));
     } finally {
       setLoading(false);
     }
@@ -56,7 +58,7 @@ export default function VaultUnlock({ onUnlocked }) {
   if (mode === "loading") {
     return (
       <div className="vault-screen">
-        <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Loading…</div>
+        <div style={{ color: "var(--text-muted)", fontSize: 13 }}>{t("common.loading")}</div>
       </div>
     );
   }
@@ -70,16 +72,16 @@ export default function VaultUnlock({ onUnlocked }) {
 
         {mode === "setup" ? (
           <>
-            <h2 className="vault-title">Create your vault</h2>
+            <h2 className="vault-title">{t("vault.createTitle")}</h2>
             <p className="vault-subtitle">
-              Your master password encrypts all SSH credentials stored locally.
-              <strong> It cannot be recovered if lost.</strong>
+              {t("vault.createDescription")}
+              <strong>{t("vault.cannotRecover")}</strong>
             </p>
             <form onSubmit={handleSetup} className="vault-form">
               <input
                 className="modern-input"
                 type="password"
-                placeholder="Master password (min. 8 chars)"
+                placeholder={t("vault.masterPasswordMin")}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 autoFocus
@@ -87,32 +89,32 @@ export default function VaultUnlock({ onUnlocked }) {
               <input
                 className="modern-input"
                 type="password"
-                placeholder="Confirm master password"
+                placeholder={t("vault.confirmPassword")}
                 value={confirm}
                 onChange={e => setConfirm(e.target.value)}
               />
               {error && <div className="vault-error">{error}</div>}
               <button className="btn-primary" type="submit" disabled={loading}>
-                {loading ? "Setting up…" : "Create vault"}
+                {loading ? t("vault.settingUp") : t("vault.create")}
               </button>
             </form>
           </>
         ) : (
           <>
-            <h2 className="vault-title">Unlock vault</h2>
-            <p className="vault-subtitle">Enter your master password to access your connections.</p>
+            <h2 className="vault-title">{t("vault.unlockTitle")}</h2>
+            <p className="vault-subtitle">{t("vault.unlockDescription")}</p>
             <form onSubmit={handleUnlock} className="vault-form">
               <input
                 className="modern-input"
                 type="password"
-                placeholder="Master password"
+                placeholder={t("vault.masterPassword")}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 autoFocus
               />
               {error && <div className="vault-error">{error}</div>}
               <button className="btn-primary" type="submit" disabled={loading}>
-                {loading ? "Unlocking…" : "Unlock"}
+                {loading ? t("vault.unlocking") : t("vault.unlock")}
               </button>
             </form>
           </>

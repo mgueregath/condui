@@ -65,7 +65,7 @@ func (a *App) UploadFile(sessionID string, remoteDirectory string) error {
 		return fmt.Errorf("cancelado")
 	}
 
-	fileName := sftpservice.GetFileName(localPath)
+	fileName := filepath.Base(localPath)
 	var remotePath string
 	if remoteDirectory == "/" {
 		remotePath = fmt.Sprintf("/%s", fileName)
@@ -132,7 +132,7 @@ func (a *App) DownloadFile(
 	}
 
 	// 1. Abrir diálogo nativo para guardar archivo
-	fileName := sftpservice.GetFileName(remotePath) // O usa path.Base(remotePath)
+	fileName := sftpservice.GetRemoteFileName(remotePath, session.RemoteOS)
 
 	chosenLocalPath, err := application.Get().Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
 		Title:    "Descargar archivo remoto",

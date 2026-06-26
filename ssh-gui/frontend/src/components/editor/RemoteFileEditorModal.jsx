@@ -1,4 +1,5 @@
 import Editor from "@monaco-editor/react";
+import { useTranslation } from "react-i18next";
 
 
 const getExtension = (path = "") => {
@@ -87,6 +88,7 @@ export default function RemoteFileEditorModal({
   onClose,
   onSave,
 }) {
+  const { t } = useTranslation();
 
 
   if (!open) return null;
@@ -234,7 +236,7 @@ export default function RemoteFileEditorModal({
             className="btn-secondary"
             onClick={onClose}
           >
-            Close
+            {t("common.close")}
           </button>
 
 
@@ -251,7 +253,7 @@ export default function RemoteFileEditorModal({
 
             >
 
-              Save
+              {t("common.save")}
 
             </button>
 

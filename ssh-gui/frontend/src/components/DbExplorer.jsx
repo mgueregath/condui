@@ -5,6 +5,7 @@ import {
   DbConnect, DbDisconnect, DbListDatabases, DbListSchemas,
   DbListTables, DbGetColumns, DbQuery,
 } from "../../bindings/ssh-gui/app";
+import { useTranslation } from "react-i18next";
 
 const DB_TYPE_COLOR = {
   postgresql: "#3b82f6", timescaledb: "#3b82f6",
@@ -25,6 +26,7 @@ function normalizeType(name) {
 
 // ─── Connect form ─────────────────────────────────────────────────────────────
 function ConnectForm({ dbType, port, sessionId, onConnected }) {
+  const { t } = useTranslation();
   const nt = normalizeType(dbType);
   const defaultUser = nt === "postgresql" ? "postgres" : "root";
   const [user, setUser] = useState(defaultUser);
@@ -66,13 +68,13 @@ function ConnectForm({ dbType, port, sessionId, onConnected }) {
           </div>
         </div>
         <form onSubmit={submit}>
-          <label className="db-form-label">Usuario</label>
+          <label className="db-form-label">{t("database.user")}</label>
           <input className="db-form-input" value={user} onChange={e => setUser(e.target.value)} autoFocus />
-          <label className="db-form-label">Contraseña</label>
-          <input className="db-form-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="dejar vacío si no requiere" />
+          <label className="db-form-label">{t("database.password")}</label>
+          <input className="db-form-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t("database.passwordOptional")} />
           {error && <div className="db-form-error">{error}</div>}
           <button className="db-form-btn primary" type="submit" disabled={loading} style={{ width: "100%", marginTop: "16px" }}>
-            {loading ? "Conectando…" : "Conectar"}
+            {loading ? t("database.connecting") : t("database.connect")}
           </button>
         </form>
       </div>
@@ -82,12 +84,13 @@ function ConnectForm({ dbType, port, sessionId, onConnected }) {
 
 // ─── Result grid ──────────────────────────────────────────────────────────────
 function ResultGrid({ result }) {
-  if (!result) return <div className="db-result-empty">Ejecuta una consulta para ver resultados</div>;
+  const { t } = useTranslation();
+  if (!result) return <div className="db-result-empty">{t("database.runQueryHint")}</div>;
   if (result.error) return <div className="db-result-error">{result.error}</div>;
-  if (!result.columns?.length) return <div className="db-result-empty">Sin resultados</div>;
+  if (!result.columns?.length) return <div className="db-result-empty">{t("database.noResults")}</div>;
   return (
     <div className="db-grid-wrap">
-      <div className="db-grid-status">{result.rowCount} filas</div>
+      <div className="db-grid-status">{t("database.rows", { count: result.rowCount })}</div>
       <div className="db-grid-scroll">
         <table className="db-grid">
           <thead>
@@ -106,12 +109,13 @@ function ResultGrid({ result }) {
 
 // ─── Structure view ───────────────────────────────────────────────────────────
 function StructureView({ columns }) {
-  if (!columns?.length) return <div className="db-result-empty">Selecciona una tabla</div>;
+  const { t } = useTranslation();
+  if (!columns?.length) return <div className="db-result-empty">{t("database.selectTable")}</div>;
   return (
     <div className="db-grid-scroll" style={{ padding: "8px 0" }}>
       <table className="db-grid">
         <thead>
-          <tr><th>Columna</th><th>Tipo</th><th>Nullable</th><th>Default</th><th>Key</th></tr>
+          <tr><th>{t("database.column")}</th><th>{t("database.type")}</th><th>{t("database.nullable")}</th><th>{t("database.default")}</th><th>{t("database.key")}</th></tr>
         </thead>
         <tbody>
           {columns.map((c, i) => (
@@ -121,7 +125,7 @@ function StructureView({ columns }) {
                 {c.name}
               </td>
               <td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{c.dataType}</td>
-              <td style={{ color: c.nullable ? "var(--text-muted)" : "var(--green)" }}>{c.nullable ? "YES" : "NO"}</td>
+              <td style={{ color: c.nullable ? "var(--text-muted)" : "var(--green)" }}>{c.nullable ? t("common.yes") : t("common.no")}</td>
               <td style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-muted)" }}>{c.default || "—"}</td>
               <td>{c.key && c.key !== "PRI" ? <span className="db-key-badge">{c.key}</span> : c.key === "PRI" ? <span className="db-key-badge pk">PK</span> : null}</td>
             </tr>
@@ -134,6 +138,7 @@ function StructureView({ columns }) {
 
 // ─── Main explorer ────────────────────────────────────────────────────────────
 export default function DbExplorer({ sessionId, dbType, port }) {
+  const { t } = useTranslation();
   const [connId, setConnId]           = useState(null);
   const [ntType, setNtType]           = useState("");
   const [databases, setDatabases]     = useState([]);
@@ -145,7 +150,7 @@ export default function DbExplorer({ sessionId, dbType, port }) {
   const [columns, setColumns]         = useState([]);
   const [tableData, setTableData]     = useState(null);
   const [currentDb, setCurrentDb]     = useState("");
-  const [sql, setSql]                 = useState("-- Escribe tu SQL aquí\n");
+  const [sql, setSql]                 = useState(() => t("database.sqlPlaceholder"));
   const [sqlResult, setSqlResult]     = useState(null);
   const [loading, setLoading]         = useState(false);
   const [activeTab, setActiveTab]     = useState("sql");
@@ -249,16 +254,16 @@ export default function DbExplorer({ sessionId, dbType, port }) {
         <span className="db-explorer-port">:{port}</span>
         {currentDb && <span className="db-explorer-db">/{currentDb}</span>}
         <div style={{ flex: 1 }} />
-        <button className="db-explorer-btn" title="Recargar bases de datos" onClick={() => DbListDatabases(connId).then(dbs => setDatabases(dbs || []))}>
+        <button className="db-explorer-btn" title={t("database.reloadDatabases")} onClick={() => DbListDatabases(connId).then(dbs => setDatabases(dbs || []))}>
           <LuRefreshCw />
         </button>
-        <button className="db-explorer-btn disconnect" onClick={disconnect} title="Desconectar">⏏ Desconectar</button>
+        <button className="db-explorer-btn disconnect" onClick={disconnect} title={t("database.disconnect")}>⏏ {t("database.disconnect")}</button>
       </div>
 
       <div className="db-explorer-body">
         {/* Tree */}
         <div className="db-tree">
-          <div className="db-tree-header">Bases de datos</div>
+          <div className="db-tree-header">{t("database.databases")}</div>
           {databases.map(db => (
             <div key={db}>
               <div className="db-tree-item db-level" onClick={() => toggleDb(db)}>
@@ -309,13 +314,13 @@ export default function DbExplorer({ sessionId, dbType, port }) {
                 value={currentDb}
                 onChange={e => setCurrentDb(e.target.value)}
               >
-                <option value="">— base de datos —</option>
+                <option value="">{t("database.selectDatabase")}</option>
                 {databases.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
               <div style={{ flex: 1 }} />
-              <span style={{ fontSize: 10, color: "var(--text-muted)" }}>⌘↵ ejecutar</span>
+              <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{t("database.runShortcut")}</span>
               <button className="db-run-btn" onClick={runSql} disabled={loading || !currentDb}>
-                <FaPlay style={{ fontSize: 10 }} /> {loading ? "…" : "Ejecutar"}
+                <FaPlay style={{ fontSize: 10 }} /> {loading ? "…" : t("database.run")}
               </button>
             </div>
             <textarea
@@ -332,14 +337,14 @@ export default function DbExplorer({ sessionId, dbType, port }) {
           <div className="db-result-pane">
             <div className="db-result-tabs">
               <button className={"db-result-tab" + (activeTab === "sql" ? " active" : "")} onClick={() => setActiveTab("sql")}>
-                Resultado SQL {sqlResult && <span className="db-tab-count">{sqlResult.rowCount ?? 0}</span>}
+                {t("database.sqlResult")} {sqlResult && <span className="db-tab-count">{sqlResult.rowCount ?? 0}</span>}
               </button>
               {selected && <>
                 <button className={"db-result-tab" + (activeTab === "data" ? " active" : "")} onClick={() => setActiveTab("data")}>
-                  Datos: {selected.table} {tableData && <span className="db-tab-count">{tableData.rowCount ?? 0}</span>}
+                  {t("database.data", { table: selected.table })} {tableData && <span className="db-tab-count">{tableData.rowCount ?? 0}</span>}
                 </button>
                 <button className={"db-result-tab" + (activeTab === "structure" ? " active" : "")} onClick={() => setActiveTab("structure")}>
-                  Estructura
+                  {t("database.structure")}
                 </button>
               </>}
             </div>

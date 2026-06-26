@@ -50,8 +50,10 @@ import ConnectionModal from "./components/connections/ConnectionModal";
 import AssignFolderModal from "./components/connections/AssignFolderModal";
 import ContextMenu from "./components/connections/ContextMenu";
 import "./components/Layout.css";
+import { useTranslation } from "react-i18next";
 
 function PendingInviteNode({ invite, accepting, onAccept, onDecline }) {
+  const { t } = useTranslation();
   return (
     <div className="drawer-conn-item pending-invite-item">
       <div className="conn-status">
@@ -61,16 +63,16 @@ function PendingInviteNode({ invite, accepting, onAccept, onDecline }) {
       </div>
 
       <div className="conn-info">
-        <div className="conn-name">Shared connection</div>
+        <div className="conn-name">{t("app.sharedConnection")}</div>
         <div className="conn-host">
-          {invite.ownerEmail || "Unknown sender"} · {invite.permissions === "write" ? "Read & write" : "Read-only"}
+          {invite.ownerEmail || t("app.unknownSender")} · {invite.permissions === "write" ? t("app.readWrite") : t("app.readOnly")}
         </div>
       </div>
 
       <div className={`conn-actions ${accepting ? "connecting" : ""}`}>
         <button
           className="conn-action-btn"
-          title="Accept invitation"
+          title={t("app.acceptInvitation")}
           disabled={accepting}
           onClick={(e) => {
             e.stopPropagation();
@@ -81,11 +83,11 @@ function PendingInviteNode({ invite, accepting, onAccept, onDecline }) {
         </button>
         <button
           className="conn-action-btn delete"
-          title="Decline invitation"
+          title={t("app.declineInvitation")}
           disabled={accepting}
           onClick={(e) => {
             e.stopPropagation();
-            if (confirm("Decline this shared connection invitation?")) onDecline(invite);
+            if (confirm(t("app.declineInvitationConfirm"))) onDecline(invite);
           }}
         >
           <FaTimes />
@@ -120,6 +122,7 @@ function LeftSidebar({
   accountStatus,
   activeSessionId,
 }) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [emptyCtx, setEmptyCtx] = useState(null);
 
@@ -146,18 +149,18 @@ function LeftSidebar({
     <div className="sidebar-container">
       <div className="sidebar">
         <div className="sidebar-header">
-          <span className="sidebar-title">Connections</span>
+          <span className="sidebar-title">{t("app.connections")}</span>
           <div className="sidebar-header-actions">
             <button
               className="sidebar-icon-btn"
-              title="New connection"
+              title={t("app.newConnection")}
               onClick={onNewConnection}
             >
               +
             </button>
             <button
               className="sidebar-icon-btn"
-              title="New folder"
+              title={t("app.newFolder")}
               onClick={onNewFolder}
             >
               <FaFolder />
@@ -167,7 +170,7 @@ function LeftSidebar({
 
         <input
           className="sidebar-search"
-          placeholder="Search connections..."
+          placeholder={t("app.searchConnections")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -178,7 +181,7 @@ function LeftSidebar({
         >
           {filteredInvites.length > 0 && (
             <FolderNode
-              folder={{ id: "__pending_invites", name: "Invitaciones pendientes" }}
+              folder={{ id: "__pending_invites", name: t("app.pendingInvitations") }}
               expanded={expandedFolders.includes("__pending_invites")}
               onToggle={onToggleFolder}
               virtual
@@ -233,7 +236,7 @@ function LeftSidebar({
             0 && (
             <div className="sidebar-group">
               {folders.length > 0 && (
-                <div className="sidebar-group-label">Ungrouped</div>
+                <div className="sidebar-group-label">{t("app.ungrouped")}</div>
               )}
               {filtered
                 .filter((c) => !c.folderId || c.folderId === "")
@@ -267,7 +270,7 @@ function LeftSidebar({
                 fontSize: "12px",
               }}
             >
-              {search ? "No results" : "No connections yet"}
+              {search ? t("app.noResults") : t("app.noConnections")}
             </div>
           )}
         </div>
@@ -277,8 +280,8 @@ function LeftSidebar({
             x={emptyCtx.x}
             y={emptyCtx.y}
             items={[
-              { icon: "+", label: "New connection", onClick: onNewConnection },
-              { icon: <FaFolder />, label: "New folder", onClick: onNewFolder },
+              { icon: "+", label: t("app.newConnection"), onClick: onNewConnection },
+              { icon: <FaFolder />, label: t("app.newFolder"), onClick: onNewFolder },
             ]}
             onClose={() => setEmptyCtx(null)}
           />
@@ -293,6 +296,7 @@ function LeftSidebar({
 }
 
 function App() {
+  const { t } = useTranslation();
   const terminalRef = useRef(null);
   const termRef = useRef(null);
   const terminalBuffers = useRef({});
@@ -420,9 +424,9 @@ function App() {
       setActiveTab(newSessionId);
     } catch (err) {
       setSshError({
-        title: "Reconnection failed",
+        title: t("app.reconnectionFailed"),
         message:
-          typeof err === "string" ? err : err?.message || "Unable to connect",
+          typeof err === "string" ? err : err?.message || t("app.unableToConnect"),
         connection: tab.title,
       });
     } finally {
@@ -460,16 +464,16 @@ function App() {
       convertEol: true,
       theme: {
         background: "#111827",
-        foreground: "#d1d5db",
+        foreground: "#dfdfdf",
         cursor: "#6366f1",
         selectionBackground: "rgba(99, 101, 241, 0.07)",
         black: "#1f2937",
         red: "#f87171",
-        green: "#86efac",
+        green: "#27b65b",
         yellow: "#fcd34d",
-        blue: "#93c5fd",
+        blue: "#3d7cc5",
         magenta: "#c084fc",
-        cyan: "#67e8f9",
+        cyan: "#00ddfa",
         white: "#e5e7eb",
         brightBlack: "#374151",
         brightRed: "#f87171",
@@ -567,10 +571,10 @@ function App() {
       setActiveTab(sessionId);
     } catch (err) {
       setSshError({
-        title: "Connection failed",
+        title: t("app.connectionFailed"),
 
         message:
-          typeof err === "string" ? err : err?.message || "Unable to connect",
+          typeof err === "string" ? err : err?.message || t("app.unableToConnect"),
 
         connection: c.name,
       });
@@ -595,8 +599,8 @@ function App() {
       setActiveTab(sessionId);
     } catch (err) {
       setSshError({
-        title: "Connection failed",
-        message: typeof err === "string" ? err : err?.message || "Unable to connect",
+        title: t("app.connectionFailed"),
+        message: typeof err === "string" ? err : err?.message || t("app.unableToConnect"),
         connection: `${connection.name} via ${jumpHost.name}`,
       });
     } finally {
@@ -609,7 +613,7 @@ function App() {
   const uploadFile = async () => {
     // Si no hay una sesión SSH activa, detenemos la operación
     if (!activeTab) {
-      alert("Por favor, selecciona una sesión activa primero.");
+      alert(t("app.selectActiveSession"));
       return;
     }
 
@@ -625,7 +629,7 @@ function App() {
         return;
       }
       console.error("Error al subir archivo:", err);
-      alert("Error al subir archivo: " + err);
+      alert(t("app.uploadError", { error: err }));
     }
   };
 
@@ -640,7 +644,7 @@ function App() {
       );
     } catch (err) {
       console.error(err);
-      alert(typeof err === "string" ? err : err?.message || "Unable to accept invitation");
+      alert(typeof err === "string" ? err : err?.message || t("app.acceptInviteError"));
     } finally {
       setAcceptingInviteId(null);
     }
@@ -653,7 +657,7 @@ function App() {
       await refreshPendingInvites();
     } catch (err) {
       console.error(err);
-      alert(typeof err === "string" ? err : err?.message || "Unable to decline invitation");
+      alert(typeof err === "string" ? err : err?.message || t("app.declineInviteError"));
     } finally {
       setAcceptingInviteId(null);
     }
@@ -674,7 +678,7 @@ function App() {
       setDeleteTarget(null);
     } catch (err) {
       console.error(err);
-      setDeleteError(typeof err === "string" ? err : err?.message || "Unable to delete connection");
+      setDeleteError(typeof err === "string" ? err : err?.message || t("app.unableDeleteConnection"));
     } finally {
       setDeleteBusy(false);
     }
@@ -692,13 +696,13 @@ function App() {
           <span className="topbar-logo-wordmark">
             condu<span className="i">i</span>
           </span>
-          <span className="topbar-logo-tagline">SSH Manager</span>
+          <span className="topbar-logo-tagline">{t("app.sshManager")}</span>
         </div>
         <div className="topbar-account">
           <button
             className="topbar-account-btn"
             onClick={() => setAccountModalOpen(true)}
-            title={accountStatus?.loggedIn ? accountStatus.email : "Sign in to sync"}
+            title={accountStatus?.loggedIn ? accountStatus.email : t("app.signInToSync")}
           >
             {accountStatus?.loggedIn ? (
               <>
@@ -707,13 +711,13 @@ function App() {
                 </span>
                 <span className="topbar-account-email">{accountStatus.email}</span>
                 <span className={`tier-badge tier-${accountStatus.tier}`}>
-                  {accountStatus.tier === "pro" ? "Pro" : "Free"}
+                  {accountStatus.tier === "pro" ? t("common.pro") : t("common.free")}
                 </span>
               </>
             ) : (
               <>
                 <FaUser style={{ fontSize: 12 }} />
-                <span>Sign in</span>
+                <span>{t("app.signIn")}</span>
               </>
             )}
           </button>
@@ -828,18 +832,18 @@ function App() {
             <div className="card-mid">
               <div className="files-panel">
                 <div className="files-header">
-                  Remote Files
+                  {t("app.remoteFiles")}
                   <div className="files-header-actions">
                     <button
                       className="files-header-btn"
-                      title="Parent directory"
+                      title={t("app.parentDirectory")}
                       onClick={() => fileTreeRef.current?.goParent()}
                     >
                       <FaLevelUpAlt />
                     </button>
                     <button
                       className="files-header-btn"
-                      title="Subir archivo aquí"
+                      title={t("app.uploadHere")}
                       onClick={uploadFile}
                       style={{ background: "var(--primary)" }}
                     >
@@ -865,11 +869,11 @@ function App() {
                     }
                   />
                   <span className="terminal-title">
-                    {activeTabData ? activeTabData.title : "No Session"}
+                    {activeTabData ? activeTabData.title : t("app.noSession")}
                   </span>
                   {activeTabData?.disconnected && (
                     <span className="terminal-titlebar-status">
-                      Disconnected
+                      {t("app.disconnected")}
                     </span>
                   )}
                   <div className="terminal-titlebar-actions" />
@@ -880,7 +884,7 @@ function App() {
                     <div className="terminal-disconnect-overlay">
                       <div className="terminal-disconnect-icon">⚠</div>
                       <div className="terminal-disconnect-message">
-                        Session disconnected
+                        {t("app.sessionDisconnected")}
                       </div>
                       <button
                         className="terminal-reconnect-btn"
@@ -888,8 +892,8 @@ function App() {
                         onClick={() => handleReconnect(activeTabData)}
                       >
                         {connectingId === activeTabData?.connectionId
-                          ? "Connecting…"
-                          : "Reconnect"}
+                          ? t("app.connecting")
+                          : t("app.reconnect")}
                       </button>
                     </div>
                   )}
@@ -918,10 +922,10 @@ function App() {
                     color: "var(--text-secondary)",
                   }}
                 >
-                  No active sessions
+                  {t("app.noActiveSessions")}
                 </div>
                 <div style={{ fontSize: "12px" }}>
-                  Double-click a connection to get started
+                  {t("app.doubleClickToStart")}
                 </div>
               </div>
             </div>
@@ -1026,16 +1030,16 @@ function App() {
       >
         <div>
           <div className="modal-header">
-            <h2>Delete connection</h2>
+            <h2>{t("app.deleteConnection")}</h2>
             <p>{deleteTarget?.name}</p>
           </div>
           <div className="modal-body">
             <div className="ssh-error-box" style={{ borderColor: "var(--red)" }}>
               <div className="ssh-error-title" style={{ color: "var(--red)" }}>
-                This action cannot be undone
+                {t("app.cannotUndo")}
               </div>
               <p style={{ marginTop: 8, fontSize: 12, color: "var(--text-muted)" }}>
-                The connection will be removed from this device and from sync on the next update.
+                {t("app.deleteConnectionDescription")}
               </p>
             </div>
             {deleteError && <div className="vault-error">{deleteError}</div>}
@@ -1049,14 +1053,14 @@ function App() {
                 setDeleteError("");
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               className="btn-primary"
               disabled={deleteBusy}
               onClick={confirmDeleteConnection}
             >
-              {deleteBusy ? "Deleting..." : "Delete"}
+              {deleteBusy ? t("app.deleting") : t("common.delete")}
             </button>
           </div>
         </div>
@@ -1064,9 +1068,9 @@ function App() {
       <Modal open={!!sshError} onClose={() => setSshError(null)}>
         <div>
           <div className="modal-header">
-            <h2>Connection failed</h2>
+            <h2>{t("app.connectionFailed")}</h2>
 
-            <p>Unable to establish SSH connection</p>
+            <p>{t("app.unableEstablishSsh")}</p>
           </div>
 
           <div className="modal-body">
@@ -1104,20 +1108,19 @@ function App() {
         {hostKeyPrompt && (
           <div>
             <div className="modal-header">
-              <h2>Unknown host key</h2>
-              <p>First connection to {hostKeyPrompt.hostname}:{hostKeyPrompt.port}</p>
+              <h2>{t("app.unknownHostKey")}</h2>
+              <p>{t("app.firstConnectionTo", { host: hostKeyPrompt.hostname, port: hostKeyPrompt.port })}</p>
             </div>
             <div className="modal-body">
               <div className="ssh-error-box" style={{ borderColor: "var(--yellow)" }}>
                 <div className="ssh-error-title" style={{ color: "var(--yellow)" }}>
-                  Verify the host fingerprint
+                  {t("app.verifyFingerprint")}
                 </div>
                 <div style={{ fontFamily: "monospace", fontSize: 12, marginTop: 8, wordBreak: "break-all" }}>
                   {hostKeyPrompt.fingerprint}
                 </div>
                 <p style={{ marginTop: 12, fontSize: 12, color: "var(--text-muted)" }}>
-                  If you trust this host, click <strong>Trust & Connect</strong>.
-                  The fingerprint will be saved for future connections.
+                  {t("app.trustHostHelp")}
                 </p>
               </div>
             </div>
@@ -1125,11 +1128,11 @@ function App() {
               <button className="btn-secondary" onClick={() => {
                 ApproveHostKey(hostKeyPrompt.channelKey, false);
                 setHostKeyPrompt(null);
-              }}>Cancel</button>
+              }}>{t("common.cancel")}</button>
               <button className="btn-primary" onClick={() => {
                 ApproveHostKey(hostKeyPrompt.channelKey, true);
                 setHostKeyPrompt(null);
-              }}>Trust & Connect</button>
+              }}>{t("app.trustAndConnect")}</button>
             </div>
           </div>
         )}
@@ -1141,16 +1144,16 @@ function App() {
       >
         <div>
           <div className="modal-header">
-            <h2>Connection already active</h2>
+            <h2>{t("app.connectionAlreadyActive")}</h2>
 
-            <p>Choose how you want to continue</p>
+            <p>{t("app.chooseHowContinue")}</p>
           </div>
 
           <div className="modal-body">
             <div className="connection-choice-card">
               <strong>{connectionChoice?.connection?.name}</strong>
 
-              <span>This server already has an active SSH session.</span>
+              <span>{t("app.serverAlreadyActive")}</span>
             </div>
           </div>
 
@@ -1163,7 +1166,7 @@ function App() {
                 setConnectionChoice(null);
               }}
             >
-              Go to session
+              {t("app.goToSession")}
             </button>
 
             <button
@@ -1176,7 +1179,7 @@ function App() {
                 handleOpenConnection(c, true);
               }}
             >
-              Open new
+              {t("app.openNew")}
             </button>
           </div>
         </div>
