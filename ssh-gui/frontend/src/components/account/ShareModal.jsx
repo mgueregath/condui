@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { CancelShare, GetSentShares, ShareConnection } from "../../../bindings/ssh-gui/app";
+import { useTranslation } from "react-i18next";
 
-function statusLabel(status) {
-  if (status === "accepted") return "Accepted";
-  if (status === "revoked") return "Revoked";
-  return "Pending";
+function statusLabel(status, t) {
+  if (status === "accepted") return t("share.accepted");
+  if (status === "revoked") return t("share.revoked");
+  return t("share.pending");
 }
 
 export default function ShareModal({ connection, onClose }) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [readOnly, setReadOnly] = useState(true);
   const [includePassword, setIncludePassword] = useState(false);
@@ -40,7 +42,7 @@ export default function ShareModal({ connection, onClose }) {
     setError("");
     const targetEmail = email.trim().toLowerCase();
     if (!targetEmail.includes("@")) {
-      setError("Enter a valid email address");
+      setError(t("share.invalidEmail"));
       return;
     }
     setLoading(true);
@@ -49,7 +51,7 @@ export default function ShareModal({ connection, onClose }) {
       setEmail("");
       await loadSentShares();
     } catch (err) {
-      setError(typeof err === "string" ? err : err?.message || "Share failed");
+      setError(typeof err === "string" ? err : err?.message || t("share.failed"));
     } finally {
       setLoading(false);
     }
@@ -62,7 +64,7 @@ export default function ShareModal({ connection, onClose }) {
       await CancelShare(share.id);
       await loadSentShares();
     } catch (err) {
-      setError(typeof err === "string" ? err : err?.message || "Unable to cancel share");
+      setError(typeof err === "string" ? err : err?.message || t("share.cancelFailed"));
     } finally {
       setCancellingId("");
     }
@@ -71,12 +73,12 @@ export default function ShareModal({ connection, onClose }) {
   return (
     <div>
       <div className="modal-header">
-        <h2>Share connection</h2>
+        <h2>{t("share.title")}</h2>
         <p>{connection?.name}</p>
       </div>
       <div className="modal-body">
         <form onSubmit={handleShare} className="vault-form">
-          <label className="form-label">Recipient email</label>
+          <label className="form-label">{t("share.recipientEmail")}</label>
           <input
             className="modern-input"
             type="email"
@@ -86,7 +88,7 @@ export default function ShareModal({ connection, onClose }) {
             autoFocus
           />
 
-          <label className="form-label" style={{ marginTop: 12 }}>Permissions</label>
+          <label className="form-label" style={{ marginTop: 12 }}>{t("share.permissions")}</label>
           <div className="permission-toggle">
             <label className={`perm-option${readOnly ? " active" : ""}`}>
               <input
@@ -96,7 +98,7 @@ export default function ShareModal({ connection, onClose }) {
                 onChange={() => setReadOnly(true)}
                 style={{ display: "none" }}
               />
-              Read-only
+              {t("app.readOnly")}
             </label>
             <label className={`perm-option${!readOnly ? " active" : ""}`}>
               <input
@@ -106,12 +108,12 @@ export default function ShareModal({ connection, onClose }) {
                 onChange={() => setReadOnly(false)}
                 style={{ display: "none" }}
               />
-              Read & write
+              {t("app.readWrite")}
             </label>
           </div>
 
           <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>
-            Shared passwords are encrypted end-to-end and saved in the recipient vault.
+            {t("share.encryptedHelp")}
           </p>
 
           <label className="share-secret-option">
@@ -120,44 +122,44 @@ export default function ShareModal({ connection, onClose }) {
               checked={includePassword}
               onChange={(e) => setIncludePassword(e.target.checked)}
             />
-            <span>Include connection password</span>
+            <span>{t("share.includePassword")}</span>
           </label>
 
           {error && <div className="vault-error">{error}</div>}
 
           <button className="btn-primary" type="submit" disabled={loading}>
-            {loading ? "Sending..." : "Send invitation"}
+            {loading ? t("share.sending") : t("share.sendInvitation")}
           </button>
         </form>
 
         <div className="share-list">
           <div className="share-list-header">
-            <span>Invited users</span>
+            <span>{t("share.invitedUsers")}</span>
             <button className="link-btn" onClick={loadSentShares} disabled={sentLoading}>
-              {sentLoading ? "Refreshing..." : "Refresh"}
+              {sentLoading ? t("share.refreshing") : t("common.refresh")}
             </button>
           </div>
 
           {sentShares.length === 0 ? (
-            <div className="share-empty">No active invitations or shares yet.</div>
+            <div className="share-empty">{t("share.empty")}</div>
           ) : (
             sentShares.map((share) => (
               <div className="share-row" key={share.id}>
                 <div className="share-row-main">
-                  <strong>{share.recipientEmail || "Unknown recipient"}</strong>
-                  <span>{share.permissions === "write" ? "Read & write" : "Read-only"}</span>
+                  <strong>{share.recipientEmail || t("share.unknownRecipient")}</strong>
+                  <span>{share.permissions === "write" ? t("app.readWrite") : t("app.readOnly")}</span>
                 </div>
                 <span className={`share-status share-status-${share.status || "pending"}`}>
-                  {statusLabel(share.status)}
+                  {statusLabel(share.status, t)}
                 </span>
                 <button
                   className="btn-secondary btn-sm"
                   disabled={cancellingId === share.id}
                   onClick={() => {
-                    if (confirm("Cancel this invitation/share?")) handleCancel(share);
+                    if (confirm(t("share.cancelShareConfirm"))) handleCancel(share);
                   }}
                 >
-                  {cancellingId === share.id ? "Cancelling..." : "Cancel"}
+                  {cancellingId === share.id ? t("share.cancelling") : t("common.cancel")}
                 </button>
               </div>
             ))
@@ -165,7 +167,7 @@ export default function ShareModal({ connection, onClose }) {
         </div>
       </div>
       <div className="modal-footer">
-        <button className="btn-secondary" onClick={onClose}>Close</button>
+        <button className="btn-secondary" onClick={onClose}>{t("common.close")}</button>
       </div>
     </div>
   );

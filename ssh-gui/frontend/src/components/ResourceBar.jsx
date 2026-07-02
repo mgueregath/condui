@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { GetSystemStats } from "../../bindings/ssh-gui/app";
+import { useTranslation } from "react-i18next";
 
 function fmtGB(gb) {
   if (gb >= 1000) return `${(gb / 1024).toFixed(1)}T`;
@@ -49,6 +50,7 @@ function StatItem({ label, pct, text }) {
 }
 
 export default function ResourceBar({ sessionId, disconnected }) {
+  const { t } = useTranslation();
   const [stats, setStats] = useState(null);
   const timer = useRef(null);
 
@@ -96,13 +98,13 @@ export default function ResourceBar({ sessionId, disconnected }) {
           <StatItem
             label="RAM"
             pct={memPct}
-            text={`${fmtGB(stats.memFreeGB)} free`}
+            text={`${fmtGB(stats.memFreeGB)} ${t("resources.free")}`}
           />
           <div className="res-sep" />
           <StatItem
-            label="Disk"
+            label={t("resources.disk")}
             pct={diskPct}
-            text={`${fmtGB(stats.diskFreeGB)} free`}
+            text={`${fmtGB(stats.diskFreeGB)} ${t("resources.free")}`}
           />
           <div className="res-sep" />
           <div className="res-item">

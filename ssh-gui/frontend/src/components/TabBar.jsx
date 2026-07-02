@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 export default function TabBar({
   tabs,
   activeTab,
@@ -6,6 +8,7 @@ export default function TabBar({
   onReconnect,
   connectingId,
 }) {
+  const { t } = useTranslation();
   return (
     <div className="tabbar">
       {tabs.length === 0 && (
@@ -16,7 +19,7 @@ export default function TabBar({
             fontSize: "12px",
           }}
         >
-          No active sessions
+          {t("tabs.noActiveSessions")}
         </div>
       )}
       {tabs.map((tab) => (
@@ -40,7 +43,7 @@ export default function TabBar({
           {tab.disconnected && onReconnect && (
             <button
               className="tab-reconnect"
-              title="Reconnect"
+              title={t("tabs.reconnect")}
               disabled={connectingId === tab.connectionId}
               onClick={(e) => {
                 e.stopPropagation();

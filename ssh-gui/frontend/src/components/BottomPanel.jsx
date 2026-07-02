@@ -41,6 +41,7 @@ import { PiCpuFill, PiMemoryFill, PiDiscBold } from "react-icons/pi";
 import { GrRefresh, GrAdd, GrFormRefresh } from "react-icons/gr";
 import { TbNetwork, TbBackground } from "react-icons/tb";
 import { TiFlashOutline } from "react-icons/ti";
+import { useTranslation } from "react-i18next";
 
 const DB_TYPES = {
   PostgreSQL: {
@@ -145,13 +146,13 @@ const DB_TYPES = {
 };
 
 const TABS = [
-  { id: "logs", label: "Logs", icon: <LuLogs /> },
-  { id: "transfers", label: "Transfers", icon: <BiTransfer /> },
-  { id: "tunnels", label: "Tunnels", icon: <GiWarpPipe /> },
-  { id: "ports", label: "Ports", icon: <LuNetwork /> },
-  { id: "docker", label: "Docker", icon: <FaDocker /> },
-  { id: "virtualbox", label: "VirtualBox", icon: <FaDesktop /> },
-  { id: "databases", label: "Databases", icon: <FaDatabase />, pro: true },
+  { id: "logs", labelKey: "panel.logs", icon: <LuLogs /> },
+  { id: "transfers", labelKey: "panel.transfers", icon: <BiTransfer /> },
+  { id: "tunnels", labelKey: "panel.tunnels", icon: <GiWarpPipe /> },
+  { id: "ports", labelKey: "panel.ports", icon: <LuNetwork /> },
+  { id: "docker", labelKey: "panel.docker", icon: <FaDocker /> },
+  { id: "virtualbox", labelKey: "panel.virtualbox", icon: <FaDesktop /> },
+  { id: "databases", labelKey: "panel.databases", icon: <FaDatabase />, pro: true },
 ];
 
 function StatPill({ label, value, sub, warn = false, icon = null }) {
@@ -209,6 +210,7 @@ function ActionBtn({ children, title, color, onClick, disabled, style = {} }) {
 }
 
 export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
+  const { t } = useTranslation();
   const isPro = accountStatus?.tier === "pro";
   const [activeTab, setActiveTab] = useState("logs");
 
@@ -349,7 +351,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
       setIsModalOpen(false);
       await fetchTunnels();
     } catch (err) {
-      alert("Error al procesar operación del túnel: " + err);
+      alert(t("panel.tunnelError", { error: err }));
     }
   };
 
@@ -370,7 +372,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
   };
 
   const handleDeleteTunnel = async (tunnelId) => {
-    if (!window.confirm("¿Seguro que deseas eliminar este túnel configurado?"))
+    if (!window.confirm(t("panel.deleteTunnelConfirm")))
       return;
     try {
       await DeleteTunnel(sessionId, tunnelId);
@@ -409,7 +411,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
       setVms(res || []);
       setVboxError(null);
     } catch (err) {
-      setVboxError(typeof err === "string" ? err : err?.message || "VirtualBox no disponible");
+      setVboxError(typeof err === "string" ? err : err?.message || t("panel.virtualboxUnavailableFallback"));
       setVms([]);
     }
   };
@@ -488,15 +490,15 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
           flexShrink: 0,
         }}
       >
-        {TABS.map((t) => {
-          const locked = t.pro && !isPro;
-          const isActive = activeTab === t.id;
+        {TABS.map((tab) => {
+          const locked = tab.pro && !isPro;
+          const isActive = activeTab === tab.id;
           return (
             <div
-              key={t.id}
+              key={tab.id}
               className={isActive ? "bottom-tab active" : "bottom-tab"}
-              onClick={() => locked ? onUpgrade?.() : setActiveTab(t.id)}
-              title={locked ? "Disponible en plan Pro" : undefined}
+              onClick={() => locked ? onUpgrade?.() : setActiveTab(tab.id)}
+              title={locked ? t("panel.proOnly") : undefined}
               style={{
                 padding: "10px 16px",
                 cursor: "pointer",
@@ -514,12 +516,12 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                 opacity: locked ? 0.6 : 1,
               }}
             >
-              {t.icon}
-              {t.label}
+              {tab.icon}
+              {t(tab.labelKey)}
               {locked && (
                 <span style={{ fontSize: 9, marginLeft: 2, opacity: 0.8 }}>🔒</span>
               )}
-              {t.id === "transfers" &&
+              {tab.id === "transfers" &&
                 Object.values(transfers).filter((t) => t.status === "active").length > 0 && (
                   <span
                     className="badge-active-count"
@@ -564,7 +566,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                 cursor: "pointer",
               }}
             >
-              <FaPlus /> Nuevo Túnel
+              <FaPlus /> {t("panel.newTunnel")}
             </button>
           )}
           {activeTab === "logs" && (
@@ -582,7 +584,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                 color: "var(--text-secondary)",
               }}
             >
-              <FaTrash /> Clear
+              <FaTrash /> {t("panel.clear")}
             </button>
           )}
           {(activeTab === "tunnels" || activeTab === "docker" || activeTab === "ports" || activeTab === "databases" || activeTab === "virtualbox") && (
@@ -605,7 +607,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                 color: "var(--text-secondary)",
               }}
             >
-              <FaRedoAlt /> Refresh
+              <FaRedoAlt /> {t("common.refresh")}
             </button>
           )}
         </div>
@@ -638,7 +640,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                   padding: "40px",
                 }}
               >
-                No hay eventos registrados en esta sesión.
+                {t("panel.noLogs")}
               </div>
             ) : (
               logs.map((l, i) => (
@@ -695,7 +697,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                   padding: "40px",
                 }}
               >
-                No se registran transferencias de archivos.
+                {t("panel.noTransfers")}
               </div>
             ) : (
               Object.values(transfers).map((t) => (
@@ -771,8 +773,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                   padding: "40px",
                 }}
               >
-                No hay túneles configurados. Pulsa "Nuevo Túnel" para añadir
-                uno.
+                {t("panel.noTunnels")}
               </div>
             ) : (
               <table
@@ -794,18 +795,18 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                       borderBottom: "1px solid var(--border)",
                     }}
                   >
-                    <th style={{ padding: "8px 12px" }}>Puerto Local (PC)</th>
-                    <th>Destino Remoto</th>
-                    <th>Estado</th>
+                    <th style={{ padding: "8px 12px" }}>{t("panel.localPort")}</th>
+                    <th>{t("panel.remoteDestination")}</th>
+                    <th>{t("panel.status")}</th>
                     <th style={{ textAlign: "right", paddingRight: "12px" }}>
-                      Acciones
+                      {t("panel.actions")}
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tunnels.map((t) => (
+                  {tunnels.map((tunnel) => (
                     <tr
-                      key={t.id}
+                      key={tunnel.id}
                       style={{ borderBottom: "1px solid var(--border-subtle)" }}
                     >
                       <td
@@ -815,10 +816,10 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                           color: "var(--blue)",
                         }}
                       >
-                        127.0.0.1:{t.localPort}
+                        127.0.0.1:{tunnel.localPort}
                       </td>
                       <td style={{ color: "var(--text-primary)" }}>
-                        {t.remoteHost}:{t.remotePort}
+                        {tunnel.remoteHost}:{tunnel.remotePort}
                       </td>
                       <td>
                         <span
@@ -827,24 +828,24 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                             borderRadius: "12px",
                             fontSize: "11px",
                             fontWeight: "500",
-                            backgroundColor: t.active
+                            backgroundColor: tunnel.active
                               ? "rgba(34,197,94,0.12)"
                               : "rgba(107,114,128,0.1)",
-                            color: t.active
+                            color: tunnel.active
                               ? "var(--green)"
                               : "var(--text-secondary)",
                           }}
                         >
-                          {t.active ? "● Escuchando" : "○ Inactivo"}
+                          {tunnel.active ? t("panel.listening") : t("panel.inactive")}
                         </span>
                       </td>
                       <td style={{ textAlign: "right", paddingRight: "12px" }}>
                         <button
-                          onClick={() => handleToggleTunnel(t)}
+                          onClick={() => handleToggleTunnel(tunnel)}
                           style={{
                             padding: "3px 10px",
                             cursor: "pointer",
-                            backgroundColor: t.active
+                            backgroundColor: tunnel.active
                               ? "var(--red)"
                               : "var(--green)",
                             color: "#fff",
@@ -855,10 +856,10 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                             marginRight: "6px",
                           }}
                         >
-                          {t.active ? "Apagar" : "Encender"}
+                          {tunnel.active ? t("panel.turnOff") : t("panel.turnOn")}
                         </button>
                         <button
-                          onClick={() => openEditModal(t)}
+                          onClick={() => openEditModal(tunnel)}
                           style={{
                             background: "none",
                             border: "1px solid var(--border)",
@@ -869,12 +870,12 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                             fontSize: "11px",
                             marginRight: "4px",
                           }}
-                          title="Editar"
+                          title={t("common.edit")}
                         >
                           ✏️
                         </button>
                         <button
-                          onClick={() => handleDeleteTunnel(t.id)}
+                          onClick={() => handleDeleteTunnel(tunnel.id)}
                           style={{
                             background: "none",
                             border: "1px solid var(--border)",
@@ -884,7 +885,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                             cursor: "pointer",
                             fontSize: "11px",
                           }}
-                          title="Eliminar"
+                          title={t("common.delete")}
                         >
                           🗑️
                         </button>
@@ -901,16 +902,16 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
           <div className="ports-tab-content" style={{ padding: "12px" }}>
             {ports.length === 0 ? (
               <div style={{ color: "var(--text-muted)", textAlign: "center", padding: "40px" }}>
-                No se encontraron puertos en escucha.
+                {t("panel.noPorts")}
               </div>
             ) : (
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                 <thead>
                   <tr style={{ color: "var(--text-secondary)", background: "var(--bg-hover)", borderBottom: "1px solid var(--border)" }}>
-                    <th style={{ padding: "7px 12px", textAlign: "left", width: "70px" }}>Protocol</th>
-                    <th style={{ padding: "7px 12px", textAlign: "left", width: "80px" }}>Port</th>
-                    <th style={{ padding: "7px 12px", textAlign: "left" }}>Address</th>
-                    <th style={{ padding: "7px 12px", textAlign: "left" }}>Process</th>
+                    <th style={{ padding: "7px 12px", textAlign: "left", width: "70px" }}>{t("panel.protocol")}</th>
+                    <th style={{ padding: "7px 12px", textAlign: "left", width: "80px" }}>{t("connection.port")}</th>
+                    <th style={{ padding: "7px 12px", textAlign: "left" }}>{t("panel.address")}</th>
+                    <th style={{ padding: "7px 12px", textAlign: "left" }}>{t("panel.process")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -957,7 +958,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                   padding: "40px",
                 }}
               >
-                No se encontraron contenedores remotos.
+                {t("panel.noContainers")}
               </div>
             ) : (
               containers
@@ -1128,7 +1129,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                         }}
                       >
                         <button
-                          title="Ver logs en ventana externa"
+                          title={t("panel.viewDockerLogs")}
                           onClick={() => OpenDockerLogWindow(sessionId, c.id, c.names).catch(console.error)}
                           style={{
                             padding: "5px 7px",
@@ -1224,12 +1225,12 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
             {vboxError ? (
               <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
                 <FaDesktop style={{ fontSize: 28, opacity: 0.3, display: "block", margin: "0 auto 10px" }} />
-                VirtualBox no está instalado en este servidor
+                {t("panel.virtualboxUnavailable")}
                 <div style={{ fontSize: 11, marginTop: 6, opacity: 0.7 }}>{vboxError}</div>
               </div>
             ) : vms.length === 0 ? (
               <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
-                No se encontraron máquinas virtuales
+                {t("panel.noVms")}
               </div>
             ) : vms.map(vm => {
               const isRunning = vm.state === "running";
@@ -1333,7 +1334,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                     {vm.os && <Spec icon={<PiDiscBold />} label={vm.os} />}
                     {vm.ip && <Spec icon={<TbNetwork />} label={vm.ip} mono />}
                     {isRunning && !vm.ip && (
-                      <Spec icon={<TbNetwork />} label="IP no disponible (Guest Additions)" muted />
+                      <Spec icon={<TbNetwork />} label={t("panel.ipUnavailable")} muted />
                     )}
                   </div>
 
@@ -1348,11 +1349,11 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                     }}>
                     {(isStopped || isSaved) && (
                       <>
-                        <ActionBtn title="Iniciar (con interfaz gráfica)" color="var(--green)"
+                        <ActionBtn title={t("panel.startGui")} color="var(--green)"
                           disabled={isLoading} onClick={() => handleVMAction(vm.name, "start-gui")}>
                           <FaDesktop style={{ marginRight: 4 }} /> GUI
                         </ActionBtn>
-                        <ActionBtn title="Iniciar en modo headless (sin pantalla)" color="var(--accent)"
+                        <ActionBtn title={t("panel.startHeadless")} color="var(--accent)"
                           disabled={isLoading} onClick={() => handleVMAction(vm.name, "start-headless")}>
                           <TbBackground style={{ marginRight: 4 }} /> Headless
                         </ActionBtn>
@@ -1360,38 +1361,38 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                     )}
                     {isRunning && (
                       <>
-                        <ActionBtn title="Pausar" color="var(--yellow)" disabled={isLoading}
+                        <ActionBtn title={t("panel.pause")} color="var(--yellow)" disabled={isLoading}
                           onClick={() => handleVMAction(vm.name, "pause")}>
-                          <FaPause style={{ marginRight: 4 }} /> Pausar
+                          <FaPause style={{ marginRight: 4 }} /> {t("panel.pause")}
                         </ActionBtn>
-                        <ActionBtn title="Guardar estado y apagar" color="#60a5fa" disabled={isLoading}
+                        <ActionBtn title={t("panel.saveStateHelp")} color="#60a5fa" disabled={isLoading}
                           onClick={() => handleVMAction(vm.name, "savestate")}>
-                          <FaSave style={{ marginRight: 4 }} /> Guardar estado
+                          <FaSave style={{ marginRight: 4 }} /> {t("panel.saveState")}
                         </ActionBtn>
-                        <ActionBtn title="Reiniciar (equivale a resetear el hardware)" color="var(--yellow)"
+                        <ActionBtn title={t("panel.restartHelp")} color="var(--yellow)"
                           disabled={isLoading} onClick={() => handleVMAction(vm.name, "reset")}>
-                          <GrFormRefresh style={{ marginRight: 4 }} /> Reiniciar
+                          <GrFormRefresh style={{ marginRight: 4 }} /> {t("panel.restart")}
                         </ActionBtn>
-                        <ActionBtn title="Enviar señal ACPI de apagado (apagado suave)" color="var(--red)"
+                        <ActionBtn title={t("panel.shutdownHelp")} color="var(--red)"
                           disabled={isLoading} onClick={() => handleVMAction(vm.name, "stop-acpi")}>
-                          <FaStop style={{ marginRight: 4 }} /> Apagar
+                          <FaStop style={{ marginRight: 4 }} /> {t("panel.shutdown")}
                         </ActionBtn>
                       </>
                     )}
                     {isPaused && (
-                      <ActionBtn title="Reanudar ejecución" color="var(--green)" disabled={isLoading}
+                      <ActionBtn title={t("panel.resumeHelp")} color="var(--green)" disabled={isLoading}
                         onClick={() => handleVMAction(vm.name, "resume")}>
-                        <FaPlay style={{ marginRight: 4 }} /> Reanudar
+                        <FaPlay style={{ marginRight: 4 }} /> {t("panel.resume")}
                       </ActionBtn>
                     )}
                     {/* Forzar apagado — siempre visible si la VM no está detenida */}
                   {isStuck && (
                       <ActionBtn
-                        title="Forzar apagado (poweroff) — úsalo si la VM está colgada"
+                        title={t("panel.forceStopHelp")}
                         color="var(--red)"
                         disabled={isLoading}
                         onClick={() => {
-                          if (window.confirm(`¿Forzar apagado de "${vm.name}"?\n\nEquivalente a desenchufar la corriente — se perderán los cambios no guardados.`))
+                          if (window.confirm(t("panel.forceStopConfirm", { name: vm.name })))
                             handleVMAction(vm.name, "stop-force");
                         }}
                       >
@@ -1415,10 +1416,10 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
           }}>
             <FaDatabase style={{ fontSize: 28, color: "var(--text-muted)", opacity: 0.5 }} />
             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>
-              Database Explorer — Plan Pro
+              {t("panel.databaseExplorerPro")}
             </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", maxWidth: 280, lineHeight: 1.6 }}>
-              Detecta y explora bases de datos en tus servidores remotos. Disponible en el plan Pro.
+              {t("panel.databaseExplorerProHelp")}
             </div>
             <button
               onClick={onUpgrade}
@@ -1428,7 +1429,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                 border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
               }}
             >
-              Ver planes →
+              {t("panel.viewPlans")}
             </button>
           </div>
         )}
@@ -1436,7 +1437,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
           <div className="docker-tab-content">
             {databases.length === 0 ? (
               <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
-                No se detectaron bases de datos activas
+                {t("panel.noDatabases")}
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1489,7 +1490,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                       {/* Puerto */}
                       {db.port > 0 && (
                         <div style={{ textAlign: "right", flexShrink: 0 }}>
-                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>Puerto</div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>{t("connection.port")}</div>
                           <div style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "13px", fontWeight: "600", color }}>
                             {db.port}
                           </div>
@@ -1513,7 +1514,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                           backgroundColor: isDocker ? "rgba(59,130,246,0.15)" : "rgba(34,197,94,0.12)",
                           color: isDocker ? "#60a5fa" : "var(--green)",
                         }}>
-                          {isDocker ? "Docker" : "Sistema"}
+                          {isDocker ? "Docker" : t("panel.system")}
                         </span>
                         <button
                           style={{
@@ -1526,7 +1527,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                           }}
                           onClick={() => OpenDbExplorerWindow(sessionId, db.name, db.port)}
                         >
-                          <FaSearch style={{ fontSize: 9 }} /> Explorar
+                          <FaSearch style={{ fontSize: 9 }} /> {t("panel.explore")}
                         </button>
                       </div>
                     </div>
@@ -1571,8 +1572,8 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
               }}
             >
               {editingTunnelId
-                ? <FaEdit /> + " Editar Parámetros del Túnel"
-                : <IoIosAdd /> + "➕ Configurar Nuevo Túnel Port-Forwarding"}
+                ? <><FaEdit /> {t("panel.editTunnel")}</>
+                : <><IoIosAdd /> {t("panel.configureTunnel")}</>}
             </h3>
 
             <form
@@ -1589,11 +1590,11 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                     color: "var(--text-secondary)",
                   }}
                 >
-                  Puerto Local de Escucha (En tu máquina)
+                  {t("panel.localListeningPort")}
                 </label>
                 <input
                   type="number"
-                  placeholder="Ej: 8080"
+                  placeholder={t("panel.localPortPlaceholder")}
                   value={formLocalPort}
                   onChange={(e) => setFormLocalPort(e.target.value)}
                   required
@@ -1618,11 +1619,11 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                     color: "var(--text-secondary)",
                   }}
                 >
-                  Host Remoto Destino (Desde la perspectiva del servidor)
+                  {t("panel.remoteHost")}
                 </label>
                 <input
                   type="text"
-                  placeholder="Ej: 127.0.0.1 o localhost"
+                  placeholder={t("panel.remoteHostPlaceholder")}
                   value={formRemoteHost}
                   onChange={(e) => setFormRemoteHost(e.target.value)}
                   required
@@ -1647,11 +1648,11 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                     color: "var(--text-secondary)",
                   }}
                 >
-                  Puerto Remoto Destino
+                  {t("panel.remotePort")}
                 </label>
                 <input
                   type="number"
-                  placeholder="Ej: 80 o 3306"
+                  placeholder={t("panel.remotePortPlaceholder")}
                   value={formRemotePort}
                   onChange={(e) => setFormRemotePort(e.target.value)}
                   required
@@ -1687,7 +1688,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                     cursor: "pointer",
                   }}
                 >
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -1702,7 +1703,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                     cursor: "pointer",
                   }}
                 >
-                  {editingTunnelId ? "Guardar Cambios" : "Agregar Túnel"}
+                  {editingTunnelId ? t("panel.saveChanges") : t("panel.addTunnel")}
                 </button>
               </div>
             </form>

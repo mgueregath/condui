@@ -11,6 +11,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"ssh-gui/backend/osinfo"
 	"ssh-gui/backend/sessions"
 )
 
@@ -378,6 +379,7 @@ func (a *App) ConnectSSH(connectionID string) (string, error) {
 	}
 
 	sessionID := uuid.NewString()
+	remoteOS, _ := osinfo.DetectRemoteOS(client)
 
 	a.sessionManager.Add(
 		&sessions.SSHSession{
@@ -387,6 +389,8 @@ func (a *App) ConnectSSH(connectionID string) (string, error) {
 			Session: session,
 
 			SFTP: sftpClient,
+
+			RemoteOS: remoteOS,
 
 			Stdin:  stdin,
 			Stdout: stdout,
@@ -494,12 +498,14 @@ func (a *App) ConnectSSHVia(connectionID, jumpHostID string) (string, error) {
 	}
 
 	sessionID := uuid.NewString()
+	remoteOS, _ := osinfo.DetectRemoteOS(client)
 
 	a.sessionManager.Add(&sessions.SSHSession{
 		ID:        sessionID,
 		Client:    client,
 		Session:   session,
 		SFTP:      sftpClient,
+		RemoteOS:  remoteOS,
 		Stdin:     stdin,
 		Stdout:    stdout,
 		Stderr:    stderr,

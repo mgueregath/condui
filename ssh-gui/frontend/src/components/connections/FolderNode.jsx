@@ -1,8 +1,10 @@
 import { useState } from "react";
 import ContextMenu from "./ContextMenu";
 import { FaFolder, FaFolderOpen, FaFile, FaAngleLeft, FaAngleDown } from "react-icons/fa";
+import { useTranslation } from "react-i18next";
 
 export default function FolderNode({ folder, expanded, onToggle, onEdit, onDelete, children, virtual = false }) {
+  const { t } = useTranslation();
   const [ctx, setCtx] = useState(null);
 
   const handleContextMenu = (e) => {
@@ -12,10 +14,10 @@ export default function FolderNode({ folder, expanded, onToggle, onEdit, onDelet
   };
 
   const menuItems = [
-    { icon: "✏", label: "Rename folder", onClick: () => onEdit(folder) },
+    { icon: "✏", label: t("connection.renameFolder"), onClick: () => onEdit(folder) },
     { divider: true },
-    { icon: "🗑", label: "Delete folder", danger: true, onClick: () => {
-      if (confirm(`Delete folder "${folder.name}"?`)) onDelete(folder);
+    { icon: "🗑", label: t("connection.deleteFolder"), danger: true, onClick: () => {
+      if (confirm(t("connection.deleteFolderConfirm", { name: folder.name }))) onDelete(folder);
     }},
   ];
 

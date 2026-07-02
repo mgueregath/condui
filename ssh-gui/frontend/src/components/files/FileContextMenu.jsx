@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { FaFolder, FaEdit, FaTrash, FaDownload } from "react-icons/fa";
 import { RiFileEditFill } from "react-icons/ri";
 import { MdCreateNewFolder } from "react-icons/md";
+import { useTranslation } from "react-i18next";
 
 
 export default function FileContextMenu({
@@ -17,6 +18,7 @@ export default function FileContextMenu({
   onOpenFile,
   onClose,
 }) {
+  const { t } = useTranslation();
   const ref = useRef(null);
 
   useEffect(() => {
@@ -88,7 +90,7 @@ export default function FileContextMenu({
   if (item.isBackground) {
     items.push({
       icon: <FaFolder />,
-      label: "New Folder",
+      label: t("files.newFolder"),
       onClick: () => onNewFolder(item),
     });
   }
@@ -99,18 +101,18 @@ export default function FileContextMenu({
   else if (!item.isDirectory) {
     items.push({
       icon: <RiFileEditFill />,
-      label: "Open / Edit",
+      label: t("files.openEdit"),
       onClick: () => onOpenFile(item),
     });
     items.push({
       icon: <FaDownload />,
-      label: "Download",
+      label: t("files.download"),
       onClick: () => onDownload(item),
     });
 
     items.push({
       icon: <FaEdit />,
-      label: "Rename",
+      label: t("files.rename"),
       onClick: () => onRename(item),
     });
 
@@ -120,7 +122,7 @@ export default function FileContextMenu({
 
     items.push({
       icon: <FaTrash />,
-      label: "Delete",
+      label: t("files.delete"),
       danger: true,
       onClick: () => onDelete(item),
     });
@@ -132,13 +134,13 @@ export default function FileContextMenu({
   else {
     items.push({
       icon: <MdCreateNewFolder />,
-      label: "New Folder",
+      label: t("files.newFolder"),
       onClick: () => onNewFolder(item),
     });
 
     items.push({
       icon: <FaEdit />,
-      label: "Rename",
+      label: t("files.rename"),
       onClick: () => onRename(item),
     });
 
@@ -148,7 +150,7 @@ export default function FileContextMenu({
 
     items.push({
       icon: <FaTrash />,
-      label: "Delete",
+      label: t("files.delete"),
       danger: true,
       onClick: () => onDelete(item),
     });

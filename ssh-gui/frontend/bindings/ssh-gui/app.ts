@@ -13,6 +13,9 @@ import * as account$0 from "./backend/account/models.js";
 import * as models$0 from "./backend/models/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as osinfo$0 from "./backend/osinfo/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as sftp$0 from "./backend/sftp/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -176,6 +179,14 @@ export function DeleteRemoteFile(sessionID: string, path: string): $CancellableP
  */
 export function DeleteTunnel(sessionID: string, tunnelID: string): $CancellablePromise<void> {
     return $Call.ByID(2127640780, sessionID, tunnelID);
+}
+
+export function DetectLocalOS(): $CancellablePromise<osinfo$0.OSType> {
+    return $Call.ByID(2072933451);
+}
+
+export function DetectRemoteOS(sessionID: string): $CancellablePromise<osinfo$0.OSType> {
+    return $Call.ByID(1788341978, sessionID);
 }
 
 export function DownloadFile(sessionID: string, remotePath: string, localPath: string): $CancellablePromise<void> {

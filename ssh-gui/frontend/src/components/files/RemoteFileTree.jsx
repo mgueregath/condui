@@ -13,15 +13,16 @@ import {
 import RemoteFileNode from "./RemoteFileNode";
 import FileContextMenu from "./FileContextMenu";
 import RemoteFileEditorModal from "../editor/RemoteFileEditorModal";
-
-const SORT_OPTIONS = [
-  { key: "name",    label: "Nombre" },
-  { key: "size",    label: "Tamaño" },
-  { key: "modTime", label: "Modificado" },
-  { key: "type",    label: "Tipo" },
-];
+import { useTranslation } from "react-i18next";
 
 const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
+  const { t } = useTranslation();
+  const sortOptions = [
+    { key: "name", label: t("files.name") },
+    { key: "size", label: t("files.size") },
+    { key: "modTime", label: t("files.modified") },
+    { key: "type", label: t("files.type") },
+  ];
   const [path, setPath] = useState("/");
   const [files, setFiles] = useState([]);
   const [sortBy, setSortBy] = useState("name");
@@ -79,19 +80,19 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
 
   const closeEditor = async () => {
     if (editor.modified) {
-      if (window.confirm("Save changes?")) await saveEditor();
+      if (window.confirm(t("files.saveChangesConfirm"))) await saveEditor();
     }
     setEditor({ open: false, path: "", content: "", modified: false });
   };
 
   const deleteFile = async (item) => {
-    if (!confirm(`Delete ${item.name}?`)) return;
+    if (!confirm(t("files.deleteConfirm", { name: item.name }))) return;
     await DeleteRemoteFile(sessionId, item.path);
     refresh();
   };
 
   const renameFile = async (item) => {
-    const name = prompt("New name", item.name);
+    const name = prompt(t("files.newName"), item.name);
     if (!name) return;
     const parent = item.path.substring(0, item.path.lastIndexOf("/"));
     await RenameRemoteFile(sessionId, item.path, `${parent}/${name}`);
@@ -99,7 +100,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
   };
 
   const createFolder = async () => {
-    const name = prompt("Folder name");
+    const name = prompt(t("files.folderName"));
     if (!name) return;
     await CreateRemoteDirectory(
       sessionId,
@@ -111,7 +112,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
   const downloadFile = async (item) => {
     try {
       await DownloadFile(sessionId, item.path, "");
-      alert("Descarga completada con éxito");
+      alert(t("files.downloadComplete"));
     } catch (err) {
       console.error(err);
     }
@@ -183,7 +184,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
       </div>
 
       <div className="files-sort-bar">
-        {SORT_OPTIONS.map((opt) => (
+        {sortOptions.map((opt) => (
           <button
             key={opt.key}
             className={"files-sort-btn" + (sortBy === opt.key ? " active" : "")}

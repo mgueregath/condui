@@ -2,10 +2,19 @@ package sftp
 
 import (
 	"path"
+	"strings"
+
+	"ssh-gui/backend/osinfo"
 )
 
-// GetFileName toma una ruta absoluta (ej. /var/log/nginx/access.log) 
-// y retorna únicamente el nombre del archivo (ej. access.log).
 func GetFileName(remotePath string) string {
+	return GetRemoteFileName(remotePath, osinfo.OSUnknown)
+}
+
+func GetRemoteFileName(remotePath string, remoteOS osinfo.OSType) string {
+	if osinfo.IsWindows(remoteOS) {
+		remotePath = strings.ReplaceAll(remotePath, `\`, `/`)
+	}
+
 	return path.Base(remotePath)
 }
