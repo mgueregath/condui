@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +15,8 @@ import (
 	"ssh-gui/backend/osinfo"
 	"ssh-gui/backend/sessions"
 )
+
+const storedConnectionPasswordPrefix = "__stored_connection_password__:"
 
 // buildHostKeyCallback returns an SSH HostKeyCallback that implements TOFU
 // verification for the given host:port, prompting the user on first connection.
@@ -273,6 +276,24 @@ func (a *App) TestConnectionParams(host string, port int, username, authType, pa
 	key := a.getMasterKey()
 	if key == nil {
 		return fmt.Errorf("vault is locked: please unlock the vault before connecting")
+	}
+
+	if strings.HasPrefix(password, storedConnectionPasswordPrefix) {
+		connectionID := strings.TrimPrefix(password, storedConnectionPasswordPrefix)
+		connection, err := a.database.GetConnectionByID(connectionID)
+		if err != nil {
+			return fmt.Errorf("connection not found: %w", err)
+		}
+		password = ""
+		if connection.Password != nil {
+			if isSyncEncrypted(*connection.Password) {
+				return fmt.Errorf("la contraseña de esta conexión está pendiente de sincronización. Desbloquea el vault con tu contraseña para procesarla")
+			}
+			password, err = decryptConnectionPassword(*connection.Password, key)
+			if err != nil {
+				return fmt.Errorf("vault error: %w", err)
+			}
+		}
 	}
 
 	targetConfig, err := a.buildSSHConfig(username, authType, privateKeyPath, host, port, password)

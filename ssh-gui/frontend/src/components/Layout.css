@@ -1674,9 +1674,15 @@ select.modern-input {
 }
 
 .test-conn-error {
-  font-size: 11px;
+  margin: 4px 0;
+  padding: 8px;
+  font-size: 12px;
+  border-radius:6px;
+  background-color: var(--terminal-bg);
+  border-color: var(--terminal-border);
+  border-width: 1px;
   color: var(--red, #dc2626);
-  max-width: 260px;
+  /* max-width: 260px; */
   line-height: 1.4;
   word-break: break-word;
 }

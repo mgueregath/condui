@@ -157,8 +157,8 @@ export default function ConnectionModal({ initialValue, folders, connections = [
       </div>
 
       <div className="modal-footer">
-        <div className="test-conn-wrap">
-          <button
+        
+        <button
             className={`btn-secondary test-conn-btn${testState === "testing" ? " testing" : testState?.ok === true ? " success" : testState?.ok === false ? " failure" : ""}`}
             onClick={handleTest}
             disabled={testState === "testing"}
@@ -173,13 +173,12 @@ export default function ConnectionModal({ initialValue, folders, connections = [
               <><LuPlugZap />{t("connection.test")}</>
             )}
           </button>
-          {testState?.ok === false && testState.error && (
-            <div className="test-conn-error">{testState.error}</div>
-          )}
-        </div>
         <button className="btn-secondary" onClick={() => onCancel()}>{t("common.cancel")}</button>
         <button className="btn-primary" onClick={() => onSave(form)}>{t("connection.save")}</button>
       </div>
+       {testState?.ok === false && testState.error && (
+            <div className="test-conn-error">{testState.error}</div>
+          )}
     </div>
   );
 }
