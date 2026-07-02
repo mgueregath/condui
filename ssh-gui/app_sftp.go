@@ -108,12 +108,23 @@ func (a *App) UploadFile(sessionID string, remoteDirectory string) error {
 	_, err = io.Copy(mw, localFile)
 
 	if err != nil {
-		application.Get().Event.Emit("transfer-status", map[string]any{"id": transferID, "status": "error"})
+		application.Get().Event.Emit("transfer-status", map[string]any{
+			"id":        transferID,
+			"name":      fileName,
+			"status":    "error",
+			"direction": "upload",
+		})
 		a.emitLog("SFTP", "Error al subir "+fileName, "error")
 		return err
 	}
 
-	application.Get().Event.Emit("transfer-status", map[string]any{"id": transferID, "name": fileName, "progress": 100, "status": "done"})
+	application.Get().Event.Emit("transfer-status", map[string]any{
+		"id":        transferID,
+		"name":      fileName,
+		"progress":  100,
+		"status":    "done",
+		"direction": "upload",
+	})
 	a.emitLog("SFTP", "Subida completada: "+fileName, "success")
 	return nil
 }
@@ -142,11 +153,55 @@ func (a *App) DownloadFile(
 		return fmt.Errorf("descarga cancelada por el usuario")
 	}
 
-	return sftpservice.DownloadFile(
-		session.SFTP,
-		remotePath,
-		chosenLocalPath,
-	)
+	src, err := session.SFTP.Open(remotePath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	stat, err := src.Stat()
+	if err != nil {
+		return err
+	}
+
+	dst, err := os.Create(chosenLocalPath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	transferID := uuid.NewString()
+	a.emitLog("SFTP", "Iniciando descarga de: "+fileName, "")
+
+	progress := &models.ProgressWriter{
+		Total:     stat.Size(),
+		ID:        transferID,
+		FileName:  fileName,
+		Direction: "download",
+	}
+
+	mw := io.MultiWriter(dst, progress)
+	_, err = io.Copy(mw, src)
+	if err != nil {
+		application.Get().Event.Emit("transfer-status", map[string]any{
+			"id":        transferID,
+			"name":      fileName,
+			"status":    "error",
+			"direction": "download",
+		})
+		a.emitLog("SFTP", "Error al descargar "+fileName, "error")
+		return err
+	}
+
+	application.Get().Event.Emit("transfer-status", map[string]any{
+		"id":        transferID,
+		"name":      fileName,
+		"progress":  100,
+		"status":    "done",
+		"direction": "download",
+	})
+	a.emitLog("SFTP", "Descarga completada: "+fileName, "success")
+	return nil
 }
 
 func (a *App) DeleteRemoteFile(
