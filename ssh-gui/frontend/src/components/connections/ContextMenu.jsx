@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { BsFillCaretRightFill } from "react-icons/bs";
 
 function SubmenuPanel({ items, anchorRef, onClose, onMouseEnter, onMouseLeave }) {
   const ref = useRef(null);
@@ -74,7 +75,7 @@ function SubmenuItem({ item, onClose }) {
     >
       <span className="ctx-icon">{item.icon}</span>
       {item.label}
-      <span className="ctx-arrow">▶</span>
+      <span className="ctx-arrow"><BsFillCaretRightFill /></span>
       {open && (
         <SubmenuPanel
           items={item.submenu}

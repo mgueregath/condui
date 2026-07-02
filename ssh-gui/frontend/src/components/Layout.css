@@ -290,7 +290,7 @@ body,
 }
 
 .sidebar-header {
-  padding: 12px 12px 8px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1854,7 +1854,7 @@ select.modern-input {
 
 .ctx-arrow {
   margin-left: auto;
-  font-size: 8px;
+  font-size: 10px;
   opacity: 0.5;
   padding-left: 8px;
 }
