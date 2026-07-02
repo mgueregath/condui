@@ -437,6 +437,7 @@ func (a *App) ConnectSSH(connectionID string) (string, error) {
 			n, err := stdout.Read(buffer)
 
 			if err != nil {
+				_ = a.closeSessionResources(sessionID)
 				application.Get().Event.Emit(
 					"session-disconnected",
 					map[string]any{
@@ -544,6 +545,7 @@ func (a *App) ConnectSSHVia(connectionID, jumpHostID string) (string, error) {
 		for {
 			n, err := stdout.Read(buffer)
 			if err != nil {
+				_ = a.closeSessionResources(sessionID)
 				application.Get().Event.Emit("session-disconnected", map[string]any{"sessionId": sessionID})
 				return
 			}
@@ -604,6 +606,19 @@ func (a *App) ListSessions() []string {
 func (a *App) CloseSession(
 	sessionID string,
 ) error {
+	return a.closeSessionResources(
+		sessionID,
+	)
+}
+
+func (a *App) closeSessionResources(
+	sessionID string,
+) error {
+
+	a.tunnelManager.CloseSession(
+		sessionID,
+		a.emitLog,
+	)
 
 	return a.sessionManager.Remove(
 		sessionID,

@@ -84,6 +84,26 @@ func (m *Manager) Delete(sessionID, tunnelID string, log Logger) error {
 	return nil
 }
 
+// CloseSession closes every running tunnel owned by a session and drops its registry.
+func (m *Manager) CloseSession(sessionID string, log Logger) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	list := m.registeredTunnels[sessionID]
+	for _, tunnel := range list {
+		active, exists := m.runtimeTunnels[tunnel.ID]
+		if !exists {
+			continue
+		}
+
+		_ = active.Listener.Close()
+		delete(m.runtimeTunnels, tunnel.ID)
+		log("TUNNEL", fmt.Sprintf("Túnel local :%d cerrado al cerrar la conexión.", active.LocalPort), "warn")
+	}
+
+	delete(m.registeredTunnels, sessionID)
+}
+
 // Edit updates the parameters of an existing tunnel. Callers should Toggle it off first.
 func (m *Manager) Edit(sessionID, tunnelID string, localPort int, remoteHost string, remotePort int, log Logger) (models.TunnelInfo, error) {
 	m.mu.Lock()
