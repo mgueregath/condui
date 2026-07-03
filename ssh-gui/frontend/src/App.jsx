@@ -3,7 +3,7 @@ import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 import conduiLogo from "./assets/images/condui-transparent.png";
-import { FaCheck, FaExclamationTriangle, FaFolder, FaInbox, FaTimes, FaUser } from "react-icons/fa";
+import { FaCheck, FaExclamationTriangle, FaFolder, FaInbox, FaTimes, FaUser, FaTerminal } from "react-icons/fa";
 
 import { Events } from "@wailsio/runtime";
 import RemoteFileTree from "./components/files/RemoteFileTree";
@@ -1073,6 +1073,7 @@ function App() {
                   onClick={handleOpenLocalTerminal}
                   disabled={connectingId === "__local"}
                 >
+                  <FaTerminal /> &nbsp;
                   {connectingId === "__local"
                     ? t("app.connecting")
                     : t("app.openLocalTerminal")}
