@@ -16,7 +16,7 @@ import {
   VirtualBoxAction,
   GetDockerStats,
 } from "../../bindings/ssh-gui/app";
-import { FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch, FaPlus, FaRedoAlt, FaDesktop, FaSave, FaPause } from "react-icons/fa";
+import { FaArrowDown, FaArrowRight, FaArrowUp, FaLock, FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch, FaPlus, FaRedoAlt, FaDesktop, FaSave, FaPause } from "react-icons/fa";
 import {
   SiPostgresql,
   SiTimescale,
@@ -33,12 +33,12 @@ import {
   SiScylladb,
   SiOpensearch,
 } from "react-icons/si";
-import { LuLogs, LuNetwork } from "react-icons/lu";
+import { LuLogs, LuNetwork, LuDownload, LuUpload } from "react-icons/lu";
 import { BiTransfer } from "react-icons/bi";
 import { GiWarpPipe } from "react-icons/gi";
 import { IoIosAdd } from "react-icons/io";
 import { PiCpuFill, PiMemoryFill, PiDiscBold } from "react-icons/pi";
-import { GrRefresh, GrAdd, GrFormRefresh } from "react-icons/gr";
+import { GrRefresh, GrFormRefresh } from "react-icons/gr";
 import { TbNetwork, TbBackground } from "react-icons/tb";
 import { TiFlashOutline } from "react-icons/ti";
 import { useTranslation } from "react-i18next";
@@ -224,7 +224,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
   const [vms, setVms] = useState([]);
   const [vboxError, setVboxError] = useState(null);
   const [vboxActionLoading, setVboxActionLoading] = useState(null);
-  const [dockerStats, setDockerStats] = useState({}); // map containerID → stats
+  const [dockerStats, setDockerStats] = useState({}); // map containerID to stats
 
 
   // Estados para la Modal del Túnel (Crea y Edita)
@@ -519,7 +519,9 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
               {tab.icon}
               {t(tab.labelKey)}
               {locked && (
-                <span style={{ fontSize: 9, marginLeft: 2, opacity: 0.8 }}>🔒</span>
+                <span style={{ fontSize: 9, marginLeft: 2, opacity: 0.8 }}>
+                  <FaLock />
+                </span>
               )}
               {tab.id === "transfers" &&
                 Object.values(transfers).filter((t) => t.status === "active").length > 0 && (
@@ -715,7 +717,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                   }}
                 >
                   <span style={{ fontSize: "14px" }}>
-                    {t.direction === "upload" ? "📤" : "📥"}
+                    {t.direction === "upload" ? <LuUpload /> : <LuDownload />}
                   </span>
                   <span
                     style={{
@@ -872,7 +874,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                           }}
                           title={t("common.edit")}
                         >
-                          ✏️
+                          <FaEdit />
                         </button>
                         <button
                           onClick={() => handleDeleteTunnel(tunnel.id)}
@@ -887,7 +889,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                           }}
                           title={t("common.delete")}
                         >
-                          🗑️
+                          <FaTrash />
                         </button>
                       </td>
                     </tr>
@@ -1087,7 +1089,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                           <div style={{ display: "flex", flexWrap: "wrap", gap: "3px", marginTop: "2px" }}>
                             {c.ports.split(", ").filter(p => p && !p.startsWith(":::")).map((p, i) => (
                               <span key={i} className="docker-port-badge">
-                                {p.replace("0.0.0.0:", "").replace(/->(\d+)\/tcp/, "→$1")}
+                                {p.replace("0.0.0.0:", "").replace(/->(\d+)\/tcp/, " -> $1")}
                               </span>
                             ))}
                           </div>
@@ -1429,7 +1431,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                 border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
               }}
             >
-              {t("panel.viewPlans")}
+              {t("panel.viewPlans")} <FaArrowRight style={{ marginLeft: 6 }} />
             </button>
           </div>
         )}

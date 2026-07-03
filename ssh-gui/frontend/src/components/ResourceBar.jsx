@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { GetSystemStats } from "../../bindings/ssh-gui/app";
 import { useTranslation } from "react-i18next";
+import { FaArrowDown, FaArrowUp } from "react-icons/fa";
 
 function fmtGB(gb) {
   if (gb >= 1000) return `${(gb / 1024).toFixed(1)}T`;
@@ -116,8 +117,8 @@ export default function ResourceBar({ sessionId, disconnected }) {
           <div className="res-sep" />
           <div className="res-item">
             <span className="res-label">NET</span>
-            <span className="res-io-rx">↓ {fmtBps(stats.netRxBps)}</span>
-            <span className="res-io-tx">↑ {fmtBps(stats.netTxBps)}</span>
+            <span className="res-io-rx"><FaArrowDown /> {fmtBps(stats.netRxBps)}</span>
+            <span className="res-io-tx"><FaArrowUp /> {fmtBps(stats.netTxBps)}</span>
           </div>
           <div className="res-sep" />
           <div className="res-item">

@@ -14,6 +14,7 @@ import RemoteFileNode from "./RemoteFileNode";
 import FileContextMenu from "./FileContextMenu";
 import RemoteFileEditorModal from "../editor/RemoteFileEditorModal";
 import { useTranslation } from "react-i18next";
+import { FaLongArrowAltDown, FaLongArrowAltUp } from "react-icons/fa";
 
 const RemoteFileTree = forwardRef(function RemoteFileTree(
   { sessionId, initialPath = "/", onPathChange },
@@ -196,7 +197,9 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
           >
             {opt.label}
             {sortBy === opt.key && (
-              <span className="sort-arrow">{sortDir === "asc" ? "↑" : "↓"}</span>
+              <span className="sort-arrow">
+                {sortDir === "asc" ? <FaLongArrowAltUp /> : <FaLongArrowAltDown />}
+              </span>
             )}
           </button>
         ))}

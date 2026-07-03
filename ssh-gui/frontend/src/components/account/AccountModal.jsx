@@ -7,6 +7,7 @@ import {
   SyncNow,
 } from "../../../bindings/ssh-gui/app";
 import { useTranslation } from "react-i18next";
+import { FaArrowRight } from "react-icons/fa";
 
 const SERVER_URL = import.meta.env.VITE_CONDUI_SERVER_URL || "https://sync.condui.app";
 
@@ -134,7 +135,7 @@ export default function AccountModal({ onClose }) {
             <div className="upgrade-banner">
               {t("account.freePlanDescription")}{" "}
               <a href="https://condui.app/upgrade" target="_blank" rel="noreferrer">
-                {t("account.upgrade")}
+                {t("account.upgrade")} <FaArrowRight />
               </a>
             </div>
           )}

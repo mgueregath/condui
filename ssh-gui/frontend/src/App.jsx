@@ -3,7 +3,7 @@ import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 import conduiLogo from "./assets/images/condui-transparent.png";
-import { FaCheck, FaFile, FaFolder, FaFolderOpen, FaInbox, FaTimes, FaUser } from "react-icons/fa";
+import { FaCheck, FaExclamationTriangle, FaFolder, FaInbox, FaTimes, FaUser } from "react-icons/fa";
 
 import { Events } from "@wailsio/runtime";
 import RemoteFileTree from "./components/files/RemoteFileTree";
@@ -35,7 +35,7 @@ import VaultUnlock from "./components/account/VaultUnlock";
 import AccountModal from "./components/account/AccountModal";
 import ShareModal from "./components/account/ShareModal";
 
-import { BsUpload } from "react-icons/bs";
+import { BsThreeDots } from "react-icons/bs";
 import { GrRefresh } from "react-icons/gr";
 import { MdUploadFile } from "react-icons/md";
 import { FaLevelUpAlt } from "react-icons/fa";
@@ -834,10 +834,10 @@ function App() {
           <button className="topbar-btn primary" onClick={openNewConnection}>
             + New Connection
           </button>
-          <button className="topbar-btn">↑ Upload</button>
-          <button className="topbar-btn">↓ Download</button>
-          <button className="topbar-btn">⇌ Tunnels</button>
-          <button className="topbar-btn">⚙ Settings</button>
+          <button className="topbar-btn">Upload</button>
+          <button className="topbar-btn">Download</button>
+          <button className="topbar-btn">Tunnels</button>
+          <button className="topbar-btn">Settings</button>
         </div>
         <div className="topbar-search-wrap">
           <svg
@@ -854,8 +854,8 @@ function App() {
           <input className="topbar-search" placeholder="Search (⌘K)" />
         </div>
         <div className="topbar-right">
-          <button className="topbar-icon-btn">🔔</button>
-          <button className="topbar-icon-btn">⊞</button>
+          <button className="topbar-icon-btn">Alerts</button>
+          <button className="topbar-icon-btn">Layout</button>
           <div className="topbar-avatar">M</div>
         </div>
       </div>
@@ -979,7 +979,9 @@ function App() {
                     >
                       <GrRefresh />
                     </button>
-                    <button className="files-header-btn">⋯</button>
+                    <button className="files-header-btn">
+                      <BsThreeDots />
+                    </button>
                   </div>
                 </div>
                 <RemoteFileTree
@@ -1012,7 +1014,9 @@ function App() {
                   <div ref={terminalRef} />
                   {activeTabData?.disconnected && (
                     <div className="terminal-disconnect-overlay">
-                      <div className="terminal-disconnect-icon">⚠</div>
+                      <div className="terminal-disconnect-icon">
+                        <FaExclamationTriangle />
+                      </div>
                       <div className="terminal-disconnect-message">
                         {t("app.sessionDisconnected")}
                       </div>

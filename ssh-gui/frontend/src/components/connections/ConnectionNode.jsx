@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FaTrash, FaPlay, FaEdit, FaShareAlt, FaNetworkWired, FaLock } from "react-icons/fa";
+import { FaTrash, FaPlay, FaPlug, FaEdit, FaShareAlt, FaNetworkWired, FaLock } from "react-icons/fa";
 import { MdOpenInNew } from "react-icons/md";
 import ContextMenu from "./ContextMenu";
 import { useTranslation } from "react-i18next";
@@ -69,7 +69,7 @@ export default function ConnectionNode({
 
   const menuItems = [
     {
-      icon: <FaPlay />,
+      icon: <FaPlug />,
       label: t("connection.connect"),
       onClick: () => !connecting && onOpen(connection),
     },
@@ -147,7 +147,7 @@ export default function ConnectionNode({
           disabled={connecting}
           onClick={connect}
         >
-          <FaPlay />
+          <FaPlug />
         </button>
 
         <button
