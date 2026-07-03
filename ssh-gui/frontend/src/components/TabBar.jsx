@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { FaTerminal } from "react-icons/fa";
 
 export default function TabBar({
   tabs,
@@ -6,6 +7,7 @@ export default function TabBar({
   onSelect,
   onClose,
   onReconnect,
+  onOpenLocalTerminal,
   connectingId,
 }) {
   const { t } = useTranslation();
@@ -40,7 +42,7 @@ export default function TabBar({
           <span style={{ color: tab.type === "db" ? "#818cf8" : (tab.color || "var(--bg-hover)") }}>
             {tab.title}
           </span>
-          {tab.disconnected && onReconnect && (
+          {tab.disconnected && tab.connectionId && onReconnect && (
             <button
               className="tab-reconnect"
               title={t("tabs.reconnect")}
@@ -66,6 +68,16 @@ export default function TabBar({
           )}
         </div>
       ))}
+      {onOpenLocalTerminal && (
+        <button
+          className="tab-add"
+          title={t("app.openLocalTerminal")}
+          onClick={onOpenLocalTerminal}
+          disabled={connectingId === "__local"}
+        >
+          <FaTerminal />
+        </button>
+      )}
     </div>
   );
 }

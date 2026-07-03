@@ -13,6 +13,7 @@ import {
   CloseSession,
   ConnectSSH,
   ConnectSSHVia,
+  StartLocalTerminal,
   SendInput,
   ResizeTerminal,
   CreateFolder,
@@ -560,6 +561,7 @@ function App() {
   }, [activeTab]);
 
   const activeTabData = tabs.find((t) => t.id === activeTab);
+  const isLocalActive = activeTabData?.type === "local";
 
   const parseConnectResult = (result) => {
     if (typeof result === "string") {
@@ -609,6 +611,36 @@ function App() {
           typeof err === "string" ? err : err?.message || t("app.unableToConnect"),
 
         connection: c.name,
+      });
+    } finally {
+      setConnectingId(null);
+    }
+  };
+
+  const handleOpenLocalTerminal = async () => {
+    setConnectingId("__local");
+
+    try {
+      const connectResult = parseConnectResult(await StartLocalTerminal());
+      const sessionId = connectResult.sessionId;
+
+      setTabs((prev) => [
+        ...prev,
+        {
+          id: sessionId,
+          title: t("app.localTerminal"),
+          type: "local",
+          color: "var(--green)",
+          homePath: connectResult.homePath,
+        },
+      ]);
+
+      setActiveTab(sessionId);
+    } catch (err) {
+      setSshError({
+        title: t("app.localTerminalFailed"),
+        message: typeof err === "string" ? err : err?.message || t("app.unableToConnect"),
+        connection: t("app.localTerminal"),
       });
     } finally {
       setConnectingId(null);
@@ -869,6 +901,7 @@ function App() {
               }
             }}
             onReconnect={handleReconnect}
+            onOpenLocalTerminal={handleOpenLocalTerminal}
             connectingId={connectingId}
           />
           <div
@@ -876,6 +909,7 @@ function App() {
             style={{ display: tabs.length > 0 ? "flex" : "none" }}
           >
             <div className="card-mid">
+              {!isLocalActive && (
               <div className="files-panel">
                 <div className="files-header">
                   {t("app.remoteFiles")}
@@ -911,6 +945,7 @@ function App() {
                   ref={fileTreeRef}
                 />
               </div>
+              )}
               <div className="terminal-card">
                 <div className="terminal-titlebar">
                   <span
@@ -937,25 +972,31 @@ function App() {
                       <div className="terminal-disconnect-message">
                         {t("app.sessionDisconnected")}
                       </div>
-                      <button
-                        className="terminal-reconnect-btn"
-                        disabled={connectingId === activeTabData?.connectionId}
-                        onClick={() => handleReconnect(activeTabData)}
-                      >
-                        {connectingId === activeTabData?.connectionId
-                          ? t("app.connecting")
-                          : t("app.reconnect")}
-                      </button>
+                      {!isLocalActive && (
+                        <button
+                          className="terminal-reconnect-btn"
+                          disabled={connectingId === activeTabData?.connectionId}
+                          onClick={() => handleReconnect(activeTabData)}
+                        >
+                          {connectingId === activeTabData?.connectionId
+                            ? t("app.connecting")
+                            : t("app.reconnect")}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
-                <ResourceBar
-                  sessionId={activeTab}
-                  disconnected={activeTabData?.disconnected}
-                />
+                {!isLocalActive && (
+                  <ResourceBar
+                    sessionId={activeTab}
+                    disconnected={activeTabData?.disconnected}
+                  />
+                )}
               </div>
             </div>
-            <BottomPanel sessionId={activeTab} accountStatus={accountStatus} onUpgrade={() => setAccountModalOpen(true)} />
+            {!isLocalActive && (
+              <BottomPanel sessionId={activeTab} accountStatus={accountStatus} onUpgrade={() => setAccountModalOpen(true)} />
+            )}
           </div>
 
           {tabs.length === 0 && (
@@ -978,6 +1019,16 @@ function App() {
                 <div style={{ fontSize: "12px" }}>
                   {t("app.doubleClickToStart")}
                 </div>
+                <button
+                  className="terminal-reconnect-btn"
+                  style={{ marginTop: "16px" }}
+                  onClick={handleOpenLocalTerminal}
+                  disabled={connectingId === "__local"}
+                >
+                  {connectingId === "__local"
+                    ? t("app.connecting")
+                    : t("app.openLocalTerminal")}
+                </button>
               </div>
             </div>
           )}

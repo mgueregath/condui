@@ -3,9 +3,13 @@ package main
 import (
 	"fmt"
 	"net"
+	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
+	"github.com/creack/pty"
 	"github.com/google/uuid"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -17,6 +21,21 @@ import (
 )
 
 const storedConnectionPasswordPrefix = "__stored_connection_password__:"
+
+func localShellCommand() *exec.Cmd {
+	if runtime.GOOS == "windows" {
+		if shell := os.Getenv("COMSPEC"); shell != "" {
+			return exec.Command(shell)
+		}
+		return exec.Command("cmd.exe")
+	}
+
+	if shell := os.Getenv("SHELL"); shell != "" {
+		return exec.Command(shell, "-i")
+	}
+
+	return exec.Command("/bin/sh", "-i")
+}
 
 type SSHConnectResult struct {
 	SessionID string `json:"sessionId"`
@@ -514,6 +533,72 @@ func (a *App) ConnectSSH(connectionID string) (SSHConnectResult, error) {
 	}, nil
 }
 
+func (a *App) StartLocalTerminal() (SSHConnectResult, error) {
+	cmd := localShellCommand()
+	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+
+	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{
+		Rows: 40,
+		Cols: 120,
+	})
+	if err != nil {
+		return SSHConnectResult{}, err
+	}
+
+	sessionID := uuid.NewString()
+	a.sessionManager.Add(&sessions.SSHSession{
+		ID:        sessionID,
+		Command:   cmd,
+		Pty:       ptmx,
+		Stdin:     ptmx,
+		Stdout:    ptmx,
+		Connected: true,
+		IsLocal:   true,
+		Rows:      40,
+		Cols:      120,
+	})
+
+	go func() {
+		buffer := make([]byte, 4096)
+		for {
+			n, err := ptmx.Read(buffer)
+			if n > 0 {
+				application.Get().Event.Emit(
+					"terminal-output",
+					map[string]any{
+						"sessionId": sessionID,
+						"data":      string(buffer[:n]),
+					},
+				)
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	go func() {
+		_ = cmd.Wait()
+		_ = a.closeSessionResources(sessionID)
+		application.Get().Event.Emit(
+			"session-disconnected",
+			map[string]any{
+				"sessionId": sessionID,
+			},
+		)
+	}()
+
+	homePath, err := os.UserHomeDir()
+	if err != nil || homePath == "" {
+		homePath = "/"
+	}
+
+	return SSHConnectResult{
+		SessionID: sessionID,
+		HomePath:  homePath,
+	}, nil
+}
+
 // ConnectSSHVia connects to connectionID routing through jumpHostID as the jump/bastion host.
 func (a *App) ConnectSSHVia(connectionID, jumpHostID string) (SSHConnectResult, error) {
 	emptyResult := SSHConnectResult{}
@@ -680,13 +765,18 @@ func (a *App) ResizeTerminal(
 	}
 
 	if session.Session == nil {
-		return
+		if session.IsLocal && session.Pty != nil {
+			_ = pty.Setsize(session.Pty, &pty.Winsize{
+				Rows: uint16(rows),
+				Cols: uint16(cols),
+			})
+		}
+	} else {
+		_ = session.Session.WindowChange(
+			rows,
+			cols,
+		)
 	}
-
-	_ = session.Session.WindowChange(
-		rows,
-		cols,
-	)
 
 	session.Rows = rows
 	session.Cols = cols

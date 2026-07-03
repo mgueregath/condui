@@ -66,7 +66,10 @@
     "chooseHowContinue": "Choose how you want to continue",
     "serverAlreadyActive": "This server already has an active SSH session.",
     "goToSession": "Go to session",
-    "openNew": "Open new"
+    "openNew": "Open new",
+    "openLocalTerminal": "Open local terminal",
+    "localTerminal": "Local terminal",
+    "localTerminalFailed": "Unable to open local terminal"
   },
   "vault": {
     "createTitle": "Create your vault",

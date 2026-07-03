@@ -2,6 +2,8 @@ package sessions
 
 import (
 	"io"
+	"os"
+	"os/exec"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -14,6 +16,8 @@ type SSHSession struct {
 
 	Client  *ssh.Client
 	Session *ssh.Session
+	Command *exec.Cmd
+	Pty     *os.File
 
 	SFTP *sftp.Client
 
@@ -24,6 +28,7 @@ type SSHSession struct {
 	Stderr io.Reader
 
 	Connected bool
+	IsLocal   bool
 
 	Rows int
 	Cols int
