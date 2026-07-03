@@ -18,6 +18,29 @@ import (
 
 const storedConnectionPasswordPrefix = "__stored_connection_password__:"
 
+type SSHConnectResult struct {
+	SessionID string `json:"sessionId"`
+	HomePath  string `json:"homePath"`
+}
+
+func remoteHomePath(remoteOS osinfo.OSType, username string) string {
+	if username == "" {
+		return "/"
+	}
+
+	switch remoteOS {
+	case osinfo.OSDarwin:
+		return "/Users/" + username
+	case osinfo.OSLinux, osinfo.OSUnix:
+		if username == "root" {
+			return "/root"
+		}
+		return "/home/" + username
+	default:
+		return "/"
+	}
+}
+
 // buildHostKeyCallback returns an SSH HostKeyCallback that implements TOFU
 // verification for the given host:port, prompting the user on first connection.
 func (a *App) buildHostKeyCallback(host string, port int) ssh.HostKeyCallback {
@@ -350,25 +373,26 @@ func (a *App) TestConnectionParams(host string, port int, username, authType, pa
 	return session.Run("true")
 }
 
-func (a *App) ConnectSSH(connectionID string) (string, error) {
+func (a *App) ConnectSSH(connectionID string) (SSHConnectResult, error) {
+	emptyResult := SSHConnectResult{}
 	client, err := a.createSSHClient(
 		connectionID,
 	)
 
 	if err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	sftpClient, err := sftp.NewClient(client)
 
 	if err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	session, err := client.NewSession()
 
 	if err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	modes := ssh.TerminalModes{
@@ -378,25 +402,25 @@ func (a *App) ConnectSSH(connectionID string) (string, error) {
 	err = session.RequestPty("xterm", 40, 120, modes)
 
 	if err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	stdin, err := session.StdinPipe()
 
 	if err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	stdout, err := session.StdoutPipe()
 
 	if err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	stderr, err := session.StderrPipe()
 
 	if err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	sessionID := uuid.NewString()
@@ -425,7 +449,7 @@ func (a *App) ConnectSSH(connectionID string) (string, error) {
 	)
 
 	if err := session.Shell(); err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	go func() {
@@ -479,44 +503,53 @@ func (a *App) ConnectSSH(connectionID string) (string, error) {
 		}
 	}()
 
-	return sessionID, nil
+	username := ""
+	if connection, err := a.database.GetConnectionByID(connectionID); err == nil {
+		username = connection.Username
+	}
+
+	return SSHConnectResult{
+		SessionID: sessionID,
+		HomePath:  remoteHomePath(remoteOS, username),
+	}, nil
 }
 
 // ConnectSSHVia connects to connectionID routing through jumpHostID as the jump/bastion host.
-func (a *App) ConnectSSHVia(connectionID, jumpHostID string) (string, error) {
+func (a *App) ConnectSSHVia(connectionID, jumpHostID string) (SSHConnectResult, error) {
+	emptyResult := SSHConnectResult{}
 	client, err := a.createSSHClientWithJump(connectionID, jumpHostID)
 	if err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	sftpClient, err := sftp.NewClient(client)
 	if err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	session, err := client.NewSession()
 	if err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	modes := ssh.TerminalModes{ssh.ECHO: 1}
 	if err = session.RequestPty("xterm", 40, 120, modes); err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	stdin, err := session.StdinPipe()
 	if err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	stdout, err := session.StdoutPipe()
 	if err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	stderr, err := session.StderrPipe()
 	if err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	sessionID := uuid.NewString()
@@ -537,7 +570,7 @@ func (a *App) ConnectSSHVia(connectionID, jumpHostID string) (string, error) {
 	})
 
 	if err := session.Shell(); err != nil {
-		return "", err
+		return emptyResult, err
 	}
 
 	go func() {
@@ -564,7 +597,15 @@ func (a *App) ConnectSSHVia(connectionID, jumpHostID string) (string, error) {
 		}
 	}()
 
-	return sessionID, nil
+	username := ""
+	if connection, err := a.database.GetConnectionByID(connectionID); err == nil {
+		username = connection.Username
+	}
+
+	return SSHConnectResult{
+		SessionID: sessionID,
+		HomePath:  remoteHomePath(remoteOS, username),
+	}, nil
 }
 
 // ApproveHostKey is called by the frontend in response to a host-key-verify event.

@@ -15,7 +15,10 @@ import FileContextMenu from "./FileContextMenu";
 import RemoteFileEditorModal from "../editor/RemoteFileEditorModal";
 import { useTranslation } from "react-i18next";
 
-const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
+const RemoteFileTree = forwardRef(function RemoteFileTree(
+  { sessionId, initialPath = "/", onPathChange },
+  ref,
+) {
   const { t } = useTranslation();
   const sortOptions = [
     { key: "name", label: t("files.name") },
@@ -47,6 +50,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
     const result = await ListDirectory(sessionId, targetPath);
     setFiles(result || []);
     setPath(targetPath);
+    onPathChange?.(sessionId, targetPath);
   };
 
   const refresh = () => load(path);
@@ -119,7 +123,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree({ sessionId }, ref) {
   };
 
   useEffect(() => {
-    load("/");
+    load(initialPath || "/");
   }, [sessionId]);
 
   const toggleSort = (field) => {

@@ -10,6 +10,7 @@ import RemoteFileTree from "./components/files/RemoteFileTree";
 import {
   AcceptShare,
   CancelShare,
+  CloseSession,
   ConnectSSH,
   ConnectSSHVia,
   SendInput,
@@ -305,6 +306,7 @@ function App() {
 
   const [tabs, setTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
+  const [fileTreePaths, setFileTreePaths] = useState({});
   const [connectingId, setConnectingId] = useState(null);
   const [connectionChoice, setConnectionChoice] = useState(null);
   const [sshError, setSshError] = useState(null);
@@ -343,6 +345,13 @@ function App() {
     } catch (err) {
       console.error("Failed to refresh share invitations", err);
     }
+  };
+
+  const rememberFileTreePath = (sessionId, path) => {
+    setFileTreePaths((prev) => {
+      if (prev[sessionId] === path) return prev;
+      return { ...prev, [sessionId]: path };
+    });
   };
 
   useEffect(() => {
@@ -414,11 +423,22 @@ function App() {
 
     setConnectingId(tab.connectionId);
     try {
-      const newSessionId = await ConnectSSH(tab.connectionId);
+      const connectResult = parseConnectResult(await ConnectSSH(tab.connectionId));
+      const newSessionId = connectResult.sessionId;
+      setFileTreePaths((prev) => {
+        const next = { ...prev };
+        if (prev[tab.id]) {
+          next[newSessionId] = prev[tab.id];
+        }
+        delete next[tab.id];
+        return next;
+      });
       delete terminalBuffers.current[tab.id];
       setTabs((prev) =>
         prev.map((t) =>
-          t.id === tab.id ? { ...t, id: newSessionId, disconnected: false } : t,
+          t.id === tab.id
+            ? { ...t, id: newSessionId, homePath: connectResult.homePath, disconnected: false }
+            : t,
         ),
       );
       setActiveTab(newSessionId);
@@ -541,6 +561,16 @@ function App() {
 
   const activeTabData = tabs.find((t) => t.id === activeTab);
 
+  const parseConnectResult = (result) => {
+    if (typeof result === "string") {
+      return { sessionId: result, homePath: "/" };
+    }
+    return {
+      sessionId: result?.sessionId || result?.SessionID || "",
+      homePath: result?.homePath || result?.HomePath || "/",
+    };
+  };
+
   const handleOpenConnection = async (c, forceNew = false) => {
     const existing = tabs.find((t) => t.connectionId === c.id);
 
@@ -556,7 +586,8 @@ function App() {
     setConnectingId(c.id);
 
     try {
-      const sessionId = await ConnectSSH(c.id);
+      const connectResult = parseConnectResult(await ConnectSSH(c.id));
+      const sessionId = connectResult.sessionId;
 
       setTabs((prev) => [
         ...prev,
@@ -565,6 +596,7 @@ function App() {
           connectionId: c.id,
           title: c.name,
           color: c.color,
+          homePath: connectResult.homePath,
         },
       ]);
 
@@ -586,7 +618,8 @@ function App() {
   const handleConnectVia = async (connection, jumpHost) => {
     setConnectingId(connection.id);
     try {
-      const sessionId = await ConnectSSHVia(connection.id, jumpHost.id);
+      const connectResult = parseConnectResult(await ConnectSSHVia(connection.id, jumpHost.id));
+      const sessionId = connectResult.sessionId;
       setTabs((prev) => [
         ...prev,
         {
@@ -594,6 +627,7 @@ function App() {
           connectionId: connection.id,
           title: `${connection.name} via ${jumpHost.name}`,
           color: connection.color,
+          homePath: connectResult.homePath,
         },
       ]);
       setActiveTab(sessionId);
@@ -815,7 +849,19 @@ function App() {
             tabs={tabs}
             activeTab={activeTab}
             onSelect={setActiveTab}
-            onClose={(tabId) => {
+            onClose={async (tabId) => {
+              try {
+                await CloseSession(tabId);
+              } catch (err) {
+                console.error("Failed to close SSH session", err);
+              }
+
+              delete terminalBuffers.current[tabId];
+              setFileTreePaths((prev) => {
+                const next = { ...prev };
+                delete next[tabId];
+                return next;
+              });
               setTabs((prev) => prev.filter((t) => t.id !== tabId));
               if (activeTab === tabId) {
                 const remaining = tabs.filter((t) => t.id !== tabId);
@@ -858,7 +904,12 @@ function App() {
                     <button className="files-header-btn">⋯</button>
                   </div>
                 </div>
-                <RemoteFileTree sessionId={activeTab} ref={fileTreeRef} />
+                <RemoteFileTree
+                  sessionId={activeTab}
+                  initialPath={fileTreePaths[activeTab] || activeTabData?.homePath || "/"}
+                  onPathChange={rememberFileTreePath}
+                  ref={fileTreeRef}
+                />
               </div>
               <div className="terminal-card">
                 <div className="terminal-titlebar">
