@@ -4,11 +4,11 @@ import (
 	"embed"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
-
 
 func main() {
 
@@ -25,7 +25,7 @@ func main() {
 		},
 	})
 
-	a.Window.NewWithOptions(application.WebviewWindowOptions{
+	win := a.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "Condui",
 		Width:            1400,
 		Height:           900,
@@ -51,6 +51,13 @@ func main() {
 			WindowIsTranslucent: false,
 		},
 		EnableFileDrop: true,
+	})
+
+	win.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
+		application.Get().Event.Emit("remote-files-dropped", map[string]any{
+			"files":   event.Context().DroppedFiles(),
+			"details": event.Context().DropTargetDetails(),
+		})
 	})
 
 	err := a.Run()

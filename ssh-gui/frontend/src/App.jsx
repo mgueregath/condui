@@ -28,6 +28,7 @@ import {
   GetAccountStatus,
   GetIncomingShares,
   SyncNow,
+  UploadDroppedFile,
 } from "../bindings/ssh-gui/app";
 
 import VaultUnlock from "./components/account/VaultUnlock";
@@ -676,6 +677,9 @@ function App() {
 
 
 
+  const getUploadErrorMessage = (err) =>
+    typeof err === "string" ? err : err?.message || String(err);
+
   const uploadFile = async () => {
     // Si no hay una sesión SSH activa, detenemos la operación
     if (!activeTab) {
@@ -690,14 +694,47 @@ function App() {
 
       fileTreeRef.current?.refresh();
     } catch (err) {
-      if (err.includes("cancelada")) {
+      const message = getUploadErrorMessage(err);
+      if (message.includes("cancelad")) {
         console.log("Subida cancelada por el usuario.");
         return;
       }
       console.error("Error al subir archivo:", err);
-      alert(t("app.uploadError", { error: err }));
+      alert(t("app.uploadError", { error: message }));
     }
   };
+
+  useEffect(() => {
+    const unsubscribe = Events.On(
+      "remote-files-dropped",
+      async (event) => {
+        const payload = event.data || {};
+        const targetAttrs = payload.details?.Attributes || payload.details?.attributes || {};
+        if (targetAttrs["data-remote-file-drop-target"] !== "true") return;
+        if (!activeTab || isLocalActive) {
+          alert(t("app.selectActiveSession"));
+          return;
+        }
+
+        const localPaths = (payload.files || []).filter(Boolean);
+        if (localPaths.length === 0) return;
+
+        const currentRemotePath = fileTreeRef.current?.currentPath || "/";
+        try {
+          for (const localPath of localPaths) {
+            await UploadDroppedFile(activeTab, currentRemotePath, localPath);
+          }
+          fileTreeRef.current?.refresh();
+        } catch (err) {
+          const message = getUploadErrorMessage(err);
+          console.error("Error al subir archivo arrastrado:", err);
+          alert(t("app.uploadError", { error: message }));
+        }
+      },
+    );
+
+    return () => unsubscribe();
+  }, [activeTab, isLocalActive, t]);
 
   const handleAcceptInvite = async (invite) => {
     setAcceptingInviteId(invite.id);
@@ -910,7 +947,15 @@ function App() {
           >
             <div className="card-mid">
               {!isLocalActive && (
-              <div className="files-panel">
+              <div
+                className="files-panel"
+                data-file-drop-target
+                data-remote-file-drop-target="true"
+              >
+                <div className="files-drop-hint" aria-hidden="true">
+                  <MdUploadFile />
+                  <span>{t("app.dropUploadRemote")}</span>
+                </div>
                 <div className="files-header">
                   {t("app.remoteFiles")}
                   <div className="files-header-actions">
@@ -925,7 +970,6 @@ function App() {
                       className="files-header-btn"
                       title={t("app.uploadHere")}
                       onClick={uploadFile}
-                      style={{ background: "var(--primary)" }}
                     >
                       <MdUploadFile />
                     </button>

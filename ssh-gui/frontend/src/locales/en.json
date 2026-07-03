@@ -37,6 +37,7 @@
     "remoteFiles": "Remote Files",
     "parentDirectory": "Parent directory",
     "uploadHere": "Upload file here",
+    "dropUploadRemote": "Drop to upload to remote host",
     "noSession": "No Session",
     "disconnected": "Disconnected",
     "sessionDisconnected": "Session disconnected",

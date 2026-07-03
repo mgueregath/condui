@@ -15,7 +15,9 @@
   --text-muted: #a89fc4;
 
   --accent: #8661f1;
+  --accent-rgb: 134, 97, 241;
   --accent-hover: #7048e8;
+  --primary: var(--accent);
 
   --green: #22c55e;
   --yellow: #f59e0b;
@@ -603,7 +605,51 @@ body,
   border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  position: relative;
   overflow: hidden;
+}
+
+.files-panel.file-drop-target-active {
+  border-color: var(--primary);
+  background: rgba(var(--accent-rgb, 99, 102, 241), 0.08);
+  box-shadow:
+    0 0 0 2px rgba(var(--accent-rgb, 99, 102, 241), 0.45) inset,
+    0 0 18px rgba(var(--accent-rgb, 99, 102, 241), 0.24);
+}
+
+.files-drop-hint {
+  position: absolute;
+  inset: 0px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border: 1px dashed rgba(var(--accent-rgb, 99, 102, 241), 0.6);
+  border-radius: 6px;
+  /* background: rgba(17, 24, 39, 0.4); */
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.98);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.files-drop-hint svg {
+  width: 30px;
+  height: 30px;
+  color: var(--primary);
+}
+
+.files-panel.file-drop-target-active .files-drop-hint {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .files-header {

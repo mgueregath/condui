@@ -53,11 +53,6 @@ func (a *App) ListDirectory(
 }
 
 func (a *App) UploadFile(sessionID string, remoteDirectory string) error {
-	session, ok := a.sessionManager.Get(sessionID)
-	if !ok {
-		return fmt.Errorf("session not found")
-	}
-
 	localPath, err := application.Get().Dialog.OpenFileWithOptions(&application.OpenFileDialogOptions{
 		Title: "Subir archivo",
 	}).PromptForSingleSelection()
@@ -65,7 +60,31 @@ func (a *App) UploadFile(sessionID string, remoteDirectory string) error {
 		return fmt.Errorf("cancelado")
 	}
 
+	return a.uploadLocalFile(sessionID, remoteDirectory, localPath)
+}
+
+func (a *App) UploadDroppedFile(sessionID string, remoteDirectory string, localPath string) error {
+	if strings.TrimSpace(localPath) == "" {
+		return fmt.Errorf("local path required")
+	}
+
+	return a.uploadLocalFile(sessionID, remoteDirectory, localPath)
+}
+
+func (a *App) uploadLocalFile(sessionID string, remoteDirectory string, localPath string) error {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+	if session.SFTP == nil {
+		return fmt.Errorf("sftp client nil")
+	}
+
 	fileName := filepath.Base(localPath)
+	if fileName == "." || fileName == string(filepath.Separator) {
+		return fmt.Errorf("invalid file path")
+	}
+
 	var remotePath string
 	if remoteDirectory == "/" {
 		remotePath = fmt.Sprintf("/%s", fileName)
@@ -83,6 +102,9 @@ func (a *App) UploadFile(sessionID string, remoteDirectory string) error {
 	stat, err := localFile.Stat()
 	if err != nil {
 		return err
+	}
+	if stat.IsDir() {
+		return fmt.Errorf("cannot upload directories")
 	}
 
 	// Crear archivo en el servidor remoto por SFTP
