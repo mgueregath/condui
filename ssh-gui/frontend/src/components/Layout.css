@@ -242,6 +242,57 @@ body,
   cursor: pointer;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.language-switcher {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  transition: background .15s, border-color .15s, color .15s;
+}
+
+.language-switcher:hover,
+.language-switcher:focus-within {
+  background: var(--bg-hover);
+  border-color: var(--border-strong, var(--accent));
+  color: var(--text-primary);
+}
+
+.language-switcher-icon {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: inherit;
+}
+
+.language-switcher select {
+  height: 30px;
+  min-width: 86px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 /* ===================== MAIN CONTENT — padding crea el gutter ===================== */
 .main-content {
   flex: 1;
@@ -2604,6 +2655,21 @@ select.modern-input {
 .tier-dot.tier-pro { background: #f59e0b; }
 
 /* Account modal internals */
+.account-preference-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .account-tabs {
   display: flex; gap: 4px;
   background: var(--bg-elevated); border-radius: 8px; padding: 3px;

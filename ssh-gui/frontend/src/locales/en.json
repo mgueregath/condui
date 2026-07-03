@@ -15,6 +15,9 @@
     "yes": "YES",
     "no": "NO"
   },
+  "settings": {
+    "language": "Language"
+  },
   "app": {
     "connections": "Connections",
     "newConnection": "New connection",

@@ -8,6 +8,7 @@ import {
 } from "../../../bindings/ssh-gui/app";
 import { useTranslation } from "react-i18next";
 import { FaArrowRight } from "react-icons/fa";
+import LanguageSwitcher from "../common/LanguageSwitcher";
 
 const SERVER_URL = import.meta.env.VITE_CONDUI_SERVER_URL || "https://sync.condui.app";
 
@@ -104,6 +105,11 @@ export default function AccountModal({ onClose }) {
           <p>Condui Sync</p>
         </div>
         <div className="modal-body">
+          <div className="account-preference-row">
+            <span>{t("settings.language")}</span>
+            <LanguageSwitcher />
+          </div>
+
           <div className="account-info-card">
             <div className="account-avatar">{status.email?.[0]?.toUpperCase() || "?"}</div>
             <div className="account-info-details">
@@ -157,6 +163,11 @@ export default function AccountModal({ onClose }) {
         <p>{t("account.signInDescription")}</p>
       </div>
       <div className="modal-body">
+        <div className="account-preference-row">
+          <span>{t("settings.language")}</span>
+          <LanguageSwitcher />
+        </div>
+
         <div className="account-tabs">
           <button
             className={`account-tab${tab === "login" ? " active" : ""}`}
