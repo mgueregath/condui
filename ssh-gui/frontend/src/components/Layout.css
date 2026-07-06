@@ -1091,23 +1091,12 @@ body,
 }
 .terminal-container > div {
   position: absolute;
-  inset: 0;
+  inset: 4px;
   background: var(--terminal-bg);
 }
 
 .terminal .xterm-viewport {
   background: var(--terminal-bg) !important;
-}
-
-.terminal .xterm-screen {
-  padding: 4px !important;
-}
-
-.terminal .xterm-screen .xterm-rows span {
-  font-family: "JetBrains Mono", monospace !important;
-  line-height: 1.55;
-  font-size: 12px;
-  color: #c4bde0 !important;
 }
 
 .terminal-statusbar {

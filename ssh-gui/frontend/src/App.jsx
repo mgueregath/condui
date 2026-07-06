@@ -326,6 +326,12 @@ function App() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  const focusTerminal = () => {
+    window.requestAnimationFrame(() => {
+      termRef.current?.focus();
+    });
+  };
+
   // Host key verification
   const [hostKeyPrompt, setHostKeyPrompt] = useState(null);
 
@@ -486,9 +492,8 @@ function App() {
       convertEol: true,
       theme: {
         background: "#111827",
-        foreground: "#dfdfdf",
+        foreground: "#c4bde0",
         cursor: "#6366f1",
-        selectionBackground: "rgba(99, 101, 241, 0.07)",
         black: "#1f2937",
         red: "#f87171",
         green: "#27b65b",
@@ -507,8 +512,8 @@ function App() {
         brightWhite: "#f9fafb",
       },
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-      fontSize: 13,
-      lineHeight: 1.45,
+      fontSize: 12,
+      lineHeight: 1.5,
     });
 
     const fitAddon = new FitAddon();
@@ -516,6 +521,7 @@ function App() {
     term.open(terminalRef.current);
     fitAddon.fit();
     termRef.current = term;
+    focusTerminal();
 
     term.onData((data) => {
       if (!activeTab) return;
@@ -559,6 +565,7 @@ function App() {
     termRef.current.clear();
     termRef.current.write(terminalBuffers.current[activeTab] || "");
     ResizeTerminal(activeTab, termRef.current.rows, termRef.current.cols);
+    focusTerminal();
   }, [activeTab]);
 
   const activeTabData = tabs.find((t) => t.id === activeTab);
