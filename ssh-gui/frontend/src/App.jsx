@@ -38,7 +38,7 @@ import ShareModal from "./components/account/ShareModal";
 import { BsThreeDots } from "react-icons/bs";
 import { GrRefresh } from "react-icons/gr";
 import { MdUploadFile } from "react-icons/md";
-import { FaLevelUpAlt } from "react-icons/fa";
+import { FaLevelUpAlt, FaRedoAlt } from "react-icons/fa";
 import { TiFlashOutline } from "react-icons/ti";
 
 import TabBar from "./components/TabBar";
@@ -787,6 +787,26 @@ function App() {
     }
   };
 
+  const handleCloseTab = async (tabId) => {
+    try {
+      await CloseSession(tabId);
+    } catch (err) {
+      console.error("Failed to close SSH session", err);
+    }
+
+    delete terminalBuffers.current[tabId];
+    setFileTreePaths((prev) => {
+      const next = { ...prev };
+      delete next[tabId];
+      return next;
+    });
+    setTabs((prev) => prev.filter((t) => t.id !== tabId));
+    if (activeTab === tabId) {
+      const remaining = tabs.filter((t) => t.id !== tabId);
+      setActiveTab(remaining.length ? remaining[0].id : null);
+    }
+  };
+
   // Show vault screen before main UI
   if (!vaultUnlocked) {
     return <VaultUnlock onUnlocked={() => setVaultUnlocked(true)} />;
@@ -918,25 +938,7 @@ function App() {
             tabs={tabs}
             activeTab={activeTab}
             onSelect={setActiveTab}
-            onClose={async (tabId) => {
-              try {
-                await CloseSession(tabId);
-              } catch (err) {
-                console.error("Failed to close SSH session", err);
-              }
-
-              delete terminalBuffers.current[tabId];
-              setFileTreePaths((prev) => {
-                const next = { ...prev };
-                delete next[tabId];
-                return next;
-              });
-              setTabs((prev) => prev.filter((t) => t.id !== tabId));
-              if (activeTab === tabId) {
-                const remaining = tabs.filter((t) => t.id !== tabId);
-                setActiveTab(remaining.length ? remaining[0].id : null);
-              }
-            }}
+            onClose={handleCloseTab}
             onReconnect={handleReconnect}
             onOpenLocalTerminal={handleOpenLocalTerminal}
             connectingId={connectingId}
@@ -1021,15 +1023,27 @@ function App() {
                         {t("app.sessionDisconnected")}
                       </div>
                       {!isLocalActive && (
-                        <button
-                          className="terminal-reconnect-btn"
-                          disabled={connectingId === activeTabData?.connectionId}
-                          onClick={() => handleReconnect(activeTabData)}
-                        >
-                          {connectingId === activeTabData?.connectionId
-                            ? t("app.connecting")
-                            : t("app.reconnect")}
-                        </button>
+                        <div className="terminal-reconnect-spacer">
+                          <button
+                            className="terminal-reconnect-btn"
+                            disabled={connectingId === activeTabData?.connectionId}
+                            onClick={() => handleReconnect(activeTabData)}
+                          >
+                            <FaRedoAlt />
+                             &nbsp;
+                            {connectingId === activeTabData?.connectionId
+                              ? t("app.connecting")
+                              : t("app.reconnect")}
+                             
+                          </button>
+                          <button
+                            className="terminal-close-btn"
+                            title={t("common.close")}
+                            onClick={() => handleCloseTab(activeTabData.id)}
+                          >
+                            <FaTimes />
+                          </button>
+                        </div>
                       )}
                     </div>
                   )}

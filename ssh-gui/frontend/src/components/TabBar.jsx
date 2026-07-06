@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { FaTerminal } from "react-icons/fa";
+import { FaTerminal, FaRedoAlt, FaTimes } from "react-icons/fa";
 
 export default function TabBar({
   tabs,
@@ -52,7 +52,7 @@ export default function TabBar({
                 onReconnect(tab);
               }}
             >
-              ↺
+              <FaRedoAlt />
             </button>
           )}
           {onClose && (
@@ -63,7 +63,7 @@ export default function TabBar({
                 onClose(tab.id);
               }}
             >
-              ×
+              <FaTimes />
             </button>
           )}
         </div>

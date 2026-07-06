@@ -555,6 +555,7 @@ body,
   padding: 0 10px;
   gap: 3px;
   padding-top: 10px;
+  z-index: 1;
 }
 .tabbar::-webkit-scrollbar {
   height: 0;
@@ -993,6 +994,33 @@ body,
   opacity: 0.55;
   cursor: not-allowed;
 }
+.terminal-reconnect-spacer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.terminal-reconnect-spacer .terminal-reconnect-btn {
+  margin-top: 0;
+}
+.terminal-close-btn {
+  width: 34px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+.terminal-close-btn:hover {
+  background: #dc2626;
+}
 
 /* Indicador de desconexión en el tab */
 .tab-disconnect-dot {
@@ -1004,13 +1032,14 @@ body,
 }
 .tab.disconnected .tab-close {
   opacity: 1;
+  font-size: 12px;
 }
 .tab-reconnect {
   background: transparent;
   border: none;
-  color: var(--accent);
+  /* color: var(--accent); */
   cursor: pointer;
-  font-size: 14px;
+  font-size: 9px;
   padding: 0 1px;
   line-height: 1;
   display: flex;
@@ -2100,7 +2129,7 @@ select.modern-input {
   position: fixed;
   inset: 0;
   backdrop-filter: blur(4px);
-  z-index: 10000;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
