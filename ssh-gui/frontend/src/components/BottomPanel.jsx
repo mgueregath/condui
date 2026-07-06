@@ -155,6 +155,16 @@ const TABS = [
   { id: "databases", labelKey: "panel.databases", icon: <FaDatabase />, pro: true },
 ];
 
+const DOCKER_STATE_SORT_ORDER = [
+  "running",
+  "paused",
+  "restarting",
+  "created",
+  "removing",
+  "exited",
+  "dead",
+];
+
 function StatPill({ label, value, sub, warn = false, icon = null }) {
   const color = warn ? "var(--red)" : "var(--accent)";
   const bg = warn ? "rgba(239,68,68,0.1)" : "rgba(99,102,241,0.08)";
@@ -220,8 +230,11 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
   const [tunnels, setTunnels] = useState([]);
   const [containers, setContainers] = useState([]);
   const [ports, setPorts] = useState([]);
-  const [portSearch, setPortSearch] = useState("");
+  const [panelSearch, setPanelSearch] = useState("");
   const [portSort, setPortSort] = useState({ key: "port", direction: "asc" });
+  const [dockerSort, setDockerSort] = useState({ key: "state", direction: "asc" });
+  const [vboxSort, setVboxSort] = useState({ key: "state", direction: "asc" });
+  const [databaseSort, setDatabaseSort] = useState({ key: "name", direction: "asc" });
   const [databases, setDatabases] = useState([]);
   const [vms, setVms] = useState([]);
   const [vboxError, setVboxError] = useState(null);
@@ -235,11 +248,6 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
   const [formLocalPort, setFormLocalPort] = useState("");
   const [formRemoteHost, setFormRemoteHost] = useState("127.0.0.1");
   const [formRemotePort, setFormRemotePort] = useState("");
-
-  const stateOrder = {
-    running: 0,
-    exited: 1,
-  };
 
   // 1. ESCUCHAR EVENTOS GLOBALES DE WAILS (Corregido con referencias limpias)
   useEffect(() => {
@@ -401,14 +409,64 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
     }));
   };
 
+  const handleDockerSort = (key) => {
+    setDockerSort((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const handleVboxSort = (key) => {
+    setVboxSort((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const handleDatabaseSort = (key) => {
+    setDatabaseSort((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const compareText = (left, right) =>
+    String(left ?? "").localeCompare(String(right ?? ""), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+
+  const compareDockerState = (left, right) => {
+    const leftIndex = DOCKER_STATE_SORT_ORDER.indexOf(String(left ?? "").toLowerCase());
+    const rightIndex = DOCKER_STATE_SORT_ORDER.indexOf(String(right ?? "").toLowerCase());
+    const normalizedLeft = leftIndex === -1 ? DOCKER_STATE_SORT_ORDER.length : leftIndex;
+    const normalizedRight = rightIndex === -1 ? DOCKER_STATE_SORT_ORDER.length : rightIndex;
+    return normalizedLeft - normalizedRight || compareText(left, right);
+  };
+
+  const matchesSearch = (values) => {
+    const query = panelSearch.trim().toLowerCase();
+    if (!query) return true;
+    return values.some((value) => String(value ?? "").toLowerCase().includes(query));
+  };
+
+  const searchPlaceholder = {
+    docker: t("panel.searchContainers"),
+    ports: t("panel.searchPorts"),
+    virtualbox: t("panel.searchVms"),
+    databases: t("panel.searchDatabases"),
+  }[activeTab];
+
+  const showPanelSearch =
+    activeTab === "docker" ||
+    activeTab === "ports" ||
+    activeTab === "virtualbox" ||
+    (activeTab === "databases" && isPro);
+
   const visiblePorts = useMemo(() => {
-    const query = portSearch.trim().toLowerCase();
-    const filtered = query
-      ? ports.filter((p) =>
-        [p.proto, p.port, p.address, p.process]
-          .some((value) => String(value ?? "").toLowerCase().includes(query)),
-      )
-      : ports;
+    const filtered = ports.filter((p) =>
+      matchesSearch([p.proto, p.port, p.address, p.process]),
+    );
 
     return [...filtered].sort((a, b) => {
       const direction = portSort.direction === "asc" ? 1 : -1;
@@ -420,11 +478,50 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
       const right = String(b[portSort.key] ?? "").toLowerCase();
       return left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" }) * direction;
     });
-  }, [ports, portSearch, portSort]);
+  }, [ports, panelSearch, portSort]);
 
-  const portSortIcon = (key) => {
-    if (portSort.key !== key) return null;
-    return portSort.direction === "asc" ? <FaArrowUp /> : <FaArrowDown />;
+  const sortedContainers = useMemo(() => (
+    containers.filter((c) =>
+      matchesSearch([c.names, c.image, c.state, c.status, c.ports]),
+    ).sort((a, b) => {
+      const direction = dockerSort.direction === "asc" ? 1 : -1;
+      if (dockerSort.key === "state") {
+        return (compareDockerState(a.state, b.state) || compareText(a.names, b.names)) * direction;
+      }
+      if (dockerSort.key === "ports") {
+        return (compareText(a.ports, b.ports) || compareText(a.names, b.names)) * direction;
+      }
+      return (compareText(a.names, b.names) || compareDockerState(a.state, b.state)) * direction;
+    })
+  ), [containers, panelSearch, dockerSort]);
+
+  const sortedVms = useMemo(() => (
+    vms.filter((vm) =>
+      matchesSearch([vm.name, vm.uuid, vm.state, vm.memoryMb, vm.cpus, vm.os, vm.ip]),
+    ).sort((a, b) => {
+      const direction = vboxSort.direction === "asc" ? 1 : -1;
+      if (vboxSort.key === "state") {
+        return (compareText(a.state, b.state) || compareText(a.name, b.name)) * direction;
+      }
+      return (compareText(a.name, b.name) || compareText(a.state, b.state)) * direction;
+    })
+  ), [vms, panelSearch, vboxSort]);
+
+  const sortedDatabases = useMemo(() => (
+    databases.filter((db) =>
+      matchesSearch([db.name, db.port, db.address, db.source, db.container, db.image]),
+    ).sort((a, b) => {
+      const direction = databaseSort.direction === "asc" ? 1 : -1;
+      if (databaseSort.key === "port") {
+        return (((Number(a.port) || 0) - (Number(b.port) || 0)) || compareText(a.name, b.name)) * direction;
+      }
+      return (compareText(a.name, b.name) || ((Number(a.port) || 0) - (Number(b.port) || 0))) * direction;
+    })
+  ), [databases, panelSearch, databaseSort]);
+
+  const sortIcon = (sort, key) => {
+    if (sort.key !== key) return null;
+    return sort.direction === "asc" ? <FaArrowUp /> : <FaArrowDown />;
   };
 
   // --- Bases de datos ---
@@ -576,16 +673,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
           );
         })}
 
-        <div
-          className="bottom-tab-actions"
-          style={{
-            marginLeft: "auto",
-            display: "flex",
-            alignItems: "center",
-            paddingRight: "10px",
-            gap: "8px",
-          }}
-        >
+        <div className="bottom-tab-actions">
           {activeTab === "tunnels" && (
             <button
               className="bottom-action-btn"
@@ -594,11 +682,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                 background: "var(--accent)",
                 color: "#fff",
                 border: "none",
-                borderRadius: "4px",
-                padding: "4px 10px",
-                fontSize: "11px",
                 fontWeight: "600",
-                cursor: "pointer",
               }}
             >
               <FaPlus /> {t("panel.newTunnel")}
@@ -609,27 +693,20 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
               className="bottom-action-btn"
               onClick={() => setLogs([])}
               style={{
-                background: "none",
-                border: "1px solid var(--border)",
-                borderRadius: "4px",
-                padding: "4px 10px",
-                fontSize: "11px",
                 fontWeight: "600",
-                cursor: "pointer",
-                color: "var(--text-secondary)",
               }}
             >
               <FaTrash /> {t("panel.clear")}
             </button>
           )}
-          {activeTab === "ports" && (
+          {showPanelSearch && (
             <div className="ports-search-wrap">
               <FaSearch />
               <input
                 className="ports-search-input"
-                value={portSearch}
-                onChange={(e) => setPortSearch(e.target.value)}
-                placeholder={t("panel.searchPorts")}
+                value={panelSearch}
+                onChange={(e) => setPanelSearch(e.target.value)}
+                placeholder={searchPlaceholder}
               />
             </div>
           )}
@@ -643,15 +720,6 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                       activeTab === "virtualbox" ? fetchVMs :
                         fetchContainers
               }
-              style={{
-                background: "none",
-                border: "1px solid var(--border)",
-                borderRadius: "4px",
-                padding: "4px 8px",
-                fontSize: "11px",
-                cursor: "pointer",
-                color: "var(--text-secondary)",
-              }}
             >
               <FaRedoAlt /> {t("common.refresh")}
             </button>
@@ -961,20 +1029,20 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                     <th style={{ padding: "7px 12px", textAlign: "left", width: "70px" }}>
                       <button className="ports-sort-btn" onClick={() => handlePortSort("proto")}>
                         {t("panel.protocol")}
-                        <span className="ports-sort-icon">{portSortIcon("proto")}</span>
+                        <span className="ports-sort-icon">{sortIcon(portSort, "proto")}</span>
                       </button>
                     </th>
                     <th style={{ padding: "7px 12px", textAlign: "left", width: "80px" }}>
                       <button className="ports-sort-btn" onClick={() => handlePortSort("port")}>
                         {t("connection.port")}
-                        <span className="ports-sort-icon">{portSortIcon("port")}</span>
+                        <span className="ports-sort-icon">{sortIcon(portSort, "port")}</span>
                       </button>
                     </th>
                     <th style={{ padding: "7px 12px", textAlign: "left" }}>{t("panel.address")}</th>
                     <th style={{ padding: "7px 12px", textAlign: "left" }}>
                       <button className="ports-sort-btn" onClick={() => handlePortSort("process")}>
                         {t("panel.process")}
-                        <span className="ports-sort-icon">{portSortIcon("process")}</span>
+                        <span className="ports-sort-icon">{sortIcon(portSort, "process")}</span>
                       </button>
                     </th>
                   </tr>
@@ -1008,7 +1076,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
           <div
             className="docker-tab-content"
             style={{
-              padding: "10px 14px",
+              padding: "12px",
               display: "flex",
               flexDirection: "column",
               gap: "6px",
@@ -1025,14 +1093,47 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
               >
                 {t("panel.noContainers")}
               </div>
+            ) : sortedContainers.length === 0 ? (
+              <div
+                className="empty-state"
+                style={{
+                  color: "var(--text-muted)",
+                  textAlign: "center",
+                  padding: "40px",
+                }}
+              >
+                {t("panel.noContainerResults")}
+              </div>
             ) : (
-              containers
-                .sort((a, b) => stateOrder[a.state] - stateOrder[b.state] || a.names.localeCompare(b.names))
-                .map((c) => {
-                  const isRunning = c.state === "running";
-                  const st = dockerStats[c.id.slice(0, 12)] || dockerStats[c.id] || null;
+              <>
+                <div className="panel-list-header">
+                  <div style={{ flex: "1 1 20%" }}>
+                    <button className="panel-sort-btn" onClick={() => handleDockerSort("name")}>
+                      {t("panel.container")}
+                      <span className="panel-sort-icon">{sortIcon(dockerSort, "name")}</span>
+                    </button>
+                  </div>
+                  <div style={{ flex: "1 1 20%" }}>
+                    <button className="panel-sort-btn" onClick={() => handleDockerSort("state")}>
+                      {t("panel.status")}
+                      <span className="panel-sort-icon">{sortIcon(dockerSort, "state")}</span>
+                    </button>
+                  </div>
+                  <div style={{ flex: "1 1 25%" }}>
+                    <button className="panel-sort-btn" onClick={() => handleDockerSort("ports")}>
+                      {t("panel.ports")}
+                      <span className="panel-sort-icon">{sortIcon(dockerSort, "ports")}</span>
+                    </button>
+                  </div>
+                  <div style={{ flex: "1 1 15%" }}>{t("panel.stats")}</div>
+                  <div style={{ flex: "0 0 86px", textAlign: "right" }}>{t("panel.actions")}</div>
+                </div>
+                {sortedContainers
+                  .map((c) => {
+                    const isRunning = c.state === "running";
+                    const st = dockerStats[c.id.slice(0, 12)] || dockerStats[c.id] || null;
 
-                  return (
+                    return (
                     <div
                       key={c.id}
                       className="docker-container-row"
@@ -1278,15 +1379,16 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                         </button>
                       </div>
                     </div>
-                  );
-                })
+                    );
+                  })}
+              </>
             )}
           </div>
         )}
 
         {/* ===================== TAB: VIRTUALBOX ===================== */}
         {activeTab === "virtualbox" && (
-          <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 8 }}>
             {vboxError ? (
               <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
                 <FaDesktop style={{ fontSize: 28, opacity: 0.3, display: "block", margin: "0 auto 10px" }} />
@@ -1297,7 +1399,29 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
               <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
                 {t("panel.noVms")}
               </div>
-            ) : vms.map(vm => {
+            ) : sortedVms.length === 0 ? (
+              <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
+                {t("panel.noVmResults")}
+              </div>
+            ) : (
+              <>
+                <div className="panel-list-header">
+                  <div style={{ flex: "1 1 20%" }}>
+                    <button className="panel-sort-btn" onClick={() => handleVboxSort("name")}>
+                      {t("panel.machine")}
+                      <span className="panel-sort-icon">{sortIcon(vboxSort, "name")}</span>
+                    </button>
+                  </div>
+                  <div style={{ flex: "1" }}>
+                    <button className="panel-sort-btn" onClick={() => handleVboxSort("state")}>
+                      {t("panel.status")}
+                      <span className="panel-sort-icon">{sortIcon(vboxSort, "state")}</span>
+                    </button>
+                  </div>
+                  <div style={{ flex: "1" }}>{t("panel.specs")}</div>
+                  <div style={{ flex: "2", textAlign: "right" }}>{t("panel.actions")}</div>
+                </div>
+                {sortedVms.map(vm => {
               const isRunning = vm.state === "running";
               const isPaused = vm.state === "paused";
               const isSaved = vm.state === "saved";
@@ -1469,7 +1593,9 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                   
                 </div>
               );
-            })}
+                })}
+              </>
+            )}
           </div>
         )}
 
@@ -1477,7 +1603,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
         {activeTab === "databases" && !isPro && (
           <div style={{
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            height: "100%", gap: 12, padding: 32, textAlign: "center",
+            height: "100%", gap: 12, padding: "12px", textAlign: "center",
           }}>
             <FaDatabase style={{ fontSize: 28, color: "var(--text-muted)", opacity: 0.5 }} />
             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>
@@ -1499,14 +1625,34 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
           </div>
         )}
         {activeTab === "databases" && isPro && (
-          <div className="docker-tab-content">
+          <div className="docker-tab-content" style={{ padding: "12px" }}>
             {databases.length === 0 ? (
               <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
                 {t("panel.noDatabases")}
               </div>
+            ) : sortedDatabases.length === 0 ? (
+              <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
+                {t("panel.noDatabaseResults")}
+              </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {databases.map((db, i) => {
+                <div className="panel-list-header">
+                  <div style={{ flex: "0 0 20px" }} />
+                  <div style={{ flex: "1 1 0" }}>
+                    <button className="panel-sort-btn" onClick={() => handleDatabaseSort("name")}>
+                      {t("panel.database")}
+                      <span className="panel-sort-icon">{sortIcon(databaseSort, "name")}</span>
+                    </button>
+                  </div>
+                  <div style={{ flex: "0 0 92px", textAlign: "right" }}>
+                    <button className="panel-sort-btn right" onClick={() => handleDatabaseSort("port")}>
+                      {t("connection.port")}
+                      <span className="panel-sort-icon">{sortIcon(databaseSort, "port")}</span>
+                    </button>
+                  </div>
+                  <div style={{ flex: "0 0 112px", textAlign: "right" }}>{t("panel.source")}</div>
+                </div>
+                {sortedDatabases.map((db, i) => {
                   const isDocker = db.source === "docker";
                   const dbMeta = DB_TYPES[db.name] || {};
                   const color = dbMeta.color || "var(--accent)";
@@ -1553,9 +1699,9 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                       </div>
 
                       {/* Puerto */}
-                      {db.port > 0 && (
-                        <div style={{ textAlign: "right", flexShrink: 0 }}>
-                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>{t("connection.port")}</div>
+                      <div style={{ textAlign: "right", flex: "0 0 92px" }}>
+                        {db.port > 0 ? (
+                          <>
                           <div style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "13px", fontWeight: "600", color }}>
                             {db.port}
                           </div>
@@ -1564,11 +1710,14 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                               {db.address}
                             </div>
                           )}
-                        </div>
-                      )}
+                          </>
+                        ) : (
+                          <span style={{ color: "var(--text-muted)" }}>-</span>
+                        )}
+                      </div>
 
                       {/* Fuente badge + Explorar */}
-                      <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                      <div style={{ flex: "0 0 112px", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
                         <span style={{
                           padding: "2px 8px",
                           borderRadius: "4px",
