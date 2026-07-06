@@ -228,6 +228,8 @@
     "turnOff": "Turn off",
     "turnOn": "Turn on",
     "noPorts": "No listening ports found.",
+    "searchPorts": "Search ports…",
+    "noPortResults": "No ports match your search.",
     "protocol": "Protocol",
     "address": "Address",
     "process": "Process",

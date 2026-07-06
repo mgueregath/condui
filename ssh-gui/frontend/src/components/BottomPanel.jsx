@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Events } from "@wailsio/runtime";
 import {
   GetTunnels,
@@ -220,6 +220,8 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
   const [tunnels, setTunnels] = useState([]);
   const [containers, setContainers] = useState([]);
   const [ports, setPorts] = useState([]);
+  const [portSearch, setPortSearch] = useState("");
+  const [portSort, setPortSort] = useState({ key: "port", direction: "asc" });
   const [databases, setDatabases] = useState([]);
   const [vms, setVms] = useState([]);
   const [vboxError, setVboxError] = useState(null);
@@ -386,12 +388,43 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
   const fetchPorts = async () => {
     try {
       const res = await GetListeningPorts(sessionId);
-      // Ordenar por número de puerto
-      const sorted = (res || []).sort((a, b) => a.port - b.port);
-      setPorts(sorted);
+      setPorts(res || []);
     } catch (err) {
       console.error("Error al obtener puertos:", err);
     }
+  };
+
+  const handlePortSort = (key) => {
+    setPortSort((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const visiblePorts = useMemo(() => {
+    const query = portSearch.trim().toLowerCase();
+    const filtered = query
+      ? ports.filter((p) =>
+        [p.proto, p.port, p.address, p.process]
+          .some((value) => String(value ?? "").toLowerCase().includes(query)),
+      )
+      : ports;
+
+    return [...filtered].sort((a, b) => {
+      const direction = portSort.direction === "asc" ? 1 : -1;
+      if (portSort.key === "port") {
+        return ((Number(a.port) || 0) - (Number(b.port) || 0)) * direction;
+      }
+
+      const left = String(a[portSort.key] ?? "").toLowerCase();
+      const right = String(b[portSort.key] ?? "").toLowerCase();
+      return left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" }) * direction;
+    });
+  }, [ports, portSearch, portSort]);
+
+  const portSortIcon = (key) => {
+    if (portSort.key !== key) return null;
+    return portSort.direction === "asc" ? <FaArrowUp /> : <FaArrowDown />;
   };
 
   // --- Bases de datos ---
@@ -588,6 +621,17 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
             >
               <FaTrash /> {t("panel.clear")}
             </button>
+          )}
+          {activeTab === "ports" && (
+            <div className="ports-search-wrap">
+              <FaSearch />
+              <input
+                className="ports-search-input"
+                value={portSearch}
+                onChange={(e) => setPortSearch(e.target.value)}
+                placeholder={t("panel.searchPorts")}
+              />
+            </div>
           )}
           {(activeTab === "tunnels" || activeTab === "docker" || activeTab === "ports" || activeTab === "databases" || activeTab === "virtualbox") && (
             <button
@@ -906,18 +950,37 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
               <div style={{ color: "var(--text-muted)", textAlign: "center", padding: "40px" }}>
                 {t("panel.noPorts")}
               </div>
+            ) : visiblePorts.length === 0 ? (
+              <div style={{ color: "var(--text-muted)", textAlign: "center", padding: "40px" }}>
+                {t("panel.noPortResults")}
+              </div>
             ) : (
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                 <thead>
                   <tr style={{ color: "var(--text-secondary)", background: "var(--bg-hover)", borderBottom: "1px solid var(--border)" }}>
-                    <th style={{ padding: "7px 12px", textAlign: "left", width: "70px" }}>{t("panel.protocol")}</th>
-                    <th style={{ padding: "7px 12px", textAlign: "left", width: "80px" }}>{t("connection.port")}</th>
+                    <th style={{ padding: "7px 12px", textAlign: "left", width: "70px" }}>
+                      <button className="ports-sort-btn" onClick={() => handlePortSort("proto")}>
+                        {t("panel.protocol")}
+                        <span className="ports-sort-icon">{portSortIcon("proto")}</span>
+                      </button>
+                    </th>
+                    <th style={{ padding: "7px 12px", textAlign: "left", width: "80px" }}>
+                      <button className="ports-sort-btn" onClick={() => handlePortSort("port")}>
+                        {t("connection.port")}
+                        <span className="ports-sort-icon">{portSortIcon("port")}</span>
+                      </button>
+                    </th>
                     <th style={{ padding: "7px 12px", textAlign: "left" }}>{t("panel.address")}</th>
-                    <th style={{ padding: "7px 12px", textAlign: "left" }}>{t("panel.process")}</th>
+                    <th style={{ padding: "7px 12px", textAlign: "left" }}>
+                      <button className="ports-sort-btn" onClick={() => handlePortSort("process")}>
+                        {t("panel.process")}
+                        <span className="ports-sort-icon">{portSortIcon("process")}</span>
+                      </button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {ports.map((p, i) => (
+                  {visiblePorts.map((p, i) => (
                     <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                       <td style={{ padding: "7px 12px" }}>
                         <span className={`port-proto-badge ${p.proto.toLowerCase()}`}>

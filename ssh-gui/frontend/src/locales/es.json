@@ -228,6 +228,8 @@
     "turnOff": "Apagar",
     "turnOn": "Encender",
     "noPorts": "No se encontraron puertos en escucha.",
+    "searchPorts": "Buscar puertos…",
+    "noPortResults": "No hay puertos que coincidan con la búsqueda.",
     "protocol": "Protocolo",
     "address": "Dirección",
     "process": "Proceso",
