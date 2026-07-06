@@ -165,6 +165,16 @@ const DOCKER_STATE_SORT_ORDER = [
   "dead",
 ];
 
+const DOCKER_STATUS_TIME_UNITS = {
+  second: 1,
+  minute: 60,
+  hour: 60 * 60,
+  day: 60 * 60 * 24,
+  week: 60 * 60 * 24 * 7,
+  month: 60 * 60 * 24 * 30,
+  year: 60 * 60 * 24 * 365,
+};
+
 function StatPill({ label, value, sub, warn = false, icon = null }) {
   const color = warn ? "var(--red)" : "var(--accent)";
   const bg = warn ? "rgba(239,68,68,0.1)" : "rgba(99,102,241,0.08)";
@@ -444,6 +454,36 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
     return normalizedLeft - normalizedRight || compareText(left, right);
   };
 
+  const parseDockerStatusTime = (status) => {
+    const normalized = String(status ?? "").toLowerCase();
+    if (!normalized) return null;
+    if (normalized.includes("less than a second")) return 0;
+
+    const wordAmountMatch = normalized.match(/\b(a|an)\s+(second|minute|hour|day|week|month|year)s?\b/);
+    if (wordAmountMatch) {
+      return DOCKER_STATUS_TIME_UNITS[wordAmountMatch[2]];
+    }
+
+    const amountMatch = normalized.match(/\b(\d+)\s+(second|minute|hour|day|week|month|year)s?\b/);
+    if (!amountMatch) return null;
+
+    return Number(amountMatch[1]) * DOCKER_STATUS_TIME_UNITS[amountMatch[2]];
+  };
+
+  const compareDockerStatus = (left, right) => {
+    const leftSeconds = parseDockerStatusTime(left);
+    const rightSeconds = parseDockerStatusTime(right);
+
+    if (leftSeconds !== null && rightSeconds !== null && leftSeconds !== rightSeconds) {
+      return leftSeconds - rightSeconds;
+    }
+
+    if (leftSeconds !== null && rightSeconds === null) return -1;
+    if (leftSeconds === null && rightSeconds !== null) return 1;
+
+    return compareText(left, right);
+  };
+
   const matchesSearch = (values) => {
     const query = panelSearch.trim().toLowerCase();
     if (!query) return true;
@@ -486,7 +526,7 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
     ).sort((a, b) => {
       const direction = dockerSort.direction === "asc" ? 1 : -1;
       if (dockerSort.key === "state") {
-        return (compareDockerState(a.state, b.state) || compareText(a.names, b.names)) * direction;
+        return (compareDockerState(a.state, b.state) || compareDockerStatus(a.status, b.status) || compareText(a.names, b.names)) * direction;
       }
       if (dockerSort.key === "ports") {
         return (compareText(a.ports, b.ports) || compareText(a.names, b.names)) * direction;
