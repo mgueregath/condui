@@ -3,6 +3,7 @@ module ssh-gui
 go 1.25.0
 
 require (
+	github.com/UserExistsError/conpty v0.1.4
 	github.com/creack/pty v1.1.24
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/google/uuid v1.6.0

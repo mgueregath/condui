@@ -14,10 +14,11 @@ import (
 type SSHSession struct {
 	ID string
 
-	Client  *ssh.Client
-	Session *ssh.Session
-	Command *exec.Cmd
-	Pty     *os.File
+	Client        *ssh.Client
+	Session       *ssh.Session
+	Command       *exec.Cmd
+	Pty           *os.File
+	LocalTerminal LocalTerminal
 
 	SFTP *sftp.Client
 
@@ -32,4 +33,10 @@ type SSHSession struct {
 
 	Rows int
 	Cols int
+}
+
+type LocalTerminal interface {
+	io.ReadWriteCloser
+	Resize(cols, rows int) error
+	Wait() error
 }

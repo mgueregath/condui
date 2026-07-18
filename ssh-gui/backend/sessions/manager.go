@@ -63,11 +63,13 @@ func (m *SessionManager) Remove(id string) error {
 		_ = session.Session.Close()
 	}
 
-	if session.Stdin != nil && session.Pty == nil {
+	if session.LocalTerminal != nil {
+		_ = session.LocalTerminal.Close()
+	} else if session.Stdin != nil && session.Pty == nil {
 		_ = session.Stdin.Close()
 	}
 
-	if session.Pty != nil {
+	if session.LocalTerminal == nil && session.Pty != nil {
 		_ = session.Pty.Close()
 	}
 
