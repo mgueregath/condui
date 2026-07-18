@@ -20,6 +20,9 @@
   },
   "app": {
     "connections": "Conexiones",
+    "copy": "Copiar",
+    "paste": "Pegar",
+    "clearConsole": "Limpiar consola",
     "newConnection": "Nueva conexión",
     "newFolder": "Nueva carpeta",
     "searchConnections": "Buscar conexiones…",

@@ -3,7 +3,7 @@ import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 import conduiLogo from "./assets/images/condui-transparent.png";
-import { FaCheck, FaExclamationTriangle, FaFolder, FaInbox, FaTimes, FaUser, FaTerminal, FaPlus } from "react-icons/fa";
+import { FaCheck, FaCopy, FaEraser, FaExclamationTriangle, FaFolder, FaInbox, FaPaste, FaTimes, FaUser, FaTerminal, FaPlus } from "react-icons/fa";
 
 import { Events } from "@wailsio/runtime";
 import RemoteFileTree from "./components/files/RemoteFileTree";
@@ -326,11 +326,42 @@ function App() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [terminalContextMenu, setTerminalContextMenu] = useState(null);
+
+  useEffect(() => {
+    const preventNativeContextMenu = (event) => event.preventDefault();
+    document.addEventListener("contextmenu", preventNativeContextMenu);
+
+    return () => {
+      document.removeEventListener("contextmenu", preventNativeContextMenu);
+    };
+  }, []);
 
   const focusTerminal = () => {
     window.requestAnimationFrame(() => {
       termRef.current?.focus();
     });
+  };
+
+  const copyTerminalSelection = () => {
+    const selection = termRef.current?.getSelection();
+    if (selection) navigator.clipboard.writeText(selection).catch(() => {});
+    focusTerminal();
+  };
+
+  const pasteIntoTerminal = () => {
+    navigator.clipboard
+      .readText()
+      .then((text) => termRef.current?.paste(text))
+      .catch(() => {});
+    focusTerminal();
+  };
+
+  const clearTerminal = () => {
+    if (!activeTab || !termRef.current) return;
+    terminalBuffers.current[activeTab] = "";
+    termRef.current.clear();
+    focusTerminal();
   };
 
   // Host key verification
@@ -523,6 +554,25 @@ function App() {
     fitAddon.fit();
     termRef.current = term;
     focusTerminal();
+
+    term.attachCustomKeyEventHandler((event) => {
+      const isWindows = navigator.platform.toLowerCase().startsWith("win");
+      if (!isWindows || event.type !== "keydown" || !event.ctrlKey || !event.shiftKey) {
+        return true;
+      }
+
+      if (event.key.toLowerCase() === "c") {
+        copyTerminalSelection();
+        return false;
+      }
+
+      if (event.key.toLowerCase() === "v") {
+        pasteIntoTerminal();
+        return false;
+      }
+
+      return true;
+    });
 
     term.onData((data) => {
       if (!activeTab) return;
@@ -1021,7 +1071,38 @@ function App() {
                   <div className="terminal-titlebar-actions" />
                 </div>
                 <div className="terminal-container">
-                  <div ref={terminalRef} />
+                  <div
+                    ref={terminalRef}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      setTerminalContextMenu({ x: event.clientX, y: event.clientY });
+                    }}
+                  />
+                  {terminalContextMenu && (
+                    <ContextMenu
+                      x={terminalContextMenu.x}
+                      y={terminalContextMenu.y}
+                      items={[
+                        {
+                          label: t("app.copy"),
+                          icon: <FaCopy />,
+                          onClick: copyTerminalSelection,
+                        },
+                        {
+                          label: t("app.paste"),
+                          icon: <FaPaste />,
+                          onClick: pasteIntoTerminal,
+                        },
+                        { divider: true },
+                        {
+                          label: t("app.clearConsole"),
+                          icon: <FaEraser />,
+                          onClick: clearTerminal,
+                        },
+                      ]}
+                      onClose={() => setTerminalContextMenu(null)}
+                    />
+                  )}
                   {activeTabData?.disconnected && (
                     <div className="terminal-disconnect-overlay">
                       <div className="terminal-disconnect-icon">
