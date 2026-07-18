@@ -783,7 +783,7 @@
     </div>
 
     <script>
-        var SESSION = PLACEHOLDER_SESSION, DB_TYPE = PLACEHOLDER_DBTYPE, DB_PORT = PLACEHOLDER_PORT, API = PLACEHOLDER_API;
+        var SESSION = PLACEHOLDER_SESSION, DB_TYPE = PLACEHOLDER_DBTYPE, DB_PORT = PLACEHOLDER_PORT, DB_PATH = PLACEHOLDER_PATH, API = PLACEHOLDER_API;
         var connId = null, ntType = '', curDb = '';
         var tdata = {}, expDbs = {}, expSchs = {};
 
@@ -805,6 +805,7 @@
         // ── Init ────────────────────────────────────────────────────
         window.onload = function () {
             ntType = nt(DB_TYPE);
+			if (ntType === 'sqlite') { connect(); return; }
             var color = tc(ntType);
             document.getElementById('cf-type').textContent = DB_TYPE;
             document.getElementById('cf-port').textContent = ':' + DB_PORT;
@@ -830,7 +831,7 @@
             apiFetch('/db-api/connect', {
                 method: 'POST', body: JSON.stringify({
                     session: SESSION, dbType: DB_TYPE, port: DB_PORT,
-                    user: document.getElementById('u').value, password: document.getElementById('pw').value
+                    user: document.getElementById('u').value, password: document.getElementById('pw').value, path: DB_PATH
                 })
             }).then(function (r) {
                 connId = r.connId;

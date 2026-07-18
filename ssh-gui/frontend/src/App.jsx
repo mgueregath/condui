@@ -3,7 +3,7 @@ import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 import conduiLogo from "./assets/images/condui-transparent.png";
-import { FaCheck, FaExclamationTriangle, FaFolder, FaInbox, FaTimes, FaUser, FaTerminal } from "react-icons/fa";
+import { FaCheck, FaExclamationTriangle, FaFolder, FaInbox, FaTimes, FaUser, FaTerminal, FaPlus } from "react-icons/fa";
 
 import { Events } from "@wailsio/runtime";
 import RemoteFileTree from "./components/files/RemoteFileTree";
@@ -54,6 +54,7 @@ import AssignFolderModal from "./components/connections/AssignFolderModal";
 import ContextMenu from "./components/connections/ContextMenu";
 import "./components/Layout.css";
 import { useTranslation } from "react-i18next";
+import { LuPlus } from "react-icons/lu";
 
 function PendingInviteNode({ invite, accepting, onAccept, onDecline }) {
   const { t } = useTranslation();
@@ -159,7 +160,7 @@ function LeftSidebar({
               title={t("app.newConnection")}
               onClick={onNewConnection}
             >
-              +
+              <LuPlus />
             </button>
             <button
               className="sidebar-icon-btn"
@@ -283,7 +284,7 @@ function LeftSidebar({
             x={emptyCtx.x}
             y={emptyCtx.y}
             items={[
-              { icon: "+", label: t("app.newConnection"), onClick: onNewConnection },
+              { icon: <LuPlus />, label: t("app.newConnection"), onClick: onNewConnection },
               { icon: <FaFolder />, label: t("app.newFolder"), onClick: onNewFolder },
             ]}
             onClose={() => setEmptyCtx(null)}

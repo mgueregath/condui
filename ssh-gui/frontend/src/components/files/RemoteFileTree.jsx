@@ -8,6 +8,7 @@ import {
   DownloadFile,
   ReadRemoteFile,
   SaveRemoteFile,
+  OpenSqliteExplorerWindow,
 } from "../../../bindings/ssh-gui/app";
 
 import RemoteFileNode from "./RemoteFileNode";
@@ -74,6 +75,10 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
   };
 
   const openFile = async (file) => {
+    if (file.name?.toLowerCase().endsWith(".db")) {
+      await OpenSqliteExplorerWindow(sessionId, file.path);
+      return;
+    }
     const content = await ReadRemoteFile(sessionId, file.path);
     setEditor({ open: true, path: file.path, content, modified: false });
   };

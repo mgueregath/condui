@@ -31,12 +31,24 @@ func (a *App) handleDbApiConnect(w http.ResponseWriter, r *http.Request) {
 		Port     int    `json:"port"`
 		User     string `json:"user"`
 		Password string `json:"password"`
+		Path     string `json:"path"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonErr(w, err.Error(), 400)
 		return
 	}
-	connID, err := a.DbConnect(req.Session, req.DbType, req.Port, req.User, req.Password)
+	var connID string
+	var err error
+	if dbexplorer.NormalizeDbType(req.DbType) == "sqlite" {
+		session, ok := a.sessionManager.Get(req.Session)
+		if !ok || session.SFTP == nil {
+			jsonErr(w, "SSH/SFTP session not found", 400)
+			return
+		}
+		connID, err = a.dbExplorer.ConnectSQLite(session.SFTP, req.Session, req.Path)
+	} else {
+		connID, err = a.DbConnect(req.Session, req.DbType, req.Port, req.User, req.Password)
+	}
 	if err != nil {
 		jsonErr(w, err.Error(), 400)
 		return

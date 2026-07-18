@@ -158,13 +158,32 @@ func (a *App) OpenDbExplorerWindow(sessionID, dbType string, port int) error {
 	return nil
 }
 
+// OpenSqliteExplorerWindow opens a remote SQLite file in the database explorer.
+func (a *App) OpenSqliteExplorerWindow(sessionID, remotePath string) error {
+	if a.logServerPort == 0 {
+		return fmt.Errorf("servidor no iniciado")
+	}
+	url := fmt.Sprintf("http://127.0.0.1:%d/db?session=%s&type=sqlite&path=%s",
+		a.logServerPort, neturl.QueryEscape(sessionID), neturl.QueryEscape(remotePath))
+	window := application.Get().Window.NewWithOptions(application.WebviewWindowOptions{
+		URL: url, Title: fmt.Sprintf("DB Explorer - %s", remotePath),
+		Width: 1400, Height: 900, MinWidth: 1000, MinHeight: 700,
+	})
+	window.Show()
+	return nil
+}
+
 func (a *App) handleDbExplorer(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session")
 	dbType := r.URL.Query().Get("type")
 	portStr := r.URL.Query().Get("port")
+	remotePath := r.URL.Query().Get("path")
+	if portStr == "" {
+		portStr = "0"
+	}
 	apiBase := fmt.Sprintf("http://127.0.0.1:%d", a.logServerPort)
 
-	html := dbexplorer.RenderHTML(sessionID, dbType, portStr, apiBase)
+	html := dbexplorer.RenderHTML(sessionID, dbType, portStr, remotePath, apiBase)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, html)

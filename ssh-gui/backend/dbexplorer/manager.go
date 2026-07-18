@@ -4,14 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"net"
+	"os"
 	"strings"
 	"sync"
 
 	mysql "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
+	_ "modernc.org/sqlite"
 )
 
 // DbConn holds an active SSH-tunneled database connection.
@@ -27,8 +31,75 @@ type DbConn struct {
 	pgPools map[string]*pgxpool.Pool
 	pgMu    sync.Mutex
 	// MySQL: one *sql.DB per database name
-	myDBs map[string]*sql.DB
-	myMu  sync.Mutex
+	myDBs            map[string]*sql.DB
+	myMu             sync.Mutex
+	sqliteDB         *sql.DB
+	sqliteLocalPath  string
+	sqliteRemotePath string
+	sftpClient       *sftp.Client
+}
+
+// ConnectSQLite downloads a remote SQLite database to a private temporary file.
+func (m *Manager) ConnectSQLite(client *sftp.Client, sessionID, remotePath string) (string, error) {
+	if remotePath == "" {
+		return "", fmt.Errorf("SQLite path is required")
+	}
+	remote, err := client.Open(remotePath)
+	if err != nil {
+		return "", err
+	}
+	defer remote.Close()
+	tmp, err := os.CreateTemp("", "condui-sqlite-*.db")
+	if err != nil {
+		return "", err
+	}
+	localPath := tmp.Name()
+	if _, err = io.Copy(tmp, remote); err != nil {
+		tmp.Close()
+		os.Remove(localPath)
+		return "", err
+	}
+	if err = tmp.Close(); err != nil {
+		os.Remove(localPath)
+		return "", err
+	}
+	db, err := sql.Open("sqlite", localPath)
+	if err != nil {
+		os.Remove(localPath)
+		return "", err
+	}
+	if err = db.Ping(); err != nil {
+		db.Close()
+		os.Remove(localPath)
+		return "", err
+	}
+	_, _ = db.Exec("PRAGMA journal_mode=DELETE")
+	id := uuid.New().String()
+	conn := &DbConn{ID: id, SessionID: sessionID, DbType: "sqlite", sqliteDB: db, sqliteLocalPath: localPath, sqliteRemotePath: remotePath, sftpClient: client}
+	m.mu.Lock()
+	m.conns[id] = conn
+	m.mu.Unlock()
+	return id, nil
+}
+
+func (conn *DbConn) syncSQLite() error {
+	if conn.sqliteDB == nil {
+		return nil
+	}
+	if _, err := conn.sqliteDB.Exec("PRAGMA wal_checkpoint(FULL)"); err != nil { /* DELETE mode may not support this */
+	}
+	local, err := os.Open(conn.sqliteLocalPath)
+	if err != nil {
+		return err
+	}
+	defer local.Close()
+	remote, err := conn.sftpClient.OpenFile(conn.sqliteRemotePath, os.O_WRONLY|os.O_TRUNC)
+	if err != nil {
+		return err
+	}
+	defer remote.Close()
+	_, err = io.Copy(remote, local)
+	return err
 }
 
 // mysqlSSHClients maps DbConn.ID -> *ssh.Client for the custom condui-ssh dialer.
@@ -148,5 +219,10 @@ func (m *Manager) Disconnect(connID string) {
 	conn.myMu.Unlock()
 	if conn.DbType == "mysql" {
 		mysqlSSHClients.Delete(connID)
+	}
+	if conn.DbType == "sqlite" {
+		conn.sqliteDB.Close()
+		_ = conn.syncSQLite()
+		_ = os.Remove(conn.sqliteLocalPath)
 	}
 }

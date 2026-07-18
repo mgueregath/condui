@@ -19,6 +19,8 @@ func (m *Manager) ListDatabases(connID string) ([]string, error) {
 			"SELECT datname FROM pg_database WHERE datistemplate=false ORDER BY datname")
 	case "mysql":
 		return conn.firstColumn("", "SHOW DATABASES")
+	case "sqlite":
+		return []string{conn.sqliteRemotePath}, nil
 	}
 	return nil, fmt.Errorf("unsupported")
 }
@@ -38,6 +40,8 @@ func (m *Manager) ListSchemas(connID, database string) ([]string, error) {
 			 ORDER BY schema_name`)
 	case "mysql":
 		return []string{database}, nil
+	case "sqlite":
+		return []string{"main"}, nil
 	}
 	return nil, fmt.Errorf("unsupported")
 }
@@ -75,6 +79,8 @@ func (m *Manager) ListTables(connID, database, schema string) ([]string, error) 
 		return tables, rows.Err()
 	case "mysql":
 		return conn.firstColumn(database, "SHOW TABLES")
+	case "sqlite":
+		return conn.firstColumn(database, "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
 	}
 	return nil, fmt.Errorf("unsupported")
 }
@@ -146,6 +152,21 @@ func (m *Manager) GetColumns(connID, database, schema, table string) ([]models.Q
 			var nullableStr string
 			rows.Scan(&c.Name, &c.DataType, &nullableStr, &c.Default, &c.Key)
 			c.Nullable = nullableStr == "1"
+			cols = append(cols, c)
+		}
+		return cols, rows.Err()
+	case "sqlite":
+		rows, err := conn.sqliteDB.QueryContext(ctx, `SELECT name, type, [notnull] = 0, COALESCE(dflt_value,''), CASE WHEN pk > 0 THEN 'PK' ELSE '' END FROM pragma_table_info(?) ORDER BY cid`, table)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		var cols []models.QueryColumn
+		for rows.Next() {
+			var c models.QueryColumn
+			if err := rows.Scan(&c.Name, &c.DataType, &c.Nullable, &c.Default, &c.Key); err != nil {
+				return nil, err
+			}
 			cols = append(cols, c)
 		}
 		return cols, rows.Err()

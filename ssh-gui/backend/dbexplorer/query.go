@@ -175,6 +175,14 @@ func (conn *DbConn) execQuery(database, query string) models.QueryResult {
 			return models.QueryResult{Error: err.Error()}
 		}
 		return myExecResult(db, query)
+	case "sqlite":
+		result := myExecResult(conn.sqliteDB, query)
+		if result.Error == "" {
+			if err := conn.syncSQLite(); err != nil {
+				result.Error = err.Error()
+			}
+		}
+		return result
 	}
 	return models.QueryResult{Error: "unsupported database type"}
 }
