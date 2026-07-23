@@ -26,6 +26,7 @@ import {
   EditTunnel,
   ApproveHostKey,
   GetAccountStatus,
+  GetFeatures,
   GetIncomingShares,
   SyncNow,
   UploadDroppedFile,
@@ -327,6 +328,13 @@ function App() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [terminalContextMenu, setTerminalContextMenu] = useState(null);
+  const [features, setFeatures] = useState({});
+
+  useEffect(() => {
+    GetFeatures()
+      .then(setFeatures)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const preventNativeContextMenu = (event) => event.preventDefault();
@@ -1048,6 +1056,7 @@ function App() {
                   sessionId={activeTab}
                   initialPath={fileTreePaths[activeTab] || activeTabData?.homePath || "/"}
                   onPathChange={rememberFileTreePath}
+                  dbManagerEnabled={features.dbManager}
                   ref={fileTreeRef}
                 />
               </div>
@@ -1146,7 +1155,7 @@ function App() {
               </div>
             </div>
             {!isLocalActive && (
-              <BottomPanel sessionId={activeTab} accountStatus={accountStatus} onUpgrade={() => setAccountModalOpen(true)} />
+              <BottomPanel sessionId={activeTab} accountStatus={accountStatus} features={features} onUpgrade={() => setAccountModalOpen(true)} />
             )}
           </div>
 

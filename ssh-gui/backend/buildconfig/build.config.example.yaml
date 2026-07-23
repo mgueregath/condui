@@ -1,0 +1,18 @@
+# Build-time configuration for condui. This file is read only at compile
+# time (embedded into the Go binary via go:embed, and inlined into the
+# frontend bundle via Vite env vars) — editing it after the app is built has
+# no effect on already-compiled binaries.
+#
+# Copy this file to build.config.yaml (gitignored) and adjust before running
+# a build.
+
+# Default sync server the desktop app talks to. Point this at your own
+# condui-server instance (https://github.com/mgueregath/condui-server) or
+# leave it pointing at the hosted default.
+server_url: "https://sync.condui.app"
+
+# Informational: whether this build is expected to include the private
+# db manager submodule (ssh-gui/backend/dbexplorer). The actual enforcement
+# is the `dbmanager` Go build tag (see build/Taskfile.yml, dbmanager:setup) —
+# this flag has no effect on its own, it just documents intent.
+db_manager_enabled: false

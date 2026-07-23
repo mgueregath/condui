@@ -229,9 +229,10 @@ function ActionBtn({ children, title, color, onClick, disabled, style = {} }) {
   );
 }
 
-export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
+export default function BottomPanel({ sessionId, accountStatus, features, onUpgrade }) {
   const { t } = useTranslation();
   const isPro = accountStatus?.tier === "pro";
+  const dbManagerEnabled = !!features?.dbManager;
   const [activeTab, setActiveTab] = useState("logs");
 
   // Estados de datos
@@ -1770,19 +1771,21 @@ export default function BottomPanel({ sessionId, accountStatus, onUpgrade }) {
                         }}>
                           {isDocker ? "Docker" : t("panel.system")}
                         </span>
-                        <button
-                          style={{
-                            display: "flex", alignItems: "center", gap: "4px",
-                            padding: "3px 10px", borderRadius: "4px",
-                            border: "1px solid var(--border-subtle)",
-                            background: "transparent",
-                            color: "var(--text-secondary)",
-                            fontSize: "11px", cursor: "pointer",
-                          }}
-                          onClick={() => OpenDbExplorerWindow(sessionId, db.name, db.port)}
-                        >
-                          <FaSearch style={{ fontSize: 9 }} /> {t("panel.explore")}
-                        </button>
+                        {dbManagerEnabled && (
+                          <button
+                            style={{
+                              display: "flex", alignItems: "center", gap: "4px",
+                              padding: "3px 10px", borderRadius: "4px",
+                              border: "1px solid var(--border-subtle)",
+                              background: "transparent",
+                              color: "var(--text-secondary)",
+                              fontSize: "11px", cursor: "pointer",
+                            }}
+                            onClick={() => OpenDbExplorerWindow(sessionId, db.name, db.port)}
+                          >
+                            <FaSearch style={{ fontSize: 9 }} /> {t("panel.explore")}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

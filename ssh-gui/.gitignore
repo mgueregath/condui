@@ -1,3 +1,8 @@
 build/bin
+build/android/*
 node_modules
 frontend/dist
+frontend/.env.local
+go.work
+go.work.sum
+backend/buildconfig/build.config.yaml

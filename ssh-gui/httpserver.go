@@ -11,7 +11,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
-	"ssh-gui/backend/dbexplorer"
+	"ssh-gui/backend/dbmanager"
 	"ssh-gui/backend/weblog"
 )
 
@@ -21,15 +21,17 @@ func (a *App) startDockerLogServer() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", a.handleLogViewer)
 	mux.HandleFunc("/stream", a.handleLogStream)
-	mux.HandleFunc("/db", a.handleDbExplorer)
-	mux.HandleFunc("/db-api/connect", a.handleDbApiConnect)
-	mux.HandleFunc("/db-api/disconnect", a.handleDbApiDisconnect)
-	mux.HandleFunc("/db-api/databases", a.handleDbApiDatabases)
-	mux.HandleFunc("/db-api/schemas", a.handleDbApiSchemas)
-	mux.HandleFunc("/db-api/tables", a.handleDbApiTables)
-	mux.HandleFunc("/db-api/columns", a.handleDbApiColumns)
-	mux.HandleFunc("/db-api/query", a.handleDbApiQuery)
-	mux.HandleFunc("/db-api/credentials", a.handleDbApiCredentials)
+	if dbmanager.Enabled {
+		mux.HandleFunc("/db", a.handleDbExplorer)
+		mux.HandleFunc("/db-api/connect", a.handleDbApiConnect)
+		mux.HandleFunc("/db-api/disconnect", a.handleDbApiDisconnect)
+		mux.HandleFunc("/db-api/databases", a.handleDbApiDatabases)
+		mux.HandleFunc("/db-api/schemas", a.handleDbApiSchemas)
+		mux.HandleFunc("/db-api/tables", a.handleDbApiTables)
+		mux.HandleFunc("/db-api/columns", a.handleDbApiColumns)
+		mux.HandleFunc("/db-api/query", a.handleDbApiQuery)
+		mux.HandleFunc("/db-api/credentials", a.handleDbApiCredentials)
+	}
 	for port := 9091; port <= 9110; port++ {
 		srv := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", port), Handler: mux}
 		ln, err := net.Listen("tcp", srv.Addr)
@@ -136,6 +138,9 @@ func (a *App) OpenDockerLogWindow(sessionID string, containerID string, containe
 
 // OpenDbExplorerWindow abre el explorador de BD en una ventana del navegador del sistema
 func (a *App) OpenDbExplorerWindow(sessionID, dbType string, port int) error {
+	if !dbmanager.Enabled {
+		return dbmanager.ErrNotAvailable
+	}
 	if a.logServerPort == 0 {
 		return fmt.Errorf("servidor no iniciado")
 	}
@@ -160,6 +165,9 @@ func (a *App) OpenDbExplorerWindow(sessionID, dbType string, port int) error {
 
 // OpenSqliteExplorerWindow opens a remote SQLite file in the database explorer.
 func (a *App) OpenSqliteExplorerWindow(sessionID, remotePath string) error {
+	if !dbmanager.Enabled {
+		return dbmanager.ErrNotAvailable
+	}
 	if a.logServerPort == 0 {
 		return fmt.Errorf("servidor no iniciado")
 	}
@@ -183,7 +191,7 @@ func (a *App) handleDbExplorer(w http.ResponseWriter, r *http.Request) {
 	}
 	apiBase := fmt.Sprintf("http://127.0.0.1:%d", a.logServerPort)
 
-	html := dbexplorer.RenderHTML(sessionID, dbType, portStr, remotePath, apiBase)
+	html := dbmanager.RenderHTML(sessionID, dbType, portStr, remotePath, apiBase)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, html)

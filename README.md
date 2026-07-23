@@ -59,6 +59,8 @@ A unified workspace for managing remote SSH sessions.
 - Open multiple terminal tabs and switch between active sessions.
 - Connect with password or private key authentication.
 - Use jump hosts / bastion hosts for routed access.
+- Test a connection (saved or unsaved, including through a jump host) before opening it.
+- Open a local shell terminal tab alongside remote SSH sessions.
 - Resize terminal PTYs from the UI.
 - Detect disconnections and surface reconnect/disconnect actions.
 - Verify SSH host keys with a TOFU known-hosts flow.
@@ -118,6 +120,7 @@ Inspect and operate Docker on remote hosts through SSH.
 - Stream Docker logs from selected containers.
 - Fetch one-shot container CPU and memory stats.
 - Detect listening ports on the remote host.
+- Search and sort containers, open ports, VMs and databases within the bottom panel.
 - Discover database services exposed by Docker or the host.
 - View host-level CPU, memory, disk, uptime, network and disk I/O stats.
 
@@ -172,9 +175,18 @@ Share individual connections with other condui users by email.
 - Show invitation status and read-only state.
 - Cancel pending invitations or revoke existing shared access.
 
+## Interface & Usability
+
+- Switch the interface language between English and Spanish at runtime.
+- Drag and drop files onto the remote file explorer to upload them.
+- Consistent, sortable and searchable panel UI across Docker, ports, database and VirtualBox tabs.
+
 ## Sync Server
 
-The `condui-server` service provides the account, sync and sharing backend.
+The account, sync and sharing backend lives in its own repository,
+[condui-server](https://github.com/mgueregath/condui-server), and is consumed by the desktop app purely over
+HTTP — there is no build-time dependency between the two. Point a build at your own instance (or the hosted
+one) via the `server_url` field in `ssh-gui/build.config.yaml` (see [Build Configuration](#build-configuration)).
 
 - Email/password account registration and login.
 - JWT access tokens and refresh tokens.
@@ -218,7 +230,6 @@ Security vulnerabilities should not be reported publicly. Please read [SECURITY.
 
 ```text
 condui/
-├── condui-server/        # Account, sync and sharing backend
 ├── ssh-gui/              # Wails desktop application
 │   ├── backend/          # Go services, storage, sessions and integrations
 │   ├── frontend/         # React UI
@@ -226,6 +237,9 @@ condui/
 ├── docs/                 # Roadmap and supporting documentation
 └── scripts/              # Project scripts
 ```
+
+The account/sync/sharing backend ([condui-server](https://github.com/mgueregath/condui-server)) is a separate
+repository, cloned independently.
 
 ---
 
@@ -264,7 +278,6 @@ Condui-linux-x64.AppImage
 ## Requirements
 
 - Go >= 1.25 for the desktop app
-- Go >= 1.23 for `condui-server`
 - Node.js >= 22
 - Wails v3 CLI
 
@@ -274,6 +287,10 @@ Condui-linux-x64.AppImage
 git clone git@github.com:mgueregath/condui.git
 cd condui
 ```
+
+The account/sync/sharing backend is a separate repository — see
+[Sync Server (local dev)](#sync-server-local-dev) below for how to run it if you want to develop against a
+local instance instead of a hosted one.
 
 ## Desktop App
 
@@ -303,22 +320,35 @@ Build the desktop app:
 wails3 build -config ./build/config.yml
 ```
 
-## Sync Server
+## Build Configuration
 
-Run the server locally:
+`ssh-gui/backend/buildconfig/build.config.yaml` (gitignored; copy from `build.config.example.yaml`, or the
+build task does it for you on first run) fixes a few values **at compile time only**:
+
+```yaml
+server_url: "https://sync.condui.app"   # default condui-server this build talks to
+db_manager_enabled: false               # informational; see below
+```
+
+- `server_url` is `go:embed`-ded into the Go binary (`backend/buildconfig`) and inlined into the frontend
+  bundle as `VITE_CONDUI_SERVER_URL` at the same time, so both sides agree on one value. Editing the file
+  after a binary is built has no effect — it is never read from disk at runtime, only at build time.
+- Whether the private database explorer submodule (`ssh-gui/backend/dbexplorer`, not present in the public
+  repo) gets compiled in and its UI shown is controlled by the `dbmanager` Go build tag, not this file —
+  `db_manager_enabled` here is purely documentation of intent.
+
+## Sync Server (local dev)
+
+The sync backend is a separate repository. Clone and run it independently:
 
 ```bash
+git clone git@github.com:mgueregath/condui-server.git
 cd condui-server
 go run .
 ```
 
-The frontend can point to a sync server with:
-
-```bash
-VITE_CONDUI_SERVER_URL=https://sync.condui.app
-```
-
-For local development, set that variable to your local server URL.
+To point the desktop app at your local instance instead of the hosted default, set `server_url` in
+`ssh-gui/build.config.yaml` before building (see [Build Configuration](#build-configuration)).
 
 ---
 
@@ -338,10 +368,10 @@ cd ssh-gui/frontend
 npm run build
 ```
 
-Run sync server tests:
+Sync server tests live in its own repository:
 
 ```bash
-cd condui-server
+cd condui-server  # git@github.com:mgueregath/condui-server.git
 go test ./...
 ```
 
@@ -349,7 +379,7 @@ go test ./...
 
 # Roadmap
 
-The current codebase already includes SSH, SFTP, Docker, tunnels, encrypted vault, account sync, sharing, database exploration and VirtualBox controls.
+The current codebase already includes SSH, SFTP, Docker, tunnels, encrypted vault, account sync, sharing, database exploration, VirtualBox controls, a local terminal and a bilingual (EN/ES) interface.
 
 Planned or future areas include:
 

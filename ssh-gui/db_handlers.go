@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"ssh-gui/backend/dbexplorer"
-	"ssh-gui/backend/models"
+	"ssh-gui/backend/dbmanager"
 )
 
 // ─── DB API helpers ──────────────────────────────────────────────────────────
@@ -39,7 +38,7 @@ func (a *App) handleDbApiConnect(w http.ResponseWriter, r *http.Request) {
 	}
 	var connID string
 	var err error
-	if dbexplorer.NormalizeDbType(req.DbType) == "sqlite" {
+	if dbmanager.NormalizeDbType(req.DbType) == "sqlite" {
 		session, ok := a.sessionManager.Get(req.Session)
 		if !ok || session.SFTP == nil {
 			jsonErr(w, "SSH/SFTP session not found", 400)
@@ -131,11 +130,11 @@ func (a *App) handleDbApiCredentials(w http.ResponseWriter, r *http.Request) {
 		dbType := r.URL.Query().Get("type")
 		port := r.URL.Query().Get("port")
 		key := dbType + ":" + port
-		creds := dbexplorer.LoadCreds()
+		creds := dbmanager.LoadCreds()
 		if c, ok := creds[key]; ok {
 			jsonOK(w, c)
 		} else {
-			jsonOK(w, dbexplorer.Cred{})
+			jsonOK(w, dbmanager.Cred{})
 		}
 	case http.MethodPost:
 		var req struct {
@@ -146,9 +145,9 @@ func (a *App) handleDbApiCredentials(w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewDecoder(r.Body).Decode(&req)
 		key := fmt.Sprintf("%s:%d", req.Type, req.Port)
-		creds := dbexplorer.LoadCreds()
-		creds[key] = dbexplorer.Cred{User: req.User, Password: req.Password}
-		dbexplorer.SaveCreds(creds)
+		creds := dbmanager.LoadCreds()
+		creds[key] = dbmanager.Cred{User: req.User, Password: req.Password}
+		dbmanager.SaveCreds(creds)
 		jsonOK(w, map[string]bool{"ok": true})
 	case http.MethodDelete:
 		var req struct {
@@ -157,9 +156,9 @@ func (a *App) handleDbApiCredentials(w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewDecoder(r.Body).Decode(&req)
 		key := fmt.Sprintf("%s:%d", req.Type, req.Port)
-		creds := dbexplorer.LoadCreds()
+		creds := dbmanager.LoadCreds()
 		delete(creds, key)
-		dbexplorer.SaveCreds(creds)
+		dbmanager.SaveCreds(creds)
 		jsonOK(w, map[string]bool{"ok": true})
 	default:
 		jsonErr(w, "method not allowed", 405)
@@ -198,11 +197,11 @@ func (a *App) DbListTables(connID, database, schema string) ([]string, error) {
 }
 
 // DbGetColumns returns column metadata using parameterized queries.
-func (a *App) DbGetColumns(connID, database, schema, table string) ([]models.QueryColumn, error) {
+func (a *App) DbGetColumns(connID, database, schema, table string) ([]dbmanager.QueryColumn, error) {
 	return a.dbExplorer.GetColumns(connID, database, schema, table)
 }
 
 // DbQuery executes arbitrary SQL and returns the result.
-func (a *App) DbQuery(connID, database, query string) (models.QueryResult, error) {
+func (a *App) DbQuery(connID, database, query string) (dbmanager.QueryResult, error) {
 	return a.dbExplorer.Query(connID, database, query)
 }

@@ -1,11 +1,16 @@
 package account
 
 type AccountStatus struct {
-	LoggedIn  bool   `json:"loggedIn"`
-	Email     string `json:"email"`
-	Tier      string `json:"tier"`
-	ServerURL string `json:"serverUrl"`
-	LastSync  string `json:"lastSync"`
+	LoggedIn  bool           `json:"loggedIn"`
+	Email     string         `json:"email"`
+	Tier      string         `json:"tier"`
+	ServerURL string         `json:"serverUrl"`
+	LastSync  string         `json:"lastSync"`
+	// Limits mirrors condui-server's tier_limits table for the user's
+	// current tier (e.g. {"blobs":5,"devices":1,"connections":5}), fetched
+	// from /auth/me. It's the only source of truth for these numbers —
+	// nothing in this app hardcodes a limit of its own.
+	Limits map[string]int `json:"limits,omitempty"`
 }
 
 type ShareInfo struct {
@@ -33,6 +38,10 @@ type BlobPayload struct {
 	Nonce      string `json:"nonce"`
 	Checksum   string `json:"checksum"`
 	Version    int    `json:"version"`
+	// ItemCount lets the server enforce tier limits (e.g. "connections")
+	// on data it can't see the contents of, since blobs are encrypted
+	// client-side. Only meaningful for BlobType "connections".
+	ItemCount int `json:"itemCount,omitempty"`
 }
 
 // loginRequest / loginResponse are used by the HTTP client
@@ -49,11 +58,12 @@ type loginResponse struct {
 }
 
 type userPayload struct {
-	ID           string `json:"id"`
-	Email        string `json:"email"`
-	Tier         string `json:"tier"`
-	PublicKey    string `json:"publicKey"`
-	IdentityBlob string `json:"identityBlob"`
+	ID           string         `json:"id"`
+	Email        string         `json:"email"`
+	Tier         string         `json:"tier"`
+	PublicKey    string         `json:"publicKey"`
+	IdentityBlob string         `json:"identityBlob"`
+	Limits       map[string]int `json:"limits,omitempty"`
 }
 
 type registerRequest struct {

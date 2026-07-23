@@ -18,7 +18,7 @@ import { useTranslation } from "react-i18next";
 import { FaLongArrowAltDown, FaLongArrowAltUp } from "react-icons/fa";
 
 const RemoteFileTree = forwardRef(function RemoteFileTree(
-  { sessionId, initialPath = "/", onPathChange },
+  { sessionId, initialPath = "/", onPathChange, dbManagerEnabled = false },
   ref,
 ) {
   const { t } = useTranslation();
@@ -75,7 +75,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
   };
 
   const openFile = async (file) => {
-    if (file.name?.toLowerCase().endsWith(".db")) {
+    if (dbManagerEnabled && file.name?.toLowerCase().endsWith(".db")) {
       await OpenSqliteExplorerWindow(sessionId, file.path);
       return;
     }

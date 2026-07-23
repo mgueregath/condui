@@ -11,7 +11,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"ssh-gui/backend/account"
-	"ssh-gui/backend/dbexplorer"
+	"ssh-gui/backend/dbmanager"
 	"ssh-gui/backend/sessions"
 	"ssh-gui/backend/storage"
 	"ssh-gui/backend/transfers"
@@ -30,7 +30,7 @@ type App struct {
 
 	logServerPort int
 
-	dbExplorer    *dbexplorer.Manager
+	dbExplorer    *dbmanager.Manager
 	tunnelManager *tunnels.Manager
 
 	// Security: vault encryption
@@ -90,7 +90,7 @@ func NewApp() *App {
 	return &App{
 		sessionManager:  sessions.NewSessionManager(),
 		transferManager: transfers.NewManager(),
-		dbExplorer:      dbexplorer.NewManager(),
+		dbExplorer:      dbmanager.NewManager(),
 		tunnelManager:   tunnels.NewManager(),
 		accountManager:  am,
 		database:        db,
@@ -101,6 +101,15 @@ func (a *App) ServiceStartup(ctx context.Context, options application.ServiceOpt
 	go a.startDockerLogServer()
 	a.startTokenRefreshLoop(ctx)
 	return nil
+}
+
+// GetFeatures reports which build-time-only features were compiled into this
+// binary, so the frontend can hide UI for capabilities that aren't present
+// (e.g. the private db manager submodule).
+func (a *App) GetFeatures() map[string]bool {
+	return map[string]bool{
+		"dbManager": dbmanager.Enabled,
+	}
 }
 
 // startTokenRefreshLoop refreshes the access token (and tier) on startup and

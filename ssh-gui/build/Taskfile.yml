@@ -4,8 +4,53 @@ tasks:
   go:mod:tidy:
     summary: Runs `go mod tidy`
     internal: true
+    deps:
+      - dbmanager:setup
+      - buildconfig:setup
     cmds:
       - go mod tidy
+
+  buildconfig:setup:
+    summary: >
+      Ensures backend/buildconfig/build.config.yaml exists before compiling,
+      since it's go:embed'd (compiled into the binary, never read from disk
+      at runtime). Copies the example on first run; never overwrites an
+      existing file, so local edits survive rebuilds.
+    internal: true
+    cmds:
+      - |
+        if [ ! -f backend/buildconfig/build.config.yaml ]; then
+          cp backend/buildconfig/build.config.example.yaml backend/buildconfig/build.config.yaml
+        fi
+
+  buildconfig:frontend-env:
+    summary: >
+      Inlines server_url from backend/buildconfig/build.config.yaml into
+      frontend/.env.local as VITE_CONDUI_SERVER_URL, so Vite bakes the same
+      build-time value into the frontend bundle that Go embeds into the
+      binary (single source of truth: build.config.yaml).
+    internal: true
+    deps:
+      - buildconfig:setup
+    cmds:
+      - |
+        url=$(grep '^server_url:' backend/buildconfig/build.config.yaml | sed -E 's/^server_url:[[:space:]]*"?([^"]*)"?[[:space:]]*$/\1/')
+        echo "VITE_CONDUI_SERVER_URL=$url" > frontend/.env.local
+
+  dbmanager:setup:
+    summary: >
+      Generates a local go.work linking the private backend/dbexplorer
+      submodule when it's checked out, so `-tags dbmanager` builds can
+      resolve it. No-op (and removes any stale go.work) when the submodule
+      isn't present, e.g. in an OSS clone without access to it.
+    internal: true
+    cmds:
+      - |
+        if [ -f backend/dbexplorer/go.mod ]; then
+          go work init . ./backend/dbexplorer 2>/dev/null || true
+        else
+          rm -f go.work go.work.sum
+        fi
 
   install:frontend:deps:
     summary: Install frontend dependencies
@@ -76,6 +121,8 @@ tasks:
       - dist/**/*
     deps:
       - task: install:frontend:deps
+      - task: buildconfig:setup
+      - task: buildconfig:frontend-env
       - task: generate:bindings
         vars:
           BUILD_FLAGS:

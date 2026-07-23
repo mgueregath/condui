@@ -18,6 +18,7 @@ type State struct {
 	UserID       string
 	Email        string
 	Tier         string
+	Limits       map[string]int // tier_limits for the current Tier, from condui-server (single source of truth)
 	PublicKey    string
 	IdentityBlob string // encrypted private key blob
 	SyncKey      string // base64 stable per-account sync key
@@ -55,6 +56,7 @@ func (m *Manager) GetStatus(lastSync string) AccountStatus {
 		Tier:      m.state.Tier,
 		ServerURL: m.state.ServerURL,
 		LastSync:  lastSync,
+		Limits:    m.state.Limits,
 	}
 }
 
@@ -98,6 +100,7 @@ func (m *Manager) Login(serverURL, email, password string) (State, error) {
 		UserID:       resp.User.ID,
 		Email:        resp.User.Email,
 		Tier:         resp.User.Tier,
+		Limits:       resp.User.Limits,
 		PublicKey:    resp.User.PublicKey,
 		IdentityBlob: resp.User.IdentityBlob,
 		SyncKey:      base64.StdEncoding.EncodeToString(DeriveSyncKey(resp.User.Email, password)),
@@ -153,6 +156,7 @@ func (m *Manager) RefreshAccessToken() (State, error) {
 	m.mu.Lock()
 	m.state.AccessToken = newToken
 	m.state.Tier = me.Tier
+	m.state.Limits = me.Limits
 	m.state.PublicKey = me.PublicKey
 	m.state.IdentityBlob = me.IdentityBlob
 	updated := m.state
@@ -200,7 +204,10 @@ func (m *Manager) connectionsBlobID(s State) string {
 }
 
 // SyncConnections encrypts and uploads connections JSON to the server.
-func (m *Manager) SyncConnections(connectionsJSON []byte, masterKey []byte) (*BlobMeta, error) {
+// itemCount is the number of connections in connectionsJSON, reported
+// alongside the (opaque, encrypted) payload so the server can enforce the
+// "connections" tier limit without being able to see inside the ciphertext.
+func (m *Manager) SyncConnections(connectionsJSON []byte, itemCount int, masterKey []byte) (*BlobMeta, error) {
 	m.mu.RLock()
 	s := m.state
 	m.mu.RUnlock()
@@ -222,6 +229,7 @@ func (m *Manager) SyncConnections(connectionsJSON []byte, masterKey []byte) (*Bl
 		CipherText: cipherB64,
 		Nonce:      nonceB64,
 		Checksum:   checksumB64,
+		ItemCount:  itemCount,
 	}); err != nil {
 		return nil, err
 	}

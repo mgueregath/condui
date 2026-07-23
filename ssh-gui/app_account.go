@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"ssh-gui/backend/account"
+	"ssh-gui/backend/buildconfig"
 	"ssh-gui/backend/models"
 	"ssh-gui/backend/storage"
 )
@@ -115,11 +116,17 @@ func (a *App) GetAccountStatus() account.AccountStatus {
 
 // AccountRegister creates a new account on the sync server.
 func (a *App) AccountRegister(serverURL, email, password string) error {
+	if serverURL == "" {
+		serverURL = buildconfig.Values.ServerURL
+	}
 	return a.accountManager.Register(serverURL, email, password)
 }
 
 // AccountLogin authenticates against the sync server.
 func (a *App) AccountLogin(serverURL, email, password string) error {
+	if serverURL == "" {
+		serverURL = buildconfig.Values.ServerURL
+	}
 	state, err := a.accountManager.Login(serverURL, email, password)
 	if err != nil {
 		return err
@@ -192,8 +199,12 @@ func (a *App) SyncNow() error {
 	}
 
 	// Pro tier syncs the same connection set across all devices. Free tier
-	// keeps the previous capped upload behavior.
-	const freeSyncLimit = 5
+	// keeps the previous capped upload behavior, capped at whatever
+	// condui-server reports for the "connections" resource on this tier
+	// (backend/account.State.Limits, from /auth/me) — condui-server is the
+	// only source of truth for that number and also enforces it itself on
+	// upload, so an unset/unknown limit here just skips the client-side
+	// pre-trim rather than guessing a number.
 	if a.accountManager.GetState().Tier == "pro" {
 		shouldUpload := true
 		localHash := syncSetHash(connections, folders)
@@ -229,8 +240,8 @@ func (a *App) SyncNow() error {
 			}
 			return a.database.SetSetting("last_sync_at", time.Now().Format(time.RFC3339))
 		}
-	} else if len(connections) > freeSyncLimit {
-		connections = connections[:freeSyncLimit]
+	} else if limit, ok := a.accountManager.GetState().Limits["connections"]; ok && limit >= 0 && len(connections) > limit {
+		connections = connections[:limit]
 	}
 
 	data, err := json.Marshal(connectionsSyncData{
@@ -241,7 +252,7 @@ func (a *App) SyncNow() error {
 		return err
 	}
 
-	meta, err := a.accountManager.SyncConnections(data, key)
+	meta, err := a.accountManager.SyncConnections(data, len(connections), key)
 	if err != nil {
 		return err
 	}

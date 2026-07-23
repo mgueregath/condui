@@ -10,7 +10,12 @@ import { useTranslation } from "react-i18next";
 import { FaArrowRight } from "react-icons/fa";
 import LanguageSwitcher from "../common/LanguageSwitcher";
 
-const SERVER_URL = import.meta.env.VITE_CONDUI_SERVER_URL || "https://sync.condui.app";
+// Empty string falls through to the Go backend's buildconfig.Values.ServerURL
+// (backend/buildconfig, embedded from build.config.yaml at compile time).
+// VITE_CONDUI_SERVER_URL is inlined by Vite at build time from that same
+// build.config.yaml (see build/Taskfile.yml, buildconfig:frontend-env), so
+// there's a single source of truth for the default server URL.
+const SERVER_URL = import.meta.env.VITE_CONDUI_SERVER_URL || "";
 
 export default function AccountModal({ onClose }) {
   const { t, i18n } = useTranslation();
@@ -139,7 +144,12 @@ export default function AccountModal({ onClose }) {
 
           {status.tier === "free" && (
             <div className="upgrade-banner">
-              {t("account.freePlanDescription")}{" "}
+              {status.limits?.connections != null && status.limits?.devices != null
+                ? t("account.freePlanDescriptionWithLimits", {
+                    connections: status.limits.connections,
+                    devices: status.limits.devices,
+                  })
+                : t("account.freePlanDescription")}{" "}
               <a href="https://condui.app/upgrade" target="_blank" rel="noreferrer">
                 {t("account.upgrade")} <FaArrowRight />
               </a>
