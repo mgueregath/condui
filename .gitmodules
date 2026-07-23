@@ -1,0 +1,3 @@
+[submodule "ssh-gui/backend/dbexplorer"]
+	path = ssh-gui/backend/dbexplorer
+	url = git@github.com:mgueregath/navoro.git
