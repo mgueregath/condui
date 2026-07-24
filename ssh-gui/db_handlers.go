@@ -110,6 +110,32 @@ func (a *App) handleDbApiColumns(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, cols)
 }
 
+func (a *App) handleDbApiIndexes(w http.ResponseWriter, r *http.Request) {
+	connID := r.URL.Query().Get("connId")
+	db := r.URL.Query().Get("db")
+	schema := r.URL.Query().Get("schema")
+	table := r.URL.Query().Get("table")
+	idx, err := a.DbGetIndexes(connID, db, schema, table)
+	if err != nil {
+		jsonErr(w, err.Error(), 400)
+		return
+	}
+	jsonOK(w, idx)
+}
+
+func (a *App) handleDbApiForeignKeys(w http.ResponseWriter, r *http.Request) {
+	connID := r.URL.Query().Get("connId")
+	db := r.URL.Query().Get("db")
+	schema := r.URL.Query().Get("schema")
+	table := r.URL.Query().Get("table")
+	fks, err := a.DbGetForeignKeys(connID, db, schema, table)
+	if err != nil {
+		jsonErr(w, err.Error(), 400)
+		return
+	}
+	jsonOK(w, fks)
+}
+
 func (a *App) handleDbApiQuery(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ConnID string `json:"connId"`
@@ -204,4 +230,14 @@ func (a *App) DbGetColumns(connID, database, schema, table string) ([]dbmanager.
 // DbQuery executes arbitrary SQL and returns the result.
 func (a *App) DbQuery(connID, database, query string) (dbmanager.QueryResult, error) {
 	return a.dbExplorer.Query(connID, database, query)
+}
+
+// DbGetIndexes returns index metadata for a table.
+func (a *App) DbGetIndexes(connID, database, schema, table string) ([]dbmanager.Index, error) {
+	return a.dbExplorer.GetIndexes(connID, database, schema, table)
+}
+
+// DbGetForeignKeys returns foreign key columns for a table.
+func (a *App) DbGetForeignKeys(connID, database, schema, table string) ([]dbmanager.ForeignKey, error) {
+	return a.dbExplorer.GetForeignKeys(connID, database, schema, table)
 }

@@ -34,3 +34,18 @@ type Cred struct {
 	User     string `json:"user"`
 	Password string `json:"password"`
 }
+
+// Index describes a single index on a table, returned by GetIndexes.
+type Index struct {
+	Name    string   `json:"name"`
+	Columns []string `json:"columns"`
+	Unique  bool     `json:"unique"`
+}
+
+// ForeignKey describes a single foreign key column, returned by GetForeignKeys.
+type ForeignKey struct {
+	Name      string `json:"name"`
+	Column    string `json:"column"`
+	RefTable  string `json:"refTable"`
+	RefColumn string `json:"refColumn"`
+}

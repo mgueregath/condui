@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	neturl "net/url"
@@ -23,12 +24,19 @@ func (a *App) startDockerLogServer() {
 	mux.HandleFunc("/stream", a.handleLogStream)
 	if dbmanager.Enabled {
 		mux.HandleFunc("/db", a.handleDbExplorer)
+		if assets, err := dbmanager.AssetsFS(); err == nil {
+			if sub, err := fs.Sub(assets, "assets"); err == nil {
+				mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(sub))))
+			}
+		}
 		mux.HandleFunc("/db-api/connect", a.handleDbApiConnect)
 		mux.HandleFunc("/db-api/disconnect", a.handleDbApiDisconnect)
 		mux.HandleFunc("/db-api/databases", a.handleDbApiDatabases)
 		mux.HandleFunc("/db-api/schemas", a.handleDbApiSchemas)
 		mux.HandleFunc("/db-api/tables", a.handleDbApiTables)
 		mux.HandleFunc("/db-api/columns", a.handleDbApiColumns)
+		mux.HandleFunc("/db-api/indexes", a.handleDbApiIndexes)
+		mux.HandleFunc("/db-api/foreignkeys", a.handleDbApiForeignKeys)
 		mux.HandleFunc("/db-api/query", a.handleDbApiQuery)
 		mux.HandleFunc("/db-api/credentials", a.handleDbApiCredentials)
 	}
@@ -191,8 +199,12 @@ func (a *App) handleDbExplorer(w http.ResponseWriter, r *http.Request) {
 	}
 	apiBase := fmt.Sprintf("http://127.0.0.1:%d", a.logServerPort)
 
-	html := dbmanager.RenderHTML(sessionID, dbType, portStr, remotePath, apiBase)
+	html, err := dbmanager.RenderIndexHTML(sessionID, dbType, portStr, remotePath, apiBase)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(w, html)
+	w.Write(html)
 }

@@ -3,6 +3,8 @@
 package dbmanager
 
 import (
+	"io/fs"
+
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
@@ -51,12 +53,24 @@ func (m *Manager) Query(connID, database, query string) (QueryResult, error) {
 	return QueryResult{Error: ErrNotAvailable.Error()}, ErrNotAvailable
 }
 
+func (m *Manager) GetIndexes(connID, database, schema, table string) ([]Index, error) {
+	return nil, ErrNotAvailable
+}
+
+func (m *Manager) GetForeignKeys(connID, database, schema, table string) ([]ForeignKey, error) {
+	return nil, ErrNotAvailable
+}
+
 func LoadCreds() map[string]Cred {
 	return map[string]Cred{}
 }
 
 func SaveCreds(creds map[string]Cred) {}
 
-func RenderHTML(sessionID, dbType, portStr, remotePath, apiBase string) string {
-	return ""
+func AssetsFS() (fs.FS, error) {
+	return nil, ErrNotAvailable
+}
+
+func RenderIndexHTML(sessionID, dbType, portStr, remotePath, apiBase string) ([]byte, error) {
+	return nil, ErrNotAvailable
 }

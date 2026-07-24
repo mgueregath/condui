@@ -3,10 +3,12 @@
 package dbmanager
 
 import (
+	"io/fs"
+
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
-	dbexplorer "github.com/mgueregath/navoro"
+	dbexplorer "github.com/mgueregath/navoro/core"
 )
 
 // Enabled reports whether the private db explorer submodule was compiled in.
@@ -66,6 +68,30 @@ func (m *Manager) Query(connID, database, query string) (QueryResult, error) {
 	return QueryResult{Columns: r.Columns, Rows: r.Rows, RowCount: r.RowCount, Error: r.Error}, err
 }
 
+func (m *Manager) GetIndexes(connID, database, schema, table string) ([]Index, error) {
+	idxs, err := m.impl.GetIndexes(connID, database, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Index, len(idxs))
+	for i, ix := range idxs {
+		out[i] = Index{Name: ix.Name, Columns: ix.Columns, Unique: ix.Unique}
+	}
+	return out, nil
+}
+
+func (m *Manager) GetForeignKeys(connID, database, schema, table string) ([]ForeignKey, error) {
+	fks, err := m.impl.GetForeignKeys(connID, database, schema, table)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ForeignKey, len(fks))
+	for i, fk := range fks {
+		out[i] = ForeignKey{Name: fk.Name, Column: fk.Column, RefTable: fk.RefTable, RefColumn: fk.RefColumn}
+	}
+	return out, nil
+}
+
 func LoadCreds() map[string]Cred {
 	creds := dbexplorer.LoadCreds()
 	out := make(map[string]Cred, len(creds))
@@ -83,6 +109,10 @@ func SaveCreds(creds map[string]Cred) {
 	dbexplorer.SaveCreds(out)
 }
 
-func RenderHTML(sessionID, dbType, portStr, remotePath, apiBase string) string {
-	return dbexplorer.RenderHTML(sessionID, dbType, portStr, remotePath, apiBase)
+func AssetsFS() (fs.FS, error) {
+	return dbexplorer.AssetsFS()
+}
+
+func RenderIndexHTML(sessionID, dbType, portStr, remotePath, apiBase string) ([]byte, error) {
+	return dbexplorer.RenderIndexHTML(sessionID, dbType, portStr, remotePath, apiBase)
 }
