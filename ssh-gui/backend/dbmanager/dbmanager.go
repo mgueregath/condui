@@ -31,8 +31,8 @@ func (m *Manager) ConnectSQLite(client *sftp.Client, sessionID, remotePath strin
 	return m.impl.ConnectSQLite(client, sessionID, remotePath)
 }
 
-func (m *Manager) Connect(client *ssh.Client, sessionID, dbType string, port int, user, password string) (string, error) {
-	return m.impl.Connect(client, sessionID, dbType, port, user, password)
+func (m *Manager) Connect(client *ssh.Client, sessionID, dbType string, port int, user, password, database string) (string, error) {
+	return m.impl.Connect(client, sessionID, dbType, port, user, password, database)
 }
 
 func (m *Manager) Disconnect(connID string) {
@@ -107,6 +107,35 @@ func SaveCreds(creds map[string]Cred) {
 		out[k] = dbexplorer.Cred{User: c.User, Password: c.Password}
 	}
 	dbexplorer.SaveCreds(out)
+}
+
+func IsKVEngine(normalizedType string) bool {
+	return dbexplorer.IsKVEngine(normalizedType)
+}
+
+func (m *Manager) ConnectKV(client *ssh.Client, sessionID, dbType string, port int, user, password string) (string, error) {
+	return m.impl.ConnectKV(client, sessionID, dbType, port, user, password)
+}
+
+func (m *Manager) KVListDatabases(connID string) ([]string, error) {
+	return m.impl.KVListDatabases(connID)
+}
+
+func (m *Manager) KVListKeys(connID, database, pattern string) ([]string, error) {
+	return m.impl.KVListKeys(connID, database, pattern)
+}
+
+func (m *Manager) KVGetValue(connID, database, key string) (KVValue, error) {
+	v, err := m.impl.KVGetValue(connID, database, key)
+	return KVValue{Type: v.Type, TTL: v.TTL, Value: v.Value}, err
+}
+
+func (m *Manager) KVSetValue(connID, database, key, value string) error {
+	return m.impl.KVSetValue(connID, database, key, value)
+}
+
+func (m *Manager) KVDeleteKey(connID, database, key string) error {
+	return m.impl.KVDeleteKey(connID, database, key)
 }
 
 func AssetsFS() (fs.FS, error) {

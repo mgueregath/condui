@@ -38,15 +38,19 @@ func (a *App) handleDbApiConnect(w http.ResponseWriter, r *http.Request) {
 	}
 	var connID string
 	var err error
-	if dbmanager.NormalizeDbType(req.DbType) == "sqlite" {
+	normalized := dbmanager.NormalizeDbType(req.DbType)
+	switch {
+	case normalized == "sqlite":
 		session, ok := a.sessionManager.Get(req.Session)
 		if !ok || session.SFTP == nil {
 			jsonErr(w, "SSH/SFTP session not found", 400)
 			return
 		}
 		connID, err = a.dbExplorer.ConnectSQLite(session.SFTP, req.Session, req.Path)
-	} else {
-		connID, err = a.DbConnect(req.Session, req.DbType, req.Port, req.User, req.Password)
+	case dbmanager.IsKVEngine(normalized):
+		connID, err = a.DbConnectKV(req.Session, req.DbType, req.Port, req.User, req.Password)
+	default:
+		connID, err = a.DbConnect(req.Session, req.DbType, req.Port, req.User, req.Password, req.Path)
 	}
 	if err != nil {
 		jsonErr(w, err.Error(), 400)
@@ -194,12 +198,21 @@ func (a *App) handleDbApiCredentials(w http.ResponseWriter, r *http.Request) {
 // ─── DB Explorer Wails-bound methods ─────────────────────────────────────────
 
 // DbConnect opens an SSH-tunneled database connection using native Go drivers.
-func (a *App) DbConnect(sessionID, dbType string, port int, user, password string) (string, error) {
+func (a *App) DbConnect(sessionID, dbType string, port int, user, password, database string) (string, error) {
 	session, ok := a.sessionManager.Get(sessionID)
 	if !ok {
 		return "", fmt.Errorf("SSH session not found")
 	}
-	return a.dbExplorer.Connect(session.Client, sessionID, dbType, port, user, password)
+	return a.dbExplorer.Connect(session.Client, sessionID, dbType, port, user, password, database)
+}
+
+// DbConnectKV opens an SSH-tunneled key-value connection (Redis).
+func (a *App) DbConnectKV(sessionID, dbType string, port int, user, password string) (string, error) {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return "", fmt.Errorf("SSH session not found")
+	}
+	return a.dbExplorer.ConnectKV(session.Client, sessionID, dbType, port, user, password)
 }
 
 // DbDisconnect closes all driver connections and cleans up resources.
@@ -240,4 +253,84 @@ func (a *App) DbGetIndexes(connID, database, schema, table string) ([]dbmanager.
 // DbGetForeignKeys returns foreign key columns for a table.
 func (a *App) DbGetForeignKeys(connID, database, schema, table string) ([]dbmanager.ForeignKey, error) {
 	return a.dbExplorer.GetForeignKeys(connID, database, schema, table)
+}
+
+// DbKVListDatabases returns the key-value engine's databases (Redis:
+// numbered DBs that have keys).
+func (a *App) DbKVListDatabases(connID string) ([]string, error) {
+	return a.dbExplorer.KVListDatabases(connID)
+}
+
+// DbKVListKeys returns keys matching pattern ("" = "*") in a database.
+func (a *App) DbKVListKeys(connID, database, pattern string) ([]string, error) {
+	return a.dbExplorer.KVListKeys(connID, database, pattern)
+}
+
+// DbKVGetValue returns a single key's type/TTL/value.
+func (a *App) DbKVGetValue(connID, database, key string) (dbmanager.KVValue, error) {
+	return a.dbExplorer.KVGetValue(connID, database, key)
+}
+
+// DbKVSetValue sets a string key's value.
+func (a *App) DbKVSetValue(connID, database, key, value string) error {
+	return a.dbExplorer.KVSetValue(connID, database, key, value)
+}
+
+// DbKVDeleteKey deletes a key.
+func (a *App) DbKVDeleteKey(connID, database, key string) error {
+	return a.dbExplorer.KVDeleteKey(connID, database, key)
+}
+
+func (a *App) handleDbApiKVDatabases(w http.ResponseWriter, r *http.Request) {
+	dbs, err := a.DbKVListDatabases(r.URL.Query().Get("connId"))
+	if err != nil {
+		jsonErr(w, err.Error(), 400)
+		return
+	}
+	jsonOK(w, dbs)
+}
+
+func (a *App) handleDbApiKVKeys(w http.ResponseWriter, r *http.Request) {
+	keys, err := a.DbKVListKeys(r.URL.Query().Get("connId"), r.URL.Query().Get("db"), r.URL.Query().Get("pattern"))
+	if err != nil {
+		jsonErr(w, err.Error(), 400)
+		return
+	}
+	jsonOK(w, keys)
+}
+
+func (a *App) handleDbApiKVValue(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		v, err := a.DbKVGetValue(r.URL.Query().Get("connId"), r.URL.Query().Get("db"), r.URL.Query().Get("key"))
+		if err != nil {
+			jsonErr(w, err.Error(), 400)
+			return
+		}
+		jsonOK(w, v)
+	case http.MethodPost:
+		var req struct{ ConnID, DB, Key, Value string }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			jsonErr(w, err.Error(), 400)
+			return
+		}
+		if err := a.DbKVSetValue(req.ConnID, req.DB, req.Key, req.Value); err != nil {
+			jsonErr(w, err.Error(), 400)
+			return
+		}
+		jsonOK(w, map[string]bool{"ok": true})
+	case http.MethodDelete:
+		var req struct{ ConnID, DB, Key string }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			jsonErr(w, err.Error(), 400)
+			return
+		}
+		if err := a.DbKVDeleteKey(req.ConnID, req.DB, req.Key); err != nil {
+			jsonErr(w, err.Error(), 400)
+			return
+		}
+		jsonOK(w, map[string]bool{"ok": true})
+	default:
+		jsonErr(w, "method not allowed", 405)
+	}
 }

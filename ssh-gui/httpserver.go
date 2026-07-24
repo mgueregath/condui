@@ -39,6 +39,9 @@ func (a *App) startDockerLogServer() {
 		mux.HandleFunc("/db-api/foreignkeys", a.handleDbApiForeignKeys)
 		mux.HandleFunc("/db-api/query", a.handleDbApiQuery)
 		mux.HandleFunc("/db-api/credentials", a.handleDbApiCredentials)
+		mux.HandleFunc("/kv-api/databases", a.handleDbApiKVDatabases)
+		mux.HandleFunc("/kv-api/keys", a.handleDbApiKVKeys)
+		mux.HandleFunc("/kv-api/value", a.handleDbApiKVValue)
 	}
 	for port := 9091; port <= 9110; port++ {
 		srv := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", port), Handler: mux}

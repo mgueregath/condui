@@ -27,7 +27,7 @@ func (m *Manager) ConnectSQLite(client *sftp.Client, sessionID, remotePath strin
 	return "", ErrNotAvailable
 }
 
-func (m *Manager) Connect(client *ssh.Client, sessionID, dbType string, port int, user, password string) (string, error) {
+func (m *Manager) Connect(client *ssh.Client, sessionID, dbType string, port int, user, password, database string) (string, error) {
 	return "", ErrNotAvailable
 }
 
@@ -66,6 +66,34 @@ func LoadCreds() map[string]Cred {
 }
 
 func SaveCreds(creds map[string]Cred) {}
+
+func IsKVEngine(normalizedType string) bool {
+	return false
+}
+
+func (m *Manager) ConnectKV(client *ssh.Client, sessionID, dbType string, port int, user, password string) (string, error) {
+	return "", ErrNotAvailable
+}
+
+func (m *Manager) KVListDatabases(connID string) ([]string, error) {
+	return nil, ErrNotAvailable
+}
+
+func (m *Manager) KVListKeys(connID, database, pattern string) ([]string, error) {
+	return nil, ErrNotAvailable
+}
+
+func (m *Manager) KVGetValue(connID, database, key string) (KVValue, error) {
+	return KVValue{}, ErrNotAvailable
+}
+
+func (m *Manager) KVSetValue(connID, database, key, value string) error {
+	return ErrNotAvailable
+}
+
+func (m *Manager) KVDeleteKey(connID, database, key string) error {
+	return ErrNotAvailable
+}
 
 func AssetsFS() (fs.FS, error) {
 	return nil, ErrNotAvailable

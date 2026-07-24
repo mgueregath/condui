@@ -49,3 +49,10 @@ type ForeignKey struct {
 	RefTable  string `json:"refTable"`
 	RefColumn string `json:"refColumn"`
 }
+
+// KVValue is a single key's value for key-value engines (Redis).
+type KVValue struct {
+	Type  string `json:"type"`
+	TTL   int64  `json:"ttl"`
+	Value string `json:"value"`
+}
