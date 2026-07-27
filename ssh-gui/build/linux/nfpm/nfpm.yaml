@@ -17,11 +17,11 @@ license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/Condui"
+  - src: "./bin/condui"
     dst: "/usr/local/bin/condui"
   - src: "./build/appicon.png"
     dst: "/usr/share/icons/hicolor/128x128/apps/condui.png"
-  - src: "./build/linux/Condui.desktop"
+  - src: "./build/linux/condui.desktop"
     dst: "/usr/share/applications/condui.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
