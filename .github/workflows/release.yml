@@ -168,6 +168,10 @@ jobs:
   build-windows:
     name: Build Windows (x64)
     runs-on: windows-latest
+    env:
+      # `secrets` isn't usable directly in step `if:` conditions, so it's
+      # mapped through a job-level env var here instead.
+      SIGNPATH_ENABLED: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
     steps:
       # Public OSS build: never fetches the private navoro submodule
       # (ssh-gui/backend/dbexplorer). See README's Database Explorer /
@@ -207,7 +211,7 @@ jobs:
       # application is approved and these secrets are populated. Until then
       # this step is skipped and the unsigned installer above ships as-is.
       - name: Upload unsigned installer for SignPath
-        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        if: ${{ env.SIGNPATH_ENABLED == 'true' }}
         id: upload-unsigned
         uses: actions/upload-artifact@v4
         with:
@@ -215,7 +219,7 @@ jobs:
           path: dist/Condui-windows-x64.exe
 
       - name: Submit signing request to SignPath
-        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        if: ${{ env.SIGNPATH_ENABLED == 'true' }}
         uses: signpath/github-action-submit-signing-request@v2
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -227,7 +231,7 @@ jobs:
           output-artifact-directory: dist-signed
 
       - name: Replace with signed installer
-        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        if: ${{ env.SIGNPATH_ENABLED == 'true' }}
         shell: bash
         run: cp dist-signed/Condui-windows-x64.exe dist/Condui-windows-x64.exe
 
