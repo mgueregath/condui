@@ -221,10 +221,35 @@ Security vulnerabilities should not be reported publicly. Please read [SECURITY.
 # Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/main.png">
+  <img src="docs/screenshots/connections-overview.png" width="800"><br/>
+  <sub>Connections list, grouped in folders</sub>
 </p>
 
----
+<p align="center">
+  <img src="docs/screenshots/vault-unlock.png" width="800"><br/>
+  <sub>Encrypted vault unlock</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/terminal-sftp.png" width="800"><br/>
+  <sub>SSH terminal with remote file explorer</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/docker.png" width="800"><br/>
+  <sub>Docker container management</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/databases.png" width="800"><br/>
+  <sub>Database discovery via Docker</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/ports.png" width="800"><br/>
+  <sub>Open ports on the remote host</sub>
+</p>
+
 
 # Project Structure
 
@@ -240,6 +265,9 @@ condui/
 
 The account/sync/sharing backend ([condui-server](https://github.com/mgueregath/condui-server)) is a separate
 repository, cloned independently.
+
+See [docs/roadmap.md](docs/roadmap.md) for the original implementation plan (historical — all 25 increments
+are done), and [docs/RELEASING.md](docs/RELEASING.md) for how releases are built and published.
 
 ---
 

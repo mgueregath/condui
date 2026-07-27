@@ -13,7 +13,7 @@ maintainer: Mirko Gueregat <mgueregath@gmail.com>
 description: "Condui - SSH and database explorer GUI"
 vendor: "Mirko Gueregat"
 homepage: "https://github.com/mgueregath/condui"
-license: "MIT"
+license: "AGPL-3.0"
 release: "1"
 
 contents:

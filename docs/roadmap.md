@@ -1,4 +1,9 @@
-# ModernTerm - Roadmap de Implementación
+# condui - Roadmap de Implementación (histórico)
+
+> Este documento es el plan de incrementos original del proyecto (bajo su nombre anterior, "ModernTerm").
+> Los 25 incrementos listados abajo ya están implementados — ver la lista de funcionalidades en el
+> [README](../README.md#what-is-condui) para el estado actual. Se conserva como referencia histórica del
+> diseño, no como roadmap futuro.
 
 ## Objetivo
 
