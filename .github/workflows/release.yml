@@ -194,7 +194,9 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS3_VERSION }}
 
       - name: Install NSIS
-        run: choco install nsis -y
+        run: |
+          choco install nsis -y
+          echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Build NSIS installer
         working-directory: ssh-gui
@@ -262,9 +264,8 @@ jobs:
           cache: npm
           cache-dependency-path: ssh-gui/frontend/package-lock.json
 
-      - name: Install wails3 CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS3_VERSION }}
-
+      # Must run before installing wails3 CLI: `go install` compiles the CLI
+      # itself, which needs gtk4/webkitgtk-6.0 headers via cgo/pkg-config.
       - name: Install system build dependencies
         run: |
           sudo apt-get update
@@ -272,6 +273,9 @@ jobs:
             pkg-config gcc libc6-dev \
             libgtk-4-dev libwebkitgtk-6.0-dev \
             libfuse2t64 || sudo apt-get install -y libfuse2
+
+      - name: Install wails3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS3_VERSION }}
 
       - name: Build packages (AppImage, deb, rpm)
         working-directory: ssh-gui
