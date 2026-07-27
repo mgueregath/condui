@@ -13,6 +13,10 @@ vars:
   # Docker image for cross-compilation (used when building on non-Linux or no CC available)
   CROSS_IMAGE: wails-cross
 
+  # Package version for deb/rpm/aur (falls back to a git tag, then a dev placeholder)
+  VERSION:
+    sh: 'git describe --tags --always 2>/dev/null | sed "s/^v//" || echo 0.0.0-dev'
+
 tasks:
   build:
     summary: Builds the application for Linux
@@ -154,16 +158,22 @@ tasks:
     summary: Creates a deb package
     cmds:
       - wails3 tool package -name "{{.APP_NAME}}" -format deb -config ./build/linux/nfpm/nfpm.yaml -out {{.ROOT_DIR}}/bin
+    env:
+      VERSION: '{{.VERSION}}'
 
   generate:rpm:
     summary: Creates a rpm package
     cmds:
       - wails3 tool package -name "{{.APP_NAME}}" -format rpm -config ./build/linux/nfpm/nfpm.yaml -out {{.ROOT_DIR}}/bin
+    env:
+      VERSION: '{{.VERSION}}'
 
   generate:aur:
     summary: Creates a arch linux packager package
     cmds:
       - wails3 tool package -name "{{.APP_NAME}}" -format archlinux -config ./build/linux/nfpm/nfpm.yaml -out {{.ROOT_DIR}}/bin
+    env:
+      VERSION: '{{.VERSION}}'
 
   generate:dotdesktop:
     summary: Generates a `.desktop` file

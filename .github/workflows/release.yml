@@ -1,0 +1,316 @@
+name: Release
+
+# Builds macOS, Windows and Linux desktop artifacts and publishes them to a
+# GitHub Release whenever a version tag is pushed.
+#
+# Required repository secrets (see docs/RELEASING.md for details):
+#   MACOS_CERTIFICATE_P12       base64-encoded Developer ID Application .p12
+#   MACOS_CERTIFICATE_PASSWORD  password for the .p12 above
+#   MACOS_KEYCHAIN_PASSWORD     arbitrary password for the throwaway CI keychain
+#   MACOS_SIGN_IDENTITY         e.g. "Developer ID Application: Name (TEAMID)"
+#   APPLE_ID                    Apple ID used for notarization
+#   APPLE_TEAM_ID               Apple Developer Team ID
+#   APPLE_APP_SPECIFIC_PASSWORD app-specific password for notarytool
+#
+# Optional (enables Windows Authenticode signing once the SignPath Foundation
+# application is approved — the step is skipped entirely while these are unset):
+#   SIGNPATH_API_TOKEN
+#   SIGNPATH_ORGANIZATION_ID
+#   SIGNPATH_PROJECT_SLUG
+#   SIGNPATH_SIGNING_POLICY_SLUG
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: "1.25"
+  NODE_VERSION: "22"
+  WAILS3_VERSION: "v3.0.0-alpha.98-tui"
+
+jobs:
+  build-macos:
+    name: Build macOS (universal)
+    runs-on: macos-14
+    steps:
+      # Public OSS build: never fetches the private navoro submodule
+      # (ssh-gui/backend/dbexplorer). See README's Database Explorer /
+      # `dbmanager` build tag notes and .gitmodules `update = none`.
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ssh-gui/frontend/package-lock.json
+
+      - name: Install wails3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS3_VERSION }}
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Build universal .app bundle
+        working-directory: ssh-gui
+        run: wails3 task darwin:package:universal
+
+      - name: Import signing certificate
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/condui-signing.keychain-db"
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+
+          echo "$MACOS_CERTIFICATE_P12" | base64 --decode -o "$CERT_PATH"
+
+          security create-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN"
+
+          security import "$CERT_PATH" -k "$KEYCHAIN" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN"
+
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | sed 's/"//g')
+          security default-keychain -s "$KEYCHAIN"
+
+      - name: Codesign app bundle
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+        run: |
+          set -euo pipefail
+          APP_PATH="ssh-gui/bin/condui.app"
+
+          codesign \
+            --force --deep --options runtime --timestamp \
+            --entitlements scripts/entitlements.plist \
+            --sign "$MACOS_SIGN_IDENTITY" \
+            "$APP_PATH"
+
+          codesign --verify --verbose --deep --strict "$APP_PATH"
+
+      - name: Notarize app bundle
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          APP_PATH="ssh-gui/bin/condui.app"
+          ZIP_PATH="$RUNNER_TEMP/Condui.zip"
+
+          ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
+
+          xcrun notarytool submit "$ZIP_PATH" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait
+
+          xcrun stapler staple "$APP_PATH"
+          xcrun stapler validate "$APP_PATH"
+
+      - name: Create DMG
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          APP_PATH="ssh-gui/bin/condui.app"
+          DMG_WORK="$RUNNER_TEMP/dmg-work"
+          DMG_PATH="dist/Condui-mac.dmg"
+
+          mkdir -p dist "$DMG_WORK"
+          cp -R "$APP_PATH" "$DMG_WORK/"
+
+          create-dmg \
+            --volname "Condui Installer" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 110 \
+            --icon "Condui.app" 150 190 \
+            --app-drop-link 430 190 \
+            "$DMG_PATH" \
+            "$DMG_WORK"
+
+          codesign --force --timestamp --sign "$MACOS_SIGN_IDENTITY" "$DMG_PATH"
+
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait
+
+          xcrun stapler staple "$DMG_PATH"
+          xcrun stapler validate "$DMG_PATH"
+          spctl -a -vvv --type install "$DMG_PATH"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: dist/Condui-mac.dmg
+          if-no-files-found: error
+
+  build-windows:
+    name: Build Windows (x64)
+    runs-on: windows-latest
+    steps:
+      # Public OSS build: never fetches the private navoro submodule
+      # (ssh-gui/backend/dbexplorer). See README's Database Explorer /
+      # `dbmanager` build tag notes and .gitmodules `update = none`.
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ssh-gui/frontend/package-lock.json
+
+      - name: Install wails3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS3_VERSION }}
+
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Build NSIS installer
+        working-directory: ssh-gui
+        run: wails3 task windows:package ARCH=amd64
+
+      - name: Stage unsigned installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp "ssh-gui/bin/Condui-amd64-installer.exe" "dist/Condui-windows-x64.exe"
+
+      # Signs the installer with SignPath once the SignPath Foundation OSS
+      # application is approved and these secrets are populated. Until then
+      # this step is skipped and the unsigned installer above ships as-is.
+      - name: Upload unsigned installer for SignPath
+        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-unsigned
+          path: dist/Condui-windows-x64.exe
+
+      - name: Submit signing request to SignPath
+        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ secrets.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: dist-signed
+
+      - name: Replace with signed installer
+        if: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+        shell: bash
+        run: cp dist-signed/Condui-windows-x64.exe dist/Condui-windows-x64.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/Condui-windows-x64.exe
+          if-no-files-found: error
+
+  build-linux:
+    name: Build Linux (x64)
+    runs-on: ubuntu-24.04
+    steps:
+      # Public OSS build: never fetches the private navoro submodule
+      # (ssh-gui/backend/dbexplorer). See README's Database Explorer /
+      # `dbmanager` build tag notes and .gitmodules `update = none`.
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ssh-gui/frontend/package-lock.json
+
+      - name: Install wails3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS3_VERSION }}
+
+      - name: Install system build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config gcc libc6-dev \
+            libgtk-4-dev libwebkitgtk-6.0-dev \
+            libfuse2t64 || sudo apt-get install -y libfuse2
+
+      - name: Build packages (AppImage, deb, rpm)
+        working-directory: ssh-gui
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: wails3 task linux:package
+
+      - name: Stage artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp ssh-gui/bin/*.AppImage dist/Condui-linux-x64.AppImage
+          cp ssh-gui/bin/*.deb dist/Condui-linux-x64.deb
+          cp ssh-gui/bin/*.rpm dist/Condui-linux-x64.rpm
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: |
+            dist/Condui-linux-x64.AppImage
+            dist/Condui-linux-x64.deb
+            dist/Condui-linux-x64.rpm
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Condui ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/Condui-mac.dmg
+            dist/Condui-windows-x64.exe
+            dist/Condui-linux-x64.AppImage
+            dist/Condui-linux-x64.deb
+            dist/Condui-linux-x64.rpm

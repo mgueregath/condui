@@ -8,7 +8,12 @@ tasks:
       - dbmanager:setup
       - buildconfig:setup
     cmds:
-      - go mod tidy
+      # -e: keep tidying even if resolving fails for a package. Needed because
+      # backend/dbmanager/dbmanager.go (gated by the `dbmanager` build tag)
+      # imports the private navoro module, which `go mod tidy` still probes
+      # for regardless of active tags — and which isn't reachable without
+      # access to that private repo (OSS clones, CI, contributors).
+      - go mod tidy -e
 
   buildconfig:setup:
     summary: >

@@ -253,22 +253,22 @@ Download the latest release from GitHub Releases.
 Condui-windows-x64.exe
 ```
 
-## macOS Apple Silicon
+## macOS (Apple Silicon & Intel)
 
 ```bash
-Condui-mac-arm64.dmg
+Condui-mac.dmg
 ```
 
-## macOS Intel
-
-```bash
-Condui-mac-intel.dmg
-```
+A single universal binary (arm64 + amd64) in one installer.
 
 ## Linux
 
 ```bash
 Condui-linux-x64.AppImage
+# or
+Condui-linux-x64.deb
+# or
+Condui-linux-x64.rpm
 ```
 
 ---

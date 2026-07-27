@@ -1,3 +1,7 @@
 [submodule "ssh-gui/backend/dbexplorer"]
 	path = ssh-gui/backend/dbexplorer
 	url = git@github.com:mgueregath/navoro.git
+	# Private repo, not accessible to OSS contributors/CI. `update = none` keeps
+	# `git submodule update --init --recursive` (and similar recursive clones)
+	# from failing when the caller has no access to it.
+	update = none

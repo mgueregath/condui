@@ -3,26 +3,26 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "testapp.exe"
+name: "condui"
 arch: ${GOARCH}
 platform: "linux"
-version: "0.1.0"
+version: ${VERSION}
 section: "default"
 priority: "extra"
-maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
-description: "A testapp application"
-vendor: "My Company"
-homepage: "https://wails.io"
+maintainer: Mirko Gueregat <mgueregath@gmail.com>
+description: "Condui - SSH and database explorer GUI"
+vendor: "Mirko Gueregat"
+homepage: "https://github.com/mgueregath/condui"
 license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/testapp.exe"
-    dst: "/usr/local/bin/testapp.exe"
+  - src: "./bin/Condui"
+    dst: "/usr/local/bin/condui"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/testapp.exe.png"
-  - src: "./build/linux/testapp.exe.desktop"
-    dst: "/usr/share/applications/testapp.exe.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/condui.png"
+  - src: "./build/linux/Condui.desktop"
+    dst: "/usr/share/applications/condui.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:

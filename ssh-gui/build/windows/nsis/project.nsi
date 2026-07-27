@@ -31,6 +31,11 @@ Unicode true
 ## !define REQUEST_EXECUTION_LEVEL "admin"            # Default "admin"  see also https://nsis.sourceforge.io/Docs/Chapter4.html
 ## !define WAILS_INSTALL_SCOPE     "user"             # Default "machine" - set to "user" for per-user install ($LOCALAPPDATA) without UAC prompt
 ####
+!define INFO_PROJECTNAME    "Condui"
+!define INFO_COMPANYNAME    "Mirko Gueregat"
+!define INFO_PRODUCTNAME    "Condui"
+!define INFO_COPYRIGHT      "© 2026, Mirko Gueregat"
+####
 ## Include the wails tools
 ####
 !include "wails_tools.nsh"
