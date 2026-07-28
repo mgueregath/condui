@@ -3,6 +3,7 @@ build/android/*
 node_modules
 frontend/dist
 frontend/.env.local
+frontend/.env
 go.work
 go.work.sum
 backend/buildconfig/build.config.yaml

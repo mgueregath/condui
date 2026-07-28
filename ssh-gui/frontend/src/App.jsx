@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Terminal } from "xterm";
-import { FitAddon } from "xterm-addon-fit";
-import "xterm/css/xterm.css";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
+import { WebLinksAddon } from "@xterm/addon-web-links";
+import "@xterm/xterm/css/xterm.css";
 import conduiLogo from "./assets/images/condui-transparent.png";
 import { FaCheck, FaCopy, FaEraser, FaExclamationTriangle, FaFolder, FaInbox, FaPaste, FaTimes, FaUser, FaTerminal, FaPlus } from "react-icons/fa";
 
@@ -530,6 +532,7 @@ function App() {
     const term = new Terminal({
       cursorBlink: true,
       convertEol: true,
+      allowProposedApi: true,
       theme: {
         background: "#111827",
         foreground: "#c4bde0",
@@ -558,8 +561,11 @@ function App() {
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
+    term.loadAddon(new WebLinksAddon());
+    term.loadAddon(new Unicode11Addon());
     term.open(terminalRef.current);
     fitAddon.fit();
+    term.unicode.activeVersion = "11";
     termRef.current = term;
     focusTerminal();
 
