@@ -305,8 +305,10 @@ function LeftSidebar({
 function App() {
   const { t } = useTranslation();
   const terminalRef = useRef(null);
+  const holdingRef = useRef(null);
   const termRef = useRef(null);
-  const terminalBuffers = useRef({});
+  const terminalsRef = useRef(new Map());
+  const attachedSessionRef = useRef(null);
   const fileTreeRef = useRef(null);
   const syncInFlightRef = useRef(false);
 
@@ -369,7 +371,6 @@ function App() {
 
   const clearTerminal = () => {
     if (!activeTab || !termRef.current) return;
-    terminalBuffers.current[activeTab] = "";
     termRef.current.clear();
     focusTerminal();
   };
@@ -483,7 +484,15 @@ function App() {
         delete next[tab.id];
         return next;
       });
-      delete terminalBuffers.current[tab.id];
+      const entry = terminalsRef.current.get(tab.id);
+      if (entry) {
+        terminalsRef.current.delete(tab.id);
+        entry.sessionId = newSessionId;
+        terminalsRef.current.set(newSessionId, entry);
+        if (attachedSessionRef.current === tab.id) {
+          attachedSessionRef.current = newSessionId;
+        }
+      }
       setTabs((prev) =>
         prev.map((t) =>
           t.id === tab.id
@@ -527,8 +536,16 @@ function App() {
     modified: false,
   });
 
-  useEffect(() => {
-    if (!terminalRef.current) return; // Guard: terminal div not mounted (vault screen showing)
+  // Crea (una sola vez por sesión) una instancia de Terminal en un <div>
+  // desmontado, para que sobreviva a los cambios de pestaña activa en vez de
+  // destruirse y recrearse (lo que perdía scroll/cursor/pantalla alternativa).
+  const createTerminalInstance = (sessionId) => {
+    const container = document.createElement("div");
+    container.style.width = "100%";
+    container.style.height = "100%";
+
+    const entry = { sessionId, term: null, fitAddon: null, container };
+
     const term = new Terminal({
       cursorBlink: true,
       convertEol: true,
@@ -563,11 +580,8 @@ function App() {
     term.loadAddon(fitAddon);
     term.loadAddon(new WebLinksAddon());
     term.loadAddon(new Unicode11Addon());
-    term.open(terminalRef.current);
-    fitAddon.fit();
+    term.open(container);
     term.unicode.activeVersion = "11";
-    termRef.current = term;
-    focusTerminal();
 
     term.attachCustomKeyEventHandler((event) => {
       const isWindows = navigator.platform.toLowerCase().startsWith("win");
@@ -588,50 +602,80 @@ function App() {
       return true;
     });
 
+    // sessionId se lee desde `entry` (no capturado directamente) para que
+    // sobreviva a una reconexión, que reasigna un nuevo sessionId al mismo
+    // terminal sin recrear la instancia de xterm.
     term.onData((data) => {
-      if (!activeTab) return;
-      SendInput(activeTab, data);
+      SendInput(entry.sessionId, data);
     });
 
+    entry.term = term;
+    entry.fitAddon = fitAddon;
+    terminalsRef.current.set(sessionId, entry);
+    return entry;
+  };
+
+  // Enruta la salida de cada sesión a su instancia de Terminal persistente,
+  // exista o no visible en este momento.
+  useEffect(() => {
     const unsubscribe = Events.On("terminal-output", (event) => {
       const payload = event.data;
-      if (!terminalBuffers.current[payload.sessionId]) {
-        terminalBuffers.current[payload.sessionId] = "";
-      }
-      terminalBuffers.current[payload.sessionId] += payload.data;
-      if (payload.sessionId !== activeTab) {
-        return;
-      }
-      term.write(payload.data);
+      const entry = terminalsRef.current.get(payload.sessionId);
+      if (entry) entry.term.write(payload.data);
     });
+    return () => unsubscribe();
+  }, []);
+
+  // Adjunta al DOM visible el terminal de la pestaña activa y devuelve a la
+  // zona oculta ("holding") el de la pestaña anterior, sin destruirlo.
+  useEffect(() => {
+    if (!terminalRef.current || !holdingRef.current) return; // Guard: terminal div not mounted (vault screen showing)
+
+    const prevId = attachedSessionRef.current;
+    if (prevId && prevId !== activeTab) {
+      const prevEntry = terminalsRef.current.get(prevId);
+      if (prevEntry) holdingRef.current.appendChild(prevEntry.container);
+    }
+
+    if (!activeTab) {
+      termRef.current = null;
+      attachedSessionRef.current = null;
+      return;
+    }
+
+    const entry = terminalsRef.current.get(activeTab) || createTerminalInstance(activeTab);
+    terminalRef.current.appendChild(entry.container);
+    attachedSessionRef.current = activeTab;
+    termRef.current = entry.term;
+
+    entry.fitAddon.fit();
+    ResizeTerminal(activeTab, entry.term.rows, entry.term.cols);
+    focusTerminal();
+  }, [activeTab, vaultUnlocked]);
+
+  // Re-ajusta el tamaño del terminal actualmente visible cuando cambia el
+  // tamaño de la ventana o del contenedor (p.ej. al aparecer la ResourceBar).
+  useEffect(() => {
+    if (!terminalRef.current) return;
 
     const doFit = () => {
-      fitAddon.fit();
-      if (activeTab && termRef.current)
-        ResizeTerminal(activeTab, term.rows, term.cols);
+      const id = attachedSessionRef.current;
+      if (!id) return;
+      const entry = terminalsRef.current.get(id);
+      if (!entry) return;
+      entry.fitAddon.fit();
+      ResizeTerminal(id, entry.term.rows, entry.term.cols);
     };
-    window.addEventListener("resize", doFit);
 
-    // Re-ajusta también cuando el contenedor cambia de tamaño por DOM
-    // (p.ej. cuando aparece la ResourceBar después de cargar los stats)
+    window.addEventListener("resize", doFit);
     const ro = new ResizeObserver(doFit);
     ro.observe(terminalRef.current);
 
     return () => {
-      unsubscribe();
       window.removeEventListener("resize", doFit);
       ro.disconnect();
-      term.dispose();
     };
-  }, [activeTab, vaultUnlocked]);
-
-  useEffect(() => {
-    if (!activeTab || !termRef.current) return;
-    termRef.current.clear();
-    termRef.current.write(terminalBuffers.current[activeTab] || "");
-    ResizeTerminal(activeTab, termRef.current.rows, termRef.current.cols);
-    focusTerminal();
-  }, [activeTab]);
+  }, [vaultUnlocked]);
 
   const activeTabData = tabs.find((t) => t.id === activeTab);
   const isLocalActive = activeTabData?.type === "local";
@@ -866,7 +910,17 @@ function App() {
       console.error("Failed to close SSH session", err);
     }
 
-    delete terminalBuffers.current[tabId];
+    const entry = terminalsRef.current.get(tabId);
+    if (entry) {
+      entry.term.dispose();
+      entry.container.remove();
+      terminalsRef.current.delete(tabId);
+    }
+    if (attachedSessionRef.current === tabId) {
+      attachedSessionRef.current = null;
+      termRef.current = null;
+    }
+
     setFileTreePaths((prev) => {
       const next = { ...prev };
       delete next[tabId];
@@ -886,6 +940,10 @@ function App() {
 
   return (
     <div className="app-shell">
+      {/* Contenedor oculto donde "viven" los terminales de pestañas no
+          activas: preserva su instancia de xterm (scroll, cursor, pantalla
+          alternativa) en vez de destruirla al cambiar de pestaña. */}
+      <div ref={holdingRef} style={{ position: "absolute", width: 0, height: 0, overflow: "hidden", visibility: "hidden" }} />
       <div className="topbar">
         <div className="topbar-logo">
           <span className="topbar-logo-wordmark">
