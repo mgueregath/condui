@@ -11,13 +11,55 @@ git push origin v1.0.0
 
 This produces:
 
+**Fresh-install artifacts** (what a user downloads from the Releases page the first time):
 - `Condui-mac.dmg` — signed and notarized universal (arm64 + amd64) build
 - `Condui-windows-x64.exe` — NSIS installer (unsigned until SignPath is approved, see below)
 - `Condui-linux-x64.AppImage`, `Condui-linux-x64.deb`, `Condui-linux-x64.rpm`
 
+**In-app updater artifacts** (what an already-installed Condui downloads via Account → Check for
+Updates; see [Updating](#updating) below):
+- `Condui-darwin-arm64-amd64.app.zip` — the same signed/notarized `.app` bundle, zipped
+- `Condui-windows-amd64-update.exe` — the bare `.exe` (no installer wrapper)
+- `Condui-linux-x64.AppImage` — reused as-is; it's already a swappable single-file binary
+- `SHA256SUMS` — digests the updater verifies downloads against
+
 The public build never includes the private `ssh-gui/backend/dbexplorer` (navoro) submodule or the
 `dbmanager` Go build tag — the workflow checks out the repo without submodules, matching how an outside
 contributor would build the OSS repo.
+
+## Updating
+
+Condui embeds [Wails v3's built-in updater](https://v3.wails.io/tutorials/04-self-update-a-wails-app/)
+(`github.com/wailsapp/wails/v3/pkg/updater`, already vendored at the pinned `go.mod` version — no extra
+dependency). `ssh-gui/main.go` wires it to the `mgueregath/condui` GitHub Releases API
+(`backend/buildconfig/build.config.yaml`, key `update_repo`) with the release's `SHA256SUMS` as the
+integrity check (`github.Config.ChecksumAsset`). The version compared against `tag_name` is baked in at
+build time via `-ldflags -X main.currentVersion=...` (see the `VERSION` var in each
+`ssh-gui/build/{darwin,windows,linux}/Taskfile.yml`, sourced from `git describe --tags`).
+
+Users trigger a check from the Account modal ("Check for Updates…" — `ssh-gui/app_update.go`,
+`CheckForUpdates`), which opens the framework's built-in update window: it shows the release notes,
+downloads and verifies the matching asset, and swaps it in on **Restart & Apply**.
+
+Why the updater needs its own assets instead of reusing the DMG/installer:
+- The updater only knows how to unpack `.zip`/`.tar.gz` (or take a bare file) before swapping — it can't
+  mount a `.dmg` or invoke an NSIS installer. Hence the separate zipped `.app` and bare `.exe`.
+- The default asset matcher picks a release asset by `GOOS`/`GOARCH` substring in the filename (`darwin`,
+  `windows`, `linux`, `amd64`, `arm64` — with `x64`/`x86_64`/`aarch64` aliases). The macOS zip is named
+  with **both** arch tokens since it's a universal binary that needs to match either host arch.
+- The AppImage needs no separate asset: it's already a bare, swappable single-file binary, and its
+  existing name (`Condui-linux-x64.AppImage`) already contains matcher-recognized tokens (`linux`, `x64`
+  as an `amd64` alias).
+- `.deb`/`.rpm` have no auto-update path here — package-manager artifacts aren't something this updater
+  (or any equivalent without a hosted APT/YUM repo) can swap in place. Users on those tracks reinstall the
+  new `.deb`/`.rpm` manually, same as before this feature existed.
+
+The Windows portable `.exe` ships unsigned for now, same as the installer (see SignPath section below) —
+signing it requires a second SignPath Artifact Configuration once that's set up.
+
+For stronger tamper-resistance than the `SHA256SUMS` digest check (integrity, not authenticity), the
+Updater guide covers adding an Ed25519 signature (`updater.Config.PublicKey` + a signing step in CI) — not
+wired up here; revisit if the distribution channel's trust model changes.
 
 ## Required secrets (macOS signing & notarization)
 

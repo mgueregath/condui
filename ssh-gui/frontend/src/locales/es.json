@@ -119,7 +119,11 @@
     "createAccount": "Crear cuenta",
     "loginFailed": "No se pudo iniciar sesión",
     "registrationFailed": "No se pudo crear la cuenta",
-    "accountCreated": "Cuenta creada. Ya puedes iniciar sesión."
+    "accountCreated": "Cuenta creada. Ya puedes iniciar sesión.",
+    "version": "Versión {{version}}",
+    "checkForUpdates": "Buscar actualizaciones…",
+    "checkingForUpdates": "Buscando…",
+    "updateCheckFailed": "Error al buscar actualizaciones: {{error}}"
   },
   "share": {
     "title": "Compartir conexión",

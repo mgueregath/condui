@@ -5,6 +5,8 @@ import {
   AccountRegister,
   AccountLogout,
   SyncNow,
+  GetAppVersion,
+  CheckForUpdates,
 } from "../../../bindings/ssh-gui/app";
 import { useTranslation } from "react-i18next";
 import { FaArrowRight } from "react-icons/fa";
@@ -26,6 +28,9 @@ export default function AccountModal({ onClose }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
+  const [appVersion, setAppVersion] = useState("");
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateMsg, setUpdateMsg] = useState("");
 
   const refreshStatus = async () => {
     try {
@@ -34,7 +39,24 @@ export default function AccountModal({ onClose }) {
     } catch (_) {}
   };
 
-  useEffect(() => { refreshStatus(); }, []);
+  useEffect(() => {
+    refreshStatus();
+    GetAppVersion().then(setAppVersion).catch(() => {});
+  }, []);
+
+  const handleCheckForUpdates = async () => {
+    setUpdateMsg("");
+    setCheckingUpdate(true);
+    try {
+      // Opens the framework's built-in updater window (progress, release
+      // notes, Restart & Apply) — this call just kicks that flow off.
+      await CheckForUpdates();
+    } catch (err) {
+      setUpdateMsg(t("account.updateCheckFailed", { error: typeof err === "string" ? err : err?.message }));
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -115,6 +137,16 @@ export default function AccountModal({ onClose }) {
             <LanguageSwitcher />
           </div>
 
+          <div className="account-preference-row">
+            <span style={{ color: "var(--text-muted)" }}>
+              {appVersion ? t("account.version", { version: appVersion }) : ""}
+            </span>
+            <button className="btn-secondary btn-sm" onClick={handleCheckForUpdates} disabled={checkingUpdate}>
+              {checkingUpdate ? t("account.checkingForUpdates") : t("account.checkForUpdates")}
+            </button>
+          </div>
+          {updateMsg && <div className="vault-error">{updateMsg}</div>}
+
           <div className="account-info-card">
             <div className="account-avatar">{status.email?.[0]?.toUpperCase() || "?"}</div>
             <div className="account-info-details">
@@ -177,6 +209,16 @@ export default function AccountModal({ onClose }) {
           <span>{t("settings.language")}</span>
           <LanguageSwitcher />
         </div>
+
+        <div className="account-preference-row">
+          <span style={{ color: "var(--text-muted)" }}>
+            {appVersion ? t("account.version", { version: appVersion }) : ""}
+          </span>
+          <button className="btn-secondary btn-sm" onClick={handleCheckForUpdates} disabled={checkingUpdate}>
+            {checkingUpdate ? t("account.checkingForUpdates") : t("account.checkForUpdates")}
+          </button>
+        </div>
+        {updateMsg && <div className="vault-error">{updateMsg}</div>}
 
         <div className="account-tabs">
           <button

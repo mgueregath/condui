@@ -2,13 +2,24 @@ package main
 
 import (
 	"embed"
+	"log"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
+	"github.com/wailsapp/wails/v3/pkg/updater"
+	"github.com/wailsapp/wails/v3/pkg/updater/providers/github"
+
+	"ssh-gui/backend/buildconfig"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+// currentVersion is overridden at release build time via
+// -ldflags "-X main.currentVersion=X.Y.Z" (see build/*/Taskfile.yml). Dev
+// builds report "dev", which the GitHub provider always treats as
+// out-of-date, so "Check for Updates" is exercisable locally too.
+var currentVersion = "dev"
 
 func main() {
 
@@ -24,6 +35,21 @@ func main() {
 			Handler: application.AssetFileServerFS(assets),
 		},
 	})
+
+	gh, err := github.New(github.Config{
+		Repository:    buildconfig.Values.UpdateRepo,
+		ChecksumAsset: "SHA256SUMS",
+	})
+	if err != nil {
+		log.Fatalf("github.New: %v", err)
+	}
+	if err := a.Updater.Init(updater.Config{
+		CurrentVersion: currentVersion,
+		Providers:      []updater.Provider{gh},
+	}); err != nil {
+		log.Fatalf("Updater.Init: %v", err)
+	}
+	app.appVersion = currentVersion
 
 	win := a.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "Condui",
@@ -60,7 +86,7 @@ func main() {
 		})
 	})
 
-	err := a.Run()
+	err = a.Run()
 	if err != nil {
 		println(
 			"Error:",

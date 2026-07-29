@@ -16,6 +16,7 @@ var raw []byte
 type Config struct {
 	ServerURL        string `yaml:"server_url"`
 	DbManagerEnabled bool   `yaml:"db_manager_enabled"`
+	UpdateRepo       string `yaml:"update_repo"`
 }
 
 // Values is the parsed build.config.yaml, fixed at compile time.

@@ -46,6 +46,10 @@ type App struct {
 
 	// cancelTokenRefresh stops the background token-refresh loop
 	cancelTokenRefresh context.CancelFunc
+
+	// appVersion is set from main.currentVersion (build-time ldflags) after
+	// application.New, since it's what a.Updater was Init'd with.
+	appVersion string
 }
 
 func NewApp() *App {
