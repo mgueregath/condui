@@ -4,6 +4,7 @@ tasks:
   go:mod:tidy:
     summary: Runs `go mod tidy`
     internal: true
+    # run: once
     deps:
       - dbmanager:setup
       - buildconfig:setup
@@ -22,40 +23,54 @@ tasks:
       at runtime). Copies the example on first run; never overwrites an
       existing file, so local edits survive rebuilds.
     internal: true
+    # run: once
     cmds:
-      - |
-        if [ ! -f backend/buildconfig/build.config.yaml ]; then
-          cp backend/buildconfig/build.config.example.yaml backend/buildconfig/build.config.yaml
-        fi
+      - cmd: powershell -NoProfile -Command "if (-not (Test-Path 'backend/buildconfig/build.config.yaml')) { Copy-Item 'backend/buildconfig/build.config.example.yaml' 'backend/buildconfig/build.config.yaml' }"
+        platforms: [windows]
+      - cmd: |
+          if [ ! -f backend/buildconfig/build.config.yaml ]; then
+            cp backend/buildconfig/build.config.example.yaml backend/buildconfig/build.config.yaml
+          fi
+        platforms: [linux, darwin]
 
   buildconfig:frontend-env:
     summary: >
       Inlines server_url from backend/buildconfig/build.config.yaml into
-      frontend/.env.local as VITE_CONDUI_SERVER_URL, so Vite bakes the same
+      frontend/.env as VITE_CONDUI_SERVER_URL, so Vite bakes the same
       build-time value into the frontend bundle that Go embeds into the
       binary (single source of truth: build.config.yaml).
     internal: true
     deps:
       - buildconfig:setup
     cmds:
-      - |
-        url=$(grep '^server_url:' backend/buildconfig/build.config.yaml | sed -E 's/^server_url:[[:space:]]*"?([^"]*)"?[[:space:]]*$/\1/')
-        echo "VITE_CONDUI_SERVER_URL=$url" > frontend/.env.local
+      - cmd: powershell -NoProfile -Command "Set-Content 'frontend/.env' ('VITE_CONDUI_SERVER_URL=' + (((Select-String -Path 'backend/buildconfig/build.config.yaml' -Pattern '^server_url:' | Select-Object -First 1).Line.Split(':', 2)[1]).Trim().Trim([char]34)))"
+        platforms: [windows]
+      - cmd: |
+          url=$(grep '^server_url:' backend/buildconfig/build.config.yaml | sed -E 's/^server_url:[[:space:]]*"?([^"]*)"?[[:space:]]*$/\1/')
+          echo "VITE_CONDUI_SERVER_URL=$url" > frontend/.env
+        platforms: [linux, darwin]
 
   dbmanager:setup:
     summary: >
-      Generates a local go.work linking the private backend/dbexplorer
-      submodule when it's checked out, so `-tags dbmanager` builds can
-      resolve it. No-op (and removes any stale go.work) when the submodule
-      isn't present, e.g. in an OSS clone without access to it.
+      Generates a local go.work linking the private navoro repository when
+      it is cloned alongside condui, so `-tags dbmanager` builds and
+      `go mod tidy` can resolve it. Removes stale workspace files when the
+      private repository is not available.
     internal: true
+    # run: once
     cmds:
-      - |
-        if [ -f backend/dbexplorer/go.mod ]; then
-          go work init . ./backend/dbexplorer 2>/dev/null || true
-        else
-          rm -f go.work go.work.sum
-        fi
+      - cmd: powershell -NoProfile -Command "if (Test-Path '../../navoro/go.mod') { if (-not (Test-Path 'go.work')) { go work init . ../../navoro }; go work use . ../../navoro } else { if (Test-Path 'go.work') { Remove-Item 'go.work' -Force }; if (Test-Path 'go.work.sum') { Remove-Item 'go.work.sum' -Force } }"
+        platforms: [windows]
+      - cmd: |
+          if [ -f ../../navoro/go.mod ]; then
+            if [ ! -f go.work ]; then
+              go work init . ../../navoro 2>/dev/null || test -f go.work
+            fi
+            go work use . ../../navoro
+          else
+            rm -f go.work go.work.sum
+          fi
+        platforms: [linux, darwin]
 
   install:frontend:deps:
     summary: Install frontend dependencies
@@ -69,11 +84,11 @@ tasks:
       - package-lock.json
     generates:
       - node_modules
-    preconditions:
-      - sh: npm version
-        msg: "Looks like npm isn't installed. Npm is part of the Node installer: https://nodejs.org/en/download/"
     cmds:
-      - npm install
+      - cmd: cmd.exe /d /c npm.cmd install
+        platforms: [windows]
+      - cmd: npm install
+        platforms: [linux, darwin]
 
   install:frontend:deps:bun:
     dir: frontend
@@ -153,7 +168,10 @@ tasks:
   frontend:run:npm:
     dir: frontend
     cmds:
-      - npm run {{.SCRIPT}} -q
+      - cmd: cmd.exe /d /c npm.cmd run {{.SCRIPT}} -q
+        platforms: [windows]
+      - cmd: npm run {{.SCRIPT}} -q
+        platforms: [linux, darwin]
     vars:
       SCRIPT: "{{.SCRIPT}}"
 
@@ -218,8 +236,6 @@ tasks:
   generate:bindings:
     label: generate:bindings (BUILD_FLAGS={{.BUILD_FLAGS}})
     summary: Generates bindings for the frontend
-    deps:
-      - task: go:mod:tidy
     sources:
       - "**/*.[jt]s"
       - exclude: frontend/**/*
@@ -254,7 +270,10 @@ tasks:
   frontend:dev:npm:
     dir: frontend
     cmds:
-      - npm run dev -- --port {{.VITE_PORT}} --strictPort
+      - cmd: cmd.exe /d /c npm.cmd run dev -- --port {{.VITE_PORT}} --strictPort
+        platforms: [windows]
+      - cmd: npm run dev -- --port {{.VITE_PORT}} --strictPort
+        platforms: [linux, darwin]
 
   frontend:dev:yarn:
     dir: frontend
