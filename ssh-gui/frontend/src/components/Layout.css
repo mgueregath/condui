@@ -1737,6 +1737,14 @@ body,
   color: var(--red);
   border-color: #fecaca;
 }
+.conn-action-btn.cancel {
+  color: var(--red);
+}
+.conn-action-btn.cancel:hover {
+  background: #fef2f2;
+  color: var(--red);
+  border-color: #fecaca;
+}
 .drawer-folder-header {
   display: flex;
   align-items: center;
@@ -2323,6 +2331,8 @@ select.modern-input {
    ====================================================== */
 
 .conn-actions.connecting {
+
+  display: flex !important;
 
   opacity: 1 !important;
 

@@ -13,12 +13,14 @@
     "unknown": "Desconocido",
     "done": "Listo",
     "yes": "SÍ",
-    "no": "NO"
+    "no": "NO",
+    "ok": "OK"
   },
   "settings": {
     "language": "Idioma"
   },
   "app": {
+    "notice": "Aviso",
     "connections": "Conexiones",
     "copy": "Copiar",
     "paste": "Pegar",
@@ -171,6 +173,7 @@
     "share": "Compartir",
     "connectVia": "Conectar mediante",
     "connecting": "Conectando…",
+    "cancelConnect": "Cancelar conexión",
     "passwordPending": "Contraseña pendiente de sincronización. Desbloquea la bóveda con tu contraseña para activar esta conexión.",
     "assignTitle": "Asignar a carpeta",
     "moveToFolder": "Mover {{name}} a una carpeta",

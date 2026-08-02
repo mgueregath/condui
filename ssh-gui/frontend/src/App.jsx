@@ -11,6 +11,7 @@ import { Events } from "@wailsio/runtime";
 import RemoteFileTree from "./components/files/RemoteFileTree";
 import {
   AcceptShare,
+  CancelConnect,
   CancelShare,
   CloseSession,
   ConnectSSH,
@@ -49,6 +50,7 @@ import BottomPanel from "./components/BottomPanel";
 import ResourceBar from "./components/ResourceBar";
 import { useConnections } from "./hooks/useConnections";
 import Modal from "./components/common/Modal";
+import AlertModal from "./components/common/AlertModal";
 import ConnectionNode from "./components/connections/ConnectionNode";
 import FolderNode from "./components/connections/FolderNode";
 import FolderModal from "./components/connections/FolderModal";
@@ -114,6 +116,7 @@ function LeftSidebar({
   expandedFolders,
   onToggleFolder,
   onOpenConnection,
+  onCancelConnect,
   onNewConnection,
   onNewFolder,
   onEditConnection,
@@ -228,6 +231,7 @@ function LeftSidebar({
                     connections={connections}
                     folders={folders}
                     onOpen={onOpenConnection}
+                    onCancelConnect={onCancelConnect}
                     onEdit={onEditConnection}
                     onDelete={onDeleteConnection}
                     onAssignFolder={onAssignFolder}
@@ -258,6 +262,7 @@ function LeftSidebar({
                     connections={connections}
                     folders={folders}
                     onOpen={onOpenConnection}
+                    onCancelConnect={onCancelConnect}
                     onEdit={onEditConnection}
                     onDelete={onDeleteConnection}
                     onAssignFolder={onAssignFolder}
@@ -318,6 +323,9 @@ function App() {
   const [connectingId, setConnectingId] = useState(null);
   const [connectionChoice, setConnectionChoice] = useState(null);
   const [sshError, setSshError] = useState(null);
+  const [alertModal, setAlertModal] = useState(null);
+  const showAlert = (message, title = t("app.notice")) =>
+    setAlertModal({ title, message });
   const { folders, connections, reload } = useConnections();
 
   // Vault & account state
@@ -721,17 +729,23 @@ function App() {
 
       setActiveTab(sessionId);
     } catch (err) {
-      setSshError({
-        title: t("app.connectionFailed"),
+      const message =
+        typeof err === "string" ? err : err?.message || t("app.unableToConnect");
 
-        message:
-          typeof err === "string" ? err : err?.message || t("app.unableToConnect"),
-
-        connection: c.name,
-      });
+      if (!/cancel/i.test(message)) {
+        setSshError({
+          title: t("app.connectionFailed"),
+          message,
+          connection: c.name,
+        });
+      }
     } finally {
       setConnectingId(null);
     }
+  };
+
+  const handleCancelConnect = (c) => {
+    CancelConnect(c.id);
   };
 
   const handleOpenLocalTerminal = async () => {
@@ -781,11 +795,16 @@ function App() {
       ]);
       setActiveTab(sessionId);
     } catch (err) {
-      setSshError({
-        title: t("app.connectionFailed"),
-        message: typeof err === "string" ? err : err?.message || t("app.unableToConnect"),
-        connection: `${connection.name} via ${jumpHost.name}`,
-      });
+      const message =
+        typeof err === "string" ? err : err?.message || t("app.unableToConnect");
+
+      if (!/cancel/i.test(message)) {
+        setSshError({
+          title: t("app.connectionFailed"),
+          message,
+          connection: `${connection.name} via ${jumpHost.name}`,
+        });
+      }
     } finally {
       setConnectingId(null);
     }
@@ -799,7 +818,7 @@ function App() {
   const uploadFile = async () => {
     // Si no hay una sesión SSH activa, detenemos la operación
     if (!activeTab) {
-      alert(t("app.selectActiveSession"));
+      showAlert(t("app.selectActiveSession"));
       return;
     }
 
@@ -816,7 +835,7 @@ function App() {
         return;
       }
       console.error("Error al subir archivo:", err);
-      alert(t("app.uploadError", { error: message }));
+      showAlert(t("app.uploadError", { error: message }));
     }
   };
 
@@ -828,7 +847,7 @@ function App() {
         const targetAttrs = payload.details?.Attributes || payload.details?.attributes || {};
         if (targetAttrs["data-remote-file-drop-target"] !== "true") return;
         if (!activeTab || isLocalActive) {
-          alert(t("app.selectActiveSession"));
+          showAlert(t("app.selectActiveSession"));
           return;
         }
 
@@ -844,7 +863,7 @@ function App() {
         } catch (err) {
           const message = getUploadErrorMessage(err);
           console.error("Error al subir archivo arrastrado:", err);
-          alert(t("app.uploadError", { error: message }));
+          showAlert(t("app.uploadError", { error: message }));
         }
       },
     );
@@ -863,7 +882,7 @@ function App() {
       );
     } catch (err) {
       console.error(err);
-      alert(typeof err === "string" ? err : err?.message || t("app.acceptInviteError"));
+      showAlert(typeof err === "string" ? err : err?.message || t("app.acceptInviteError"));
     } finally {
       setAcceptingInviteId(null);
     }
@@ -876,7 +895,7 @@ function App() {
       await refreshPendingInvites();
     } catch (err) {
       console.error(err);
-      alert(typeof err === "string" ? err : err?.message || t("app.declineInviteError"));
+      showAlert(typeof err === "string" ? err : err?.message || t("app.declineInviteError"));
     } finally {
       setAcceptingInviteId(null);
     }
@@ -1026,6 +1045,7 @@ function App() {
             )
           }
           onOpenConnection={handleOpenConnection}
+          onCancelConnect={handleCancelConnect}
           onNewConnection={openNewConnection}
           onNewFolder={openNewFolder}
           onEditConnection={(c) => {
@@ -1415,6 +1435,12 @@ function App() {
           </div>
         </div>
       </Modal>
+      <AlertModal
+        open={!!alertModal}
+        title={alertModal?.title}
+        message={alertModal?.message}
+        onClose={() => setAlertModal(null)}
+      />
       {/* Account modal */}
       <Modal open={accountModalOpen} onClose={() => { setAccountModalOpen(false); refreshAccountStatus(); }}>
         <AccountModal onClose={() => { setAccountModalOpen(false); refreshAccountStatus(); }} />

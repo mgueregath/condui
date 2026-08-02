@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -44,7 +45,7 @@ func remoteHomePath(remoteOS osinfo.OSType, username string) string {
 
 // buildHostKeyCallback returns an SSH HostKeyCallback that implements TOFU
 // verification for the given host:port, prompting the user on first connection.
-func (a *App) buildHostKeyCallback(host string, port int) ssh.HostKeyCallback {
+func (a *App) buildHostKeyCallback(ctx context.Context, host string, port int) ssh.HostKeyCallback {
 	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		fingerprint := ssh.FingerprintSHA256(key)
 
@@ -82,13 +83,15 @@ func (a *App) buildHostKeyCallback(host string, port int) ssh.HostKeyCallback {
 			return a.database.UpsertKnownHost(host, port, fingerprint)
 		case <-time.After(90 * time.Second):
 			return fmt.Errorf("host key verification timed out")
+		case <-ctx.Done():
+			return fmt.Errorf("connection canceled")
 		}
 	}
 }
 
 // buildSSHConfig builds an ssh.ClientConfig for the given credentials.
 // password must already be decrypted.
-func (a *App) buildSSHConfig(username, authType, privateKeyPath, host string, port int, password string) (*ssh.ClientConfig, error) {
+func (a *App) buildSSHConfig(ctx context.Context, username, authType, privateKeyPath, host string, port int, password string) (*ssh.ClientConfig, error) {
 	var authMethods []ssh.AuthMethod
 	if authType == "private_key" && privateKeyPath != "" {
 		signer, err := loadPrivateKey(privateKeyPath)
@@ -102,9 +105,52 @@ func (a *App) buildSSHConfig(username, authType, privateKeyPath, host string, po
 	return &ssh.ClientConfig{
 		User:            username,
 		Auth:            authMethods,
-		HostKeyCallback: a.buildHostKeyCallback(host, port),
+		HostKeyCallback: a.buildHostKeyCallback(ctx, host, port),
 		Timeout:         15 * time.Second,
 	}, nil
+}
+
+// dialSSHContext dials addr over TCP honoring ctx for cancellation, then
+// performs the SSH handshake. If ctx is canceled while the handshake is in
+// flight, the underlying connection is closed to unblock it.
+func dialSSHContext(ctx context.Context, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("connection canceled")
+		}
+		return nil, err
+	}
+	client, err := sshClientHandshake(ctx, conn, addr, config)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return client, nil
+}
+
+// sshClientHandshake performs the SSH handshake over an already-established
+// net.Conn, aborting it if ctx is canceled mid-handshake.
+func sshClientHandshake(ctx context.Context, conn net.Conn, addr string, config *ssh.ClientConfig) (*ssh.Client, error) {
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-ctx.Done():
+			conn.Close()
+		case <-done:
+		}
+	}()
+
+	c, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("connection canceled")
+		}
+		return nil, err
+	}
+	return ssh.NewClient(c, chans, reqs), nil
 }
 
 func strVal(s *string) string {
@@ -114,11 +160,11 @@ func strVal(s *string) string {
 	return *s
 }
 
-func (a *App) createSSHClient(connectionID string) (*ssh.Client, error) {
-	return a.createSSHClientWithJump(connectionID, "")
+func (a *App) createSSHClient(ctx context.Context, connectionID string) (*ssh.Client, error) {
+	return a.createSSHClientWithJump(ctx, connectionID, "")
 }
 
-func (a *App) createSSHClientWithJump(connectionID, overrideJumpHostID string) (*ssh.Client, error) {
+func (a *App) createSSHClientWithJump(ctx context.Context, connectionID, overrideJumpHostID string) (*ssh.Client, error) {
 	connection, err := a.database.GetConnectionByID(connectionID)
 	if err != nil {
 		return nil, err
@@ -144,6 +190,7 @@ func (a *App) createSSHClientWithJump(connectionID, overrideJumpHostID string) (
 	port := connection.Port
 
 	targetConfig, err := a.buildSSHConfig(
+		ctx,
 		connection.Username,
 		connection.AuthType,
 		strVal(connection.PrivateKeyPath),
@@ -191,6 +238,7 @@ func (a *App) createSSHClientWithJump(connectionID, overrideJumpHostID string) (
 		}
 
 		jumpConfig, err := a.buildSSHConfig(
+			ctx,
 			jump.Username,
 			jump.AuthType,
 			strVal(jump.PrivateKeyPath),
@@ -203,13 +251,9 @@ func (a *App) createSSHClientWithJump(connectionID, overrideJumpHostID string) (
 			return nil, err
 		}
 
-		jumpClient, err := ssh.Dial(
-			"tcp",
-			fmt.Sprintf(
-				"%s:%d",
-				jump.Host,
-				jump.Port,
-			),
+		jumpClient, err := dialSSHContext(
+			ctx,
+			fmt.Sprintf("%s:%d", jump.Host, jump.Port),
 			jumpConfig,
 		)
 
@@ -219,6 +263,11 @@ func (a *App) createSSHClientWithJump(connectionID, overrideJumpHostID string) (
 				jump.Host,
 				err,
 			)
+		}
+
+		if ctx.Err() != nil {
+			jumpClient.Close()
+			return nil, fmt.Errorf("connection canceled")
 		}
 
 		netConn, err := jumpClient.Dial(
@@ -239,28 +288,17 @@ func (a *App) createSSHClientWithJump(connectionID, overrideJumpHostID string) (
 			)
 		}
 
-		conn, chans, reqs, err := ssh.NewClientConn(
-			netConn,
-			fmt.Sprintf("%s:%d", host, port),
-			targetConfig,
-		)
+		client, err := sshClientHandshake(ctx, netConn, fmt.Sprintf("%s:%d", host, port), targetConfig)
 
 		if err != nil {
 			netConn.Close()
 			jumpClient.Close()
-
 			return nil, fmt.Errorf(
 				"SSH handshake with %s failed: %w",
 				host,
 				err,
 			)
 		}
-
-		client := ssh.NewClient(
-			conn,
-			chans,
-			reqs,
-		)
 
 		go func() {
 			client.Conn.Wait()
@@ -270,19 +308,15 @@ func (a *App) createSSHClientWithJump(connectionID, overrideJumpHostID string) (
 		return client, nil
 	}
 
-	return ssh.Dial(
-		"tcp",
-		fmt.Sprintf(
-			"%s:%d",
-			host,
-			port,
-		),
+	return dialSSHContext(
+		ctx,
+		fmt.Sprintf("%s:%d", host, port),
 		targetConfig,
 	)
 }
 
 func (a *App) TestConnection(connectionID string) error {
-	client, err := a.createSSHClient(connectionID)
+	client, err := a.createSSHClient(context.Background(), connectionID)
 	if err != nil {
 		return err
 	}
@@ -320,7 +354,7 @@ func (a *App) TestConnectionParams(host string, port int, username, authType, pa
 		}
 	}
 
-	targetConfig, err := a.buildSSHConfig(username, authType, privateKeyPath, host, port, password)
+	targetConfig, err := a.buildSSHConfig(context.Background(), username, authType, privateKeyPath, host, port, password)
 	if err != nil {
 		return err
 	}
@@ -339,7 +373,7 @@ func (a *App) TestConnectionParams(host string, port int, username, authType, pa
 				return fmt.Errorf("vault error (jump host): %w", err)
 			}
 		}
-		jumpConfig, err := a.buildSSHConfig(jump.Username, jump.AuthType, strVal(jump.PrivateKeyPath), jump.Host, jump.Port, jumpPassword)
+		jumpConfig, err := a.buildSSHConfig(context.Background(), jump.Username, jump.AuthType, strVal(jump.PrivateKeyPath), jump.Host, jump.Port, jumpPassword)
 		if err != nil {
 			return err
 		}
@@ -376,12 +410,24 @@ func (a *App) TestConnectionParams(host string, port int, username, authType, pa
 
 func (a *App) ConnectSSH(connectionID string) (SSHConnectResult, error) {
 	emptyResult := SSHConnectResult{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	a.registerConnectAttempt(connectionID, cancel)
+	defer a.clearConnectAttempt(connectionID)
+	defer cancel()
+
 	client, err := a.createSSHClient(
+		ctx,
 		connectionID,
 	)
 
 	if err != nil {
 		return emptyResult, err
+	}
+
+	if ctx.Err() != nil {
+		client.Close()
+		return emptyResult, fmt.Errorf("connection canceled")
 	}
 
 	sftpClient, err := sftp.NewClient(client)
@@ -577,9 +623,20 @@ func (a *App) StartLocalTerminal() (SSHConnectResult, error) {
 // ConnectSSHVia connects to connectionID routing through jumpHostID as the jump/bastion host.
 func (a *App) ConnectSSHVia(connectionID, jumpHostID string) (SSHConnectResult, error) {
 	emptyResult := SSHConnectResult{}
-	client, err := a.createSSHClientWithJump(connectionID, jumpHostID)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	a.registerConnectAttempt(connectionID, cancel)
+	defer a.clearConnectAttempt(connectionID)
+	defer cancel()
+
+	client, err := a.createSSHClientWithJump(ctx, connectionID, jumpHostID)
 	if err != nil {
 		return emptyResult, err
+	}
+
+	if ctx.Err() != nil {
+		client.Close()
+		return emptyResult, fmt.Errorf("connection canceled")
 	}
 
 	sftpClient, err := sftp.NewClient(client)

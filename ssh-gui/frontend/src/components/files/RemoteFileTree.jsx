@@ -14,6 +14,8 @@ import {
 import RemoteFileNode from "./RemoteFileNode";
 import FileContextMenu from "./FileContextMenu";
 import RemoteFileEditorModal from "../editor/RemoteFileEditorModal";
+import AlertModal from "../common/AlertModal";
+import Modal from "../common/Modal";
 import { useTranslation } from "react-i18next";
 import { FaLongArrowAltDown, FaLongArrowAltUp } from "react-icons/fa";
 
@@ -46,6 +48,12 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
     y: 0,
     item: null,
   });
+
+  const [alertModal, setAlertModal] = useState(null);
+  const showAlert = (message, title = t("app.notice")) =>
+    setAlertModal({ title, message });
+
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const load = async (targetPath) => {
     if (!sessionId) return;
@@ -95,9 +103,14 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
     setEditor({ open: false, path: "", content: "", modified: false });
   };
 
-  const deleteFile = async (item) => {
-    if (!confirm(t("files.deleteConfirm", { name: item.name }))) return;
-    await DeleteRemoteFile(sessionId, item.path);
+  const deleteFile = (item) => {
+    setDeleteTarget(item);
+  };
+
+  const confirmDeleteFile = async () => {
+    if (!deleteTarget) return;
+    await DeleteRemoteFile(sessionId, deleteTarget.path);
+    setDeleteTarget(null);
     refresh();
   };
 
@@ -122,7 +135,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
   const downloadFile = async (item) => {
     try {
       await DownloadFile(sessionId, item.path, "");
-      alert(t("files.downloadComplete"));
+      showAlert(t("files.downloadComplete"));
     } catch (err) {
       console.error(err);
     }
@@ -256,6 +269,36 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
         onSave={saveEditor}
         onClose={closeEditor}
       />
+
+      <AlertModal
+        open={!!alertModal}
+        title={alertModal?.title}
+        message={alertModal?.message}
+        onClose={() => setAlertModal(null)}
+      />
+
+      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
+        <div>
+          <div className="modal-header">
+            <h2>{t("files.delete")}</h2>
+          </div>
+          <div className="modal-body">
+            <div className="ssh-error-box" style={{ borderColor: "var(--red)" }}>
+              <p style={{ margin: 0 }}>
+                {t("files.deleteConfirm", { name: deleteTarget?.name })}
+              </p>
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button className="btn-secondary" onClick={() => setDeleteTarget(null)}>
+              {t("common.cancel")}
+            </button>
+            <button className="btn-primary" onClick={confirmDeleteFile}>
+              {t("common.delete")}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 });

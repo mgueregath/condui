@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FaTrash, FaPlay, FaPlug, FaEdit, FaShareAlt, FaNetworkWired, FaLock } from "react-icons/fa";
+import { FaTrash, FaPlay, FaPlug, FaEdit, FaShareAlt, FaNetworkWired, FaLock, FaTimes } from "react-icons/fa";
 import { MdOpenInNew } from "react-icons/md";
 import ContextMenu from "./ContextMenu";
 import { useTranslation } from "react-i18next";
@@ -46,6 +46,7 @@ export default function ConnectionNode({
   connections = [],
   folders = [],
   onOpen,
+  onCancelConnect,
   onEdit,
   onDelete,
   onShare,
@@ -57,6 +58,11 @@ export default function ConnectionNode({
   const connect = (e) => {
     e?.stopPropagation();
     if (!connecting) onOpen(connection);
+  };
+
+  const cancelConnect = (e) => {
+    e?.stopPropagation();
+    onCancelConnect?.(connection);
   };
 
   const handleContextMenu = (e) => {
@@ -142,12 +148,11 @@ export default function ConnectionNode({
 
       <div className={`conn-actions ${connecting ? "connecting" : ""}`}>
         <button
-          className="conn-action-btn"
-          title={connecting ? t("connection.connecting") : t("connection.connect")}
-          disabled={connecting}
-          onClick={connect}
+          className={`conn-action-btn ${connecting ? "cancel" : ""}`}
+          title={connecting ? t("connection.cancelConnect") : t("connection.connect")}
+          onClick={connecting ? cancelConnect : connect}
         >
-          <FaPlug />
+          {connecting ? <FaTimes /> : <FaPlug />}
         </button>
 
         <button

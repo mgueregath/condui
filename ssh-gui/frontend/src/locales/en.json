@@ -13,12 +13,14 @@
     "unknown": "Unknown",
     "done": "Done",
     "yes": "YES",
-    "no": "NO"
+    "no": "NO",
+    "ok": "OK"
   },
   "settings": {
     "language": "Language"
   },
   "app": {
+    "notice": "Notice",
     "connections": "Connections",
     "copy": "Copy",
     "paste": "Paste",
@@ -171,6 +173,7 @@
     "share": "Share",
     "connectVia": "Connect via",
     "connecting": "Connecting…",
+    "cancelConnect": "Cancel connection",
     "passwordPending": "Password pending synchronization. Unlock the vault with your password to activate this connection.",
     "assignTitle": "Assign to folder",
     "moveToFolder": "Move {{name}} to a folder",

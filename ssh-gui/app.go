@@ -46,6 +46,10 @@ type App struct {
 
 	// cancelTokenRefresh stops the background token-refresh loop
 	cancelTokenRefresh context.CancelFunc
+
+	// connectAttempts maps connectionID -> cancel func for an in-flight
+	// ConnectSSH/ConnectSSHVia call, so the frontend can abort it mid-dial.
+	connectAttempts sync.Map
 }
 
 func NewApp() *App {
@@ -230,5 +234,27 @@ func (a *App) clearSyncVaultKey() {
 func (a *App) approveHostKeyChannel(key string, approved bool) {
 	if ch, ok := a.hostKeyChannels.Load(key); ok {
 		ch.(chan bool) <- approved
+	}
+}
+
+// registerConnectAttempt records the cancel func for an in-flight connection
+// attempt so CancelConnect can abort it.
+func (a *App) registerConnectAttempt(connectionID string, cancel context.CancelFunc) {
+	a.connectAttempts.Store(connectionID, cancel)
+}
+
+// clearConnectAttempt removes a connection attempt's cancel func once it has
+// finished (successfully, with an error, or canceled).
+func (a *App) clearConnectAttempt(connectionID string) {
+	a.connectAttempts.Delete(connectionID)
+}
+
+// CancelConnect aborts an in-flight ConnectSSH/ConnectSSHVia call for the
+// given connection, if one is currently in progress.
+func (a *App) CancelConnect(connectionID string) {
+	if v, ok := a.connectAttempts.Load(connectionID); ok {
+		if cancel, ok := v.(context.CancelFunc); ok {
+			cancel()
+		}
 	}
 }

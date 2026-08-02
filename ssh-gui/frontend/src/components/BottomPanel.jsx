@@ -42,6 +42,7 @@ import { GrRefresh, GrFormRefresh } from "react-icons/gr";
 import { TbNetwork, TbBackground } from "react-icons/tb";
 import { TiFlashOutline } from "react-icons/ti";
 import { useTranslation } from "react-i18next";
+import AlertModal from "./common/AlertModal";
 
 const DB_TYPES = {
   PostgreSQL: {
@@ -251,6 +252,9 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
   const [vboxError, setVboxError] = useState(null);
   const [vboxActionLoading, setVboxActionLoading] = useState(null);
   const [dockerStats, setDockerStats] = useState({}); // map containerID to stats
+  const [alertModal, setAlertModal] = useState(null);
+  const showAlert = (message, title = t("app.notice")) =>
+    setAlertModal({ title, message });
 
 
   // Estados para la Modal del Túnel (Crea y Edita)
@@ -372,7 +376,7 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
       setIsModalOpen(false);
       await fetchTunnels();
     } catch (err) {
-      alert(t("panel.tunnelError", { error: err }));
+      showAlert(t("panel.tunnelError", { error: err }));
     }
   };
 
@@ -1968,6 +1972,12 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
         </div>
       )}
 
+      <AlertModal
+        open={!!alertModal}
+        title={alertModal?.title}
+        message={alertModal?.message}
+        onClose={() => setAlertModal(null)}
+      />
 
     </div>
   );
