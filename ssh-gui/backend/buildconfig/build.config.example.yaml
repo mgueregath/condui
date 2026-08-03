@@ -16,3 +16,7 @@ server_url: "https://sync.condui.app"
 # is the `dbmanager` Go build tag (see build/Taskfile.yml, dbmanager:setup) —
 # this flag has no effect on its own, it just documents intent.
 db_manager_enabled: false
+
+# GitHub repository ("owner/repo") the in-app updater checks for releases
+# via the GitHub Releases API (see main.go, pkg/updater/providers/github).
+update_repo: "mgueregath/condui"

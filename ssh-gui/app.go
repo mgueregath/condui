@@ -50,6 +50,9 @@ type App struct {
 	// connectAttempts maps connectionID -> cancel func for an in-flight
 	// ConnectSSH/ConnectSSHVia call, so the frontend can abort it mid-dial.
 	connectAttempts sync.Map
+	// appVersion is set from main.currentVersion (build-time ldflags) after
+	// application.New, since it's what a.Updater was Init'd with.
+	appVersion string
 }
 
 func NewApp() *App {

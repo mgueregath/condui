@@ -122,6 +122,25 @@ jobs:
           xcrun stapler staple "$APP_PATH"
           xcrun stapler validate "$APP_PATH"
 
+      # In-app updater asset (see ssh-gui/pkg/updater usage in main.go): a
+      # zipped copy of the same signed + notarized/stapled .app bundle used
+      # for the DMG. The updater only knows how to unpack .zip/.tar.gz —  it
+      # can't mount a DMG — so this ships alongside it. Named with both arch
+      # tokens since the app is a universal binary and the default asset
+      # matcher looks for GOARCH ("amd64"/"arm64") as a filename substring.
+      - name: Zip app bundle for in-app updater
+        run: |
+          set -euo pipefail
+          APP_PATH="ssh-gui/bin/condui.app"
+          mkdir -p dist
+          ditto -c -k --keepParent "$APP_PATH" "dist/Condui-darwin-arm64-amd64.app.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-update-zip
+          path: dist/Condui-darwin-arm64-amd64.app.zip
+          if-no-files-found: error
+
       - name: Create DMG
         env:
           MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
@@ -208,6 +227,25 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           cp "ssh-gui/bin/Condui-amd64-installer.exe" "dist/Condui-windows-x64.exe"
+
+      # In-app updater asset (see ssh-gui/pkg/updater usage in main.go): the
+      # bare .exe produced by `windows:package` before NSIS wraps it into an
+      # installer. The updater swaps a single running executable in place —
+      # it doesn't run an installer — so this ships alongside the NSIS
+      # installer used for fresh installs. Ships unsigned for now, same as
+      # the installer above (see docs/RELEASING.md SignPath section).
+      - name: Stage portable binary for in-app updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp "ssh-gui/bin/condui.exe" "dist/Condui-windows-amd64-update.exe"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-update-exe
+          path: dist/Condui-windows-amd64-update.exe
+          if-no-files-found: error
 
       # Signs the installer with SignPath once the SignPath Foundation OSS
       # application is approved and these secrets are populated. Until then
@@ -310,6 +348,15 @@ jobs:
           path: dist
           merge-multiple: true
 
+      # SHA256SUMS lets the in-app updater (github.Config.ChecksumAsset,
+      # see ssh-gui/main.go) verify the bytes it downloads. Only the update
+      # assets are listed — the DMG/NSIS installer are fresh-install-only
+      # and never fetched by the updater — but hashing whatever landed in
+      # dist/ keeps this from silently going stale if a filename changes.
+      - name: Generate SHA256SUMS
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
@@ -318,7 +365,10 @@ jobs:
           generate_release_notes: true
           files: |
             dist/Condui-mac.dmg
+            dist/Condui-darwin-arm64-amd64.app.zip
             dist/Condui-windows-x64.exe
+            dist/Condui-windows-amd64-update.exe
             dist/Condui-linux-x64.AppImage
             dist/Condui-linux-x64.deb
             dist/Condui-linux-x64.rpm
+            dist/SHA256SUMS

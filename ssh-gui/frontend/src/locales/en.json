@@ -121,7 +121,11 @@
     "createAccount": "Create account",
     "loginFailed": "Login failed",
     "registrationFailed": "Registration failed",
-    "accountCreated": "Account created. Please log in."
+    "accountCreated": "Account created. Please log in.",
+    "version": "Version {{version}}",
+    "checkForUpdates": "Check for Updates…",
+    "checkingForUpdates": "Checking…",
+    "updateCheckFailed": "Update check failed: {{error}}"
   },
   "share": {
     "title": "Share connection",
