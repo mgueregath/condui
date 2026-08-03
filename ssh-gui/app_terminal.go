@@ -90,11 +90,11 @@ func (a *App) buildHostKeyCallback(ctx context.Context, host string, port int) s
 }
 
 // buildSSHConfig builds an ssh.ClientConfig for the given credentials.
-// password must already be decrypted.
-func (a *App) buildSSHConfig(ctx context.Context, username, authType, privateKeyPath, host string, port int, password string) (*ssh.ClientConfig, error) {
+// password and passphrase must already be decrypted.
+func (a *App) buildSSHConfig(ctx context.Context, username, authType, privateKeyPath, host string, port int, password, passphrase string) (*ssh.ClientConfig, error) {
 	var authMethods []ssh.AuthMethod
 	if authType == "private_key" && privateKeyPath != "" {
-		signer, err := loadPrivateKey(privateKeyPath)
+		signer, err := loadPrivateKey(privateKeyPath, passphrase)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load private key: %w", err)
 		}
@@ -186,6 +186,17 @@ func (a *App) createSSHClientWithJump(ctx context.Context, connectionID, overrid
 		}
 	}
 
+	passphrase := ""
+	if connection.Passphrase != nil {
+		if isSyncEncrypted(*connection.Passphrase) {
+			return nil, fmt.Errorf("la passphrase de esta conexión está pendiente de sincronización. Desbloquea el vault con tu contraseña para procesarla")
+		}
+		passphrase, err = decryptConnectionPassword(*connection.Passphrase, key)
+		if err != nil {
+			return nil, fmt.Errorf("vault error: %w", err)
+		}
+	}
+
 	host := connection.Host
 	port := connection.Port
 
@@ -197,6 +208,7 @@ func (a *App) createSSHClientWithJump(ctx context.Context, connectionID, overrid
 		host,
 		port,
 		password,
+		passphrase,
 	)
 
 	if err != nil {
@@ -237,6 +249,24 @@ func (a *App) createSSHClientWithJump(ctx context.Context, connectionID, overrid
 			}
 		}
 
+		jumpPassphrase := ""
+
+		if jump.Passphrase != nil {
+
+			jumpPassphrase, err =
+				decryptConnectionPassword(
+					*jump.Passphrase,
+					key,
+				)
+
+			if err != nil {
+				return nil, fmt.Errorf(
+					"vault error (jump host): %w",
+					err,
+				)
+			}
+		}
+
 		jumpConfig, err := a.buildSSHConfig(
 			ctx,
 			jump.Username,
@@ -245,6 +275,7 @@ func (a *App) createSSHClientWithJump(ctx context.Context, connectionID, overrid
 			jump.Host,
 			jump.Port,
 			jumpPassword,
+			jumpPassphrase,
 		)
 
 		if err != nil {
@@ -330,7 +361,7 @@ func (a *App) TestConnection(connectionID string) error {
 }
 
 // TestConnectionParams tests a connection using raw params without requiring a saved record.
-func (a *App) TestConnectionParams(host string, port int, username, authType, password, privateKeyPath, jumpHostID string) error {
+func (a *App) TestConnectionParams(host string, port int, username, authType, password, privateKeyPath, passphrase, jumpHostID string) error {
 	key := a.getMasterKey()
 	if key == nil {
 		return fmt.Errorf("vault is locked: please unlock the vault before connecting")
@@ -354,7 +385,7 @@ func (a *App) TestConnectionParams(host string, port int, username, authType, pa
 		}
 	}
 
-	targetConfig, err := a.buildSSHConfig(context.Background(), username, authType, privateKeyPath, host, port, password)
+	targetConfig, err := a.buildSSHConfig(context.Background(), username, authType, privateKeyPath, host, port, password, passphrase)
 	if err != nil {
 		return err
 	}
@@ -373,7 +404,14 @@ func (a *App) TestConnectionParams(host string, port int, username, authType, pa
 				return fmt.Errorf("vault error (jump host): %w", err)
 			}
 		}
-		jumpConfig, err := a.buildSSHConfig(context.Background(), jump.Username, jump.AuthType, strVal(jump.PrivateKeyPath), jump.Host, jump.Port, jumpPassword)
+		jumpPassphrase := ""
+		if jump.Passphrase != nil {
+			jumpPassphrase, err = decryptConnectionPassword(*jump.Passphrase, key)
+			if err != nil {
+				return fmt.Errorf("vault error (jump host): %w", err)
+			}
+		}
+		jumpConfig, err := a.buildSSHConfig(context.Background(), jump.Username, jump.AuthType, strVal(jump.PrivateKeyPath), jump.Host, jump.Port, jumpPassword, jumpPassphrase)
 		if err != nil {
 			return err
 		}

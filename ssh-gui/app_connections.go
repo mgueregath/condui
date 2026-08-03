@@ -48,12 +48,13 @@ func (a *App) GetConnections() (
 			connections[i].PasswordPending = true
 		}
 		connections[i].Password = nil
+		connections[i].Passphrase = nil
 	}
 
 	return connections, nil
 }
 
-// CreateConnection encrypts the password before persisting it.
+// CreateConnection encrypts the password/passphrase before persisting them.
 func (a *App) CreateConnection(
 	connection models.Connection,
 ) error {
@@ -72,6 +73,17 @@ func (a *App) CreateConnection(
 		}
 	}
 
+	if connection.Passphrase != nil && *connection.Passphrase != "" {
+		key := a.getMasterKey()
+		if key != nil {
+			enc, err := encryptConnectionPassword(*connection.Passphrase, key)
+			if err != nil {
+				return err
+			}
+			connection.Passphrase = &enc
+		}
+	}
+
 	err := a.database.CreateConnection(&connection)
 	if err != nil {
 		return err
@@ -82,14 +94,17 @@ func (a *App) CreateConnection(
 	return nil
 }
 
-// UpdateConnection encrypts the password before updating.
+// UpdateConnection encrypts the password/passphrase before updating.
 func (a *App) UpdateConnection(
 	connection models.Connection,
 ) error {
 
+	var existing *models.Connection
+
 	// If password is nil (redacted from frontend), preserve the stored password
 	if connection.Password == nil {
-		existing, err := a.database.GetConnectionByID(connection.ID)
+		var err error
+		existing, err = a.database.GetConnectionByID(connection.ID)
 		if err != nil {
 			return err
 		}
@@ -111,6 +126,36 @@ func (a *App) UpdateConnection(
 					return err
 				}
 				connection.Password = &enc
+			}
+		}
+	}
+
+	// Same redact/encrypt treatment for the private-key passphrase.
+	if connection.Passphrase == nil {
+		if existing == nil {
+			var err error
+			existing, err = a.database.GetConnectionByID(connection.ID)
+			if err != nil {
+				return err
+			}
+		}
+		connection.Passphrase = existing.Passphrase
+	} else if *connection.Passphrase != "" {
+		key := a.getMasterKey()
+		if key != nil {
+			isEncrypted := false
+			for _, c := range *connection.Passphrase {
+				if c == ':' {
+					isEncrypted = true
+					break
+				}
+			}
+			if !isEncrypted {
+				enc, err := encryptConnectionPassword(*connection.Passphrase, key)
+				if err != nil {
+					return err
+				}
+				connection.Passphrase = &enc
 			}
 		}
 	}
@@ -179,8 +224,9 @@ func (a *App) GetConnectionByID(
 		return nil, err
 	}
 
-	// Redact password from frontend response
+	// Redact secrets from frontend response
 	conn.Password = nil
+	conn.Passphrase = nil
 	return conn, nil
 }
 

@@ -306,6 +306,15 @@ func (a *App) ShareConnection(connectionID, recipientEmail string, readOnly bool
 	} else {
 		shareable.Password = nil
 	}
+	if includePassword && conn.Passphrase != nil && *conn.Passphrase != "" {
+		passphrase, err := decryptConnectionPassword(*conn.Passphrase, key)
+		if err != nil {
+			return fmt.Errorf("failed to decrypt connection passphrase: %w", err)
+		}
+		shareable.Passphrase = &passphrase
+	} else {
+		shareable.Passphrase = nil
+	}
 
 	data, err := json.Marshal(shareable)
 	if err != nil {
@@ -688,69 +697,103 @@ func folderHash(folder models.Folder) string {
 	return base64.StdEncoding.EncodeToString(sum[:])
 }
 
-// connectionHash hashes a connection excluding the password field so that the
-// hash is consistent regardless of which encryption key was used locally.
+// connectionHash hashes a connection excluding the password/passphrase fields
+// so that the hash is consistent regardless of which encryption key was used
+// locally.
 func connectionHash(conn models.Connection) string {
 	conn.Password = nil
+	conn.Passphrase = nil
 	data, _ := json.Marshal(conn)
 	sum := sha256.Sum256(data)
 	return base64.StdEncoding.EncodeToString(sum[:])
 }
 
-// reencryptConnectionsForSync translates passwords from the local vault key to the
-// syncVaultKey format ("sync:nonce:ct") so they can be decrypted on any device
-// that knows the vault password.
+// reencryptSecretForSync translates one secret field (password or passphrase)
+// from the local vault key to the syncVaultKey format ("sync:nonce:ct") so it
+// can be decrypted on any device that knows the vault password.
+func reencryptSecretForSync(secret *string, localKey, syncKey []byte) (*string, error) {
+	if secret == nil || *secret == "" {
+		return secret, nil
+	}
+	// Already in sync format (pending decryption from another device) — upload as-is.
+	if isSyncEncrypted(*secret) {
+		return secret, nil
+	}
+	plain, err := decryptConnectionPassword(*secret, localKey)
+	if err != nil {
+		return nil, err
+	}
+	enc, err := encryptForSync(plain, syncKey)
+	if err != nil {
+		return nil, err
+	}
+	return &enc, nil
+}
+
+// reencryptConnectionsForSync translates passwords and passphrases from the
+// local vault key to the syncVaultKey format so they can be decrypted on any
+// device that knows the vault password.
 func reencryptConnectionsForSync(connections []models.Connection, localKey, syncKey []byte) ([]models.Connection, error) {
 	result := make([]models.Connection, len(connections))
 	for i, conn := range connections {
 		result[i] = conn
-		if conn.Password == nil || *conn.Password == "" {
-			continue
-		}
-		// Already in sync format (pending decryption from another device) — upload as-is.
-		if isSyncEncrypted(*conn.Password) {
-			continue
-		}
-		plain, err := decryptConnectionPassword(*conn.Password, localKey)
+		password, err := reencryptSecretForSync(conn.Password, localKey, syncKey)
 		if err != nil {
 			return nil, fmt.Errorf("connection %s: %w", conn.ID, err)
 		}
-		enc, err := encryptForSync(plain, syncKey)
+		result[i].Password = password
+		passphrase, err := reencryptSecretForSync(conn.Passphrase, localKey, syncKey)
 		if err != nil {
 			return nil, fmt.Errorf("connection %s: %w", conn.ID, err)
 		}
-		result[i].Password = &enc
+		result[i].Passphrase = passphrase
 	}
 	return result, nil
 }
 
-// translateSyncPassword converts a "sync:..." password to a local-vault-encrypted
-// password. If syncKey is nil or decryption fails, leaves the password as "sync:..."
+// translateSyncSecret converts a "sync:..." secret to a local-vault-encrypted
+// secret. If syncKey is nil or decryption fails, leaves the secret as "sync:..."
 // (pending) so it can be processed when the vault is next unlocked.
-func translateSyncPassword(conn *models.Connection, localKey, syncKey []byte) error {
-	if conn.Password == nil || *conn.Password == "" {
-		return nil
+func translateSyncSecret(secret *string, localKey, syncKey []byte) (*string, error) {
+	if secret == nil || *secret == "" {
+		return secret, nil
 	}
-	if !isSyncEncrypted(*conn.Password) {
-		return nil // already locally encrypted or legacy plaintext
+	if !isSyncEncrypted(*secret) {
+		return secret, nil // already locally encrypted or legacy plaintext
 	}
 	if syncKey == nil {
-		return nil // vault not yet unlocked — leave as pending
+		return secret, nil // vault not yet unlocked — leave as pending
 	}
-	plain, err := decryptFromSync(*conn.Password, syncKey)
+	plain, err := decryptFromSync(*secret, syncKey)
 	if err != nil {
-		return nil // wrong vault password — leave as pending
+		return secret, nil // wrong vault password — leave as pending
 	}
 	enc, err := encryptConnectionPassword(plain, localKey)
 	if err != nil {
+		return nil, err
+	}
+	return &enc, nil
+}
+
+// translateSyncPassword converts a connection's "sync:..." password and
+// passphrase to local-vault-encrypted values in place.
+func translateSyncPassword(conn *models.Connection, localKey, syncKey []byte) error {
+	password, err := translateSyncSecret(conn.Password, localKey, syncKey)
+	if err != nil {
 		return fmt.Errorf("connection %s: %w", conn.ID, err)
 	}
-	conn.Password = &enc
+	conn.Password = password
+	passphrase, err := translateSyncSecret(conn.Passphrase, localKey, syncKey)
+	if err != nil {
+		return fmt.Errorf("connection %s: %w", conn.ID, err)
+	}
+	conn.Passphrase = passphrase
 	return nil
 }
 
-// processPendingPasswords re-encrypts all connections whose password is in "sync:"
-// format (pending cross-device import) using the now-available syncVaultKey.
+// processPendingPasswords re-encrypts all connections whose password or
+// passphrase is in "sync:" format (pending cross-device import) using the
+// now-available syncVaultKey.
 func (a *App) processPendingPasswords() {
 	localKey := a.getMasterKey()
 	syncKey := a.getSyncVaultKey()
@@ -764,14 +807,16 @@ func (a *App) processPendingPasswords() {
 	}
 
 	for _, conn := range connections {
-		if conn.Password == nil || !isSyncEncrypted(*conn.Password) {
+		passwordPending := conn.Password != nil && isSyncEncrypted(*conn.Password)
+		passphrasePending := conn.Passphrase != nil && isSyncEncrypted(*conn.Passphrase)
+		if !passwordPending && !passphrasePending {
 			continue
 		}
 		toStore := conn
 		if err := translateSyncPassword(&toStore, localKey, syncKey); err != nil {
 			continue
 		}
-		if toStore.Password != conn.Password {
+		if toStore.Password != conn.Password || toStore.Passphrase != conn.Passphrase {
 			_ = a.database.UpsertConnection(&toStore)
 		}
 	}

@@ -18,6 +18,7 @@ func (d *Database) GetConnectionByID(
 			auth_type,
 			password,
 			private_key_path,
+			passphrase,
 			color,
 			jump_host_id
 		FROM connections
@@ -38,6 +39,7 @@ func (d *Database) GetConnectionByID(
 		&connection.AuthType,
 		&connection.Password,
 		&connection.PrivateKeyPath,
+		&connection.Passphrase,
 		&connection.Color,
 		&connection.JumpHostID,
 	)

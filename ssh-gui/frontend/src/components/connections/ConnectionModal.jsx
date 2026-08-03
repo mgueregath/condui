@@ -34,7 +34,7 @@ export default function ConnectionModal({ initialValue, folders, connections = [
   const [form, setForm] = useState(initialValue || {
     name: "", host: "", port: 22, username: "",
     password: "", authType: "password",
-    privateKeyPath: "", folderId: "", color: "#6b6490",
+    privateKeyPath: "", passphrase: "", folderId: "", color: "#6b6490",
     jumpHostId: "",
   });
 
@@ -60,6 +60,7 @@ export default function ConnectionModal({ initialValue, folders, connections = [
           form.authType,
           form.password || "",
           form.privateKeyPath || "",
+          form.passphrase || "",
           form.jumpHostId || "",
         );
       }
@@ -105,7 +106,10 @@ export default function ConnectionModal({ initialValue, folders, connections = [
           <Input label={t("connection.password")} type="password" value={form.password} onChange={v => set("password", v)} placeholder="••••••••" />
         )}
         {form.authType === "private_key" && (
-          <Input label={t("connection.privateKeyPath")} value={form.privateKeyPath} onChange={v => set("privateKeyPath", v)} placeholder="~/.ssh/id_rsa" />
+          <>
+            <Input label={t("connection.privateKeyPath")} value={form.privateKeyPath} onChange={v => set("privateKeyPath", v)} placeholder="~/.ssh/id_rsa" />
+            <Input label={t("connection.passphrase")} type="password" value={form.passphrase || ""} onChange={v => set("passphrase", v)} placeholder={t("connection.passphraseOptional")} />
+          </>
         )}
 
         <Field label={

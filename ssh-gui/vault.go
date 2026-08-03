@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
@@ -67,11 +68,36 @@ func decryptConnectionPassword(ciphertext string, key []byte) (string, error) {
 	return ciphertext, nil
 }
 
+// expandUserPath expands a leading "~" or "~/" to the current user's home
+// directory, since Go's os package does not do this the way a shell would.
+func expandUserPath(path string) string {
+	if path != "~" && !strings.HasPrefix(path, "~/") && !strings.HasPrefix(path, `~\`) {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	if path == "~" {
+		return home
+	}
+	return filepath.Join(home, path[2:])
+}
+
 // loadPrivateKey reads and parses an SSH private key from the given path.
-func loadPrivateKey(path string) (ssh.Signer, error) {
+// If the key is encrypted and passphrase is non-empty, it's used to decrypt it.
+func loadPrivateKey(path, passphrase string) (ssh.Signer, error) {
+	path = expandUserPath(path)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read private key %s: %w", path, err)
+	}
+	if passphrase != "" {
+		signer, err := ssh.ParsePrivateKeyWithPassphrase(data, []byte(passphrase))
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse private key %s: %w", path, err)
+		}
+		return signer, nil
 	}
 	signer, err := ssh.ParsePrivateKey(data)
 	if err != nil {
