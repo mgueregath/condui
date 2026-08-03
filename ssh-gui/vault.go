@@ -87,21 +87,43 @@ func expandUserPath(path string) string {
 // loadPrivateKey reads and parses an SSH private key from the given path.
 // If the key is encrypted and passphrase is non-empty, it's used to decrypt it.
 func loadPrivateKey(path, passphrase string) (ssh.Signer, error) {
+	originalPath := path
 	path = expandUserPath(path)
+
+	// Log the path for debugging
+	fmt.Printf("[DEBUG] Loading private key from: %s (original: %s)\n", path, originalPath)
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read private key %s: %w", path, err)
 	}
-	if passphrase != "" {
-		signer, err := ssh.ParsePrivateKeyWithPassphrase(data, []byte(passphrase))
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse private key %s: %w", path, err)
-		}
+
+	fmt.Printf("[DEBUG] Read %d bytes from key file\n", len(data))
+
+	// Try parsing without passphrase first
+	signer, err := ssh.ParsePrivateKey(data)
+	if err == nil {
+		fmt.Printf("[DEBUG] Successfully parsed private key without passphrase\n")
 		return signer, nil
 	}
-	signer, err := ssh.ParsePrivateKey(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse private key %s: %w", path, err)
+
+	fmt.Printf("[DEBUG] Failed to parse without passphrase: %v\n", err)
+
+	// If we have a passphrase, try with it
+	if passphrase != "" {
+		signer, err = ssh.ParsePrivateKeyWithPassphrase(data, []byte(passphrase))
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse private key %s with passphrase: %w", path, err)
+		}
+		fmt.Printf("[DEBUG] Successfully parsed private key with passphrase\n")
+		return signer, nil
 	}
-	return signer, nil
+
+	// If the error suggests the key needs a passphrase, return a more helpful error
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "encrypted") || strings.Contains(errMsg, "passphrase") {
+		return nil, fmt.Errorf("private key %s is encrypted but no passphrase was provided", path)
+	}
+
+	return nil, fmt.Errorf("cannot parse private key %s: %w (this may be due to an unsupported key format or missing passphrase)", path, err)
 }
