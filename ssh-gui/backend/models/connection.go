@@ -19,6 +19,10 @@ type Connection struct {
 
 	PrivateKeyPath *string `json:"privateKeyPath,omitempty"`
 
+	// Passphrase decrypts PrivateKeyPath when the key itself is encrypted.
+	// Stored and synced with the same encryption treatment as Password.
+	Passphrase *string `json:"passphrase,omitempty"`
+
 	Color *string `json:"color,omitempty"`
 
 	// JumpHostID: if set, the connection is established by tunneling through

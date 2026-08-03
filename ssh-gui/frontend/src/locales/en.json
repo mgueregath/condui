@@ -159,6 +159,8 @@
     "password": "Password",
     "privateKey": "Private Key",
     "privateKeyPath": "Private Key Path",
+    "passphrase": "Key Passphrase",
+    "passphraseOptional": "Leave blank if the key has no passphrase",
     "jumpHost": "Jump Host",
     "direct": "— Direct connection (no jump host) —",
     "jumpHostPro": "Available on the Pro plan — connect through a bastion host",

@@ -15,10 +15,11 @@ func (d *Database) UpsertConnection(connection *models.Connection) error {
 			auth_type,
 			password,
 			private_key_path,
+			passphrase,
 			color,
 			jump_host_id
 		)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			folder_id=excluded.folder_id,
 			name=excluded.name,
@@ -28,6 +29,7 @@ func (d *Database) UpsertConnection(connection *models.Connection) error {
 			auth_type=excluded.auth_type,
 			password=excluded.password,
 			private_key_path=excluded.private_key_path,
+			passphrase=excluded.passphrase,
 			color=excluded.color,
 			jump_host_id=excluded.jump_host_id
 		`,
@@ -40,6 +42,7 @@ func (d *Database) UpsertConnection(connection *models.Connection) error {
 		connection.AuthType,
 		connection.Password,
 		connection.PrivateKeyPath,
+		connection.Passphrase,
 		connection.Color,
 		connection.JumpHostID,
 	)

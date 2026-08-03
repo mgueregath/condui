@@ -159,6 +159,8 @@
     "password": "Contraseña",
     "privateKey": "Clave privada",
     "privateKeyPath": "Ruta de la clave privada",
+    "passphrase": "Passphrase de la clave",
+    "passphraseOptional": "Déjalo en blanco si la clave no tiene passphrase",
     "jumpHost": "Host de salto",
     "direct": "— Conexión directa (sin host de salto) —",
     "jumpHostPro": "Disponible en el plan Pro — conecta mediante un bastion host",

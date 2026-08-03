@@ -73,6 +73,7 @@ func (d *Database) Migrate() error {
 		`ALTER TABLE account ADD COLUMN tier_expires_at DATETIME`,
 		`ALTER TABLE account ADD COLUMN sync_key TEXT`,
 		`ALTER TABLE connections ADD COLUMN jump_host_id TEXT REFERENCES connections(id)`,
+		`ALTER TABLE connections ADD COLUMN passphrase TEXT`,
 	}
 	for _, alt := range alterations {
 		if _, err := d.DB.Exec(alt); err != nil {
