@@ -7,6 +7,7 @@ import {
   SyncNow,
   GetAppVersion,
   CheckForUpdates,
+  GetTierLimits,
 } from "../../../bindings/ssh-gui/app";
 import { useTranslation } from "react-i18next";
 import { FaArrowRight } from "react-icons/fa";
@@ -31,6 +32,7 @@ export default function AccountModal({ onClose }) {
   const [appVersion, setAppVersion] = useState("");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateMsg, setUpdateMsg] = useState("");
+  const [planLimits, setPlanLimits] = useState(null);
 
   const refreshStatus = async () => {
     try {
@@ -42,7 +44,19 @@ export default function AccountModal({ onClose }) {
   useEffect(() => {
     refreshStatus();
     GetAppVersion().then(setAppVersion).catch(() => {});
+    GetTierLimits(SERVER_URL).then(setPlanLimits).catch(() => {});
   }, []);
+
+  const formatPlanLimits = (limits) => {
+    if (!limits) return "";
+    if (limits.connections === -1 && limits.devices === -1) {
+      return t("account.planLimitsUnlimited");
+    }
+    return t("account.planLimitsCapped", {
+      connections: limits.connections,
+      devices: limits.devices,
+    });
+  };
 
   const handleCheckForUpdates = async () => {
     setUpdateMsg("");
@@ -234,6 +248,19 @@ export default function AccountModal({ onClose }) {
             {t("account.register")}
           </button>
         </div>
+
+        {tab === "register" && planLimits && (
+          <div className="plan-limits-box">
+            {["free", "pro"].filter(tier => planLimits[tier]).map(tier => (
+              <div className="plan-limits-row" key={tier}>
+                <span className={`tier-badge tier-${tier}`}>
+                  {tier === "pro" ? t("common.pro") : t("common.free")}
+                </span>
+                <span>{formatPlanLimits(planLimits[tier])}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         <form onSubmit={tab === "login" ? handleLogin : handleRegister} className="vault-form">
           <input

@@ -38,6 +38,7 @@ import {
 import VaultUnlock from "./components/account/VaultUnlock";
 import AccountModal from "./components/account/AccountModal";
 import ShareModal from "./components/account/ShareModal";
+import UnlockPendingConnectionModal from "./components/connections/UnlockPendingConnectionModal";
 
 import { BsThreeDots } from "react-icons/bs";
 import { GrRefresh } from "react-icons/gr";
@@ -126,6 +127,7 @@ function LeftSidebar({
   onDeleteFolder,
   onShareConnection,
   onConnectVia,
+  onUnlockPendingConnection,
   onAcceptInvite,
   onDeclineInvite,
   onOpenAccount,
@@ -237,6 +239,7 @@ function LeftSidebar({
                     onAssignFolder={onAssignFolder}
                     onShare={accountStatus?.loggedIn ? onShareConnection : undefined}
                     onConnectVia={accountStatus?.tier === "pro" ? onConnectVia : undefined}
+                    onUnlockPending={onUnlockPendingConnection}
                   />
                 ))}
               </FolderNode>
@@ -268,6 +271,7 @@ function LeftSidebar({
                     onAssignFolder={onAssignFolder}
                     onShare={accountStatus?.loggedIn ? onShareConnection : undefined}
                     onConnectVia={accountStatus?.tier === "pro" ? onConnectVia : undefined}
+                    onUnlockPending={onUnlockPendingConnection}
                   />
                 ))}
             </div>
@@ -333,6 +337,7 @@ function App() {
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [accountStatus, setAccountStatus] = useState(null);
   const [shareTarget, setShareTarget] = useState(null); // connection to share
+  const [unlockPendingTarget, setUnlockPendingTarget] = useState(null); // connection needing origin vault password
   const [pendingInvites, setPendingInvites] = useState([]);
   const [acceptingInviteId, setAcceptingInviteId] = useState(null);
   const [expandedFolders, setExpandedFolders] = useState([]);
@@ -1075,6 +1080,7 @@ function App() {
           connectingId={connectingId}
           activeSessionId={activeTab}
           onShareConnection={(c) => setShareTarget(c)}
+          onUnlockPendingConnection={(c) => setUnlockPendingTarget(c)}
           onConnectVia={handleConnectVia}
           onAcceptInvite={handleAcceptInvite}
           onDeclineInvite={handleDeclineInvite}
@@ -1450,6 +1456,17 @@ function App() {
       <Modal open={!!shareTarget} onClose={() => setShareTarget(null)}>
         {shareTarget && (
           <ShareModal connection={shareTarget} onClose={() => setShareTarget(null)} />
+        )}
+      </Modal>
+
+      {/* Unlock connection synced from a different vault */}
+      <Modal open={!!unlockPendingTarget} onClose={() => setUnlockPendingTarget(null)}>
+        {unlockPendingTarget && (
+          <UnlockPendingConnectionModal
+            connection={unlockPendingTarget}
+            onClose={() => setUnlockPendingTarget(null)}
+            onUnlocked={reload}
+          />
         )}
       </Modal>
 

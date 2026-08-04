@@ -85,6 +85,13 @@ func (m *Manager) Register(serverURL, email, password string) error {
 	return client.register(email, password)
 }
 
+// GetTierLimits fetches the limits for every plan (free, pro, ...) from the
+// sync server, so the UI can show them before the user creates an account.
+func (m *Manager) GetTierLimits(serverURL string) (map[string]map[string]int, error) {
+	client := newAPIClient(serverURL, "")
+	return client.getTierLimits()
+}
+
 // Login authenticates and stores credentials in memory. Returns updated State for persistence.
 func (m *Manager) Login(serverURL, email, password string) (State, error) {
 	client := newAPIClient(serverURL, "")

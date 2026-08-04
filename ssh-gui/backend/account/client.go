@@ -95,6 +95,14 @@ func (c *apiClient) getMe() (*userPayload, error) {
 	return &user, err
 }
 
+// getTierLimits fetches the limits for every tier (free, pro, ...), keyed by
+// tier name then resource name. Public endpoint, no auth required.
+func (c *apiClient) getTierLimits() (map[string]map[string]int, error) {
+	var limits map[string]map[string]int
+	err := c.do("GET", "/api/v1/tiers/limits", nil, &limits)
+	return limits, err
+}
+
 func (c *apiClient) updateIdentity(pubKey, identityBlob string) error {
 	return c.do("PUT", "/api/v1/auth/identity", identityRequest{
 		PublicKey: pubKey, IdentityBlob: identityBlob,

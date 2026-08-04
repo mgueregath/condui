@@ -51,6 +51,7 @@ export default function ConnectionNode({
   onDelete,
   onShare,
   onConnectVia,
+  onUnlockPending,
 }) {
   const { t } = useTranslation();
   const [ctx, setCtx] = useState(null);
@@ -133,12 +134,17 @@ export default function ConnectionNode({
         <div className="conn-name" style={{ color: connection.color }}>
           {connection.name}
           {connection.passwordPending && (
-            <span
+            <button
+              type="button"
               className="conn-pending-badge"
               title={t("connection.passwordPending")}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnlockPending?.(connection);
+              }}
             >
               <FaLock />
-            </span>
+            </button>
           )}
         </div>
         <div className="conn-host">

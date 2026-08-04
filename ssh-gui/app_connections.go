@@ -224,7 +224,10 @@ func (a *App) GetConnectionByID(
 		return nil, err
 	}
 
-	// Redact secrets from frontend response
+	// Redact secrets from frontend response; flag if pending cross-device decryption.
+	if conn.Password != nil && isSyncEncrypted(*conn.Password) {
+		conn.PasswordPending = true
+	}
 	conn.Password = nil
 	conn.Passphrase = nil
 	return conn, nil

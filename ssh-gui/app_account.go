@@ -122,6 +122,15 @@ func (a *App) AccountRegister(serverURL, email, password string) error {
 	return a.accountManager.Register(serverURL, email, password)
 }
 
+// GetTierLimits returns the limits for every plan (free, pro, ...) so the
+// UI can display them before the user creates an account.
+func (a *App) GetTierLimits(serverURL string) (map[string]map[string]int, error) {
+	if serverURL == "" {
+		serverURL = buildconfig.Values.ServerURL
+	}
+	return a.accountManager.GetTierLimits(serverURL)
+}
+
 // AccountLogin authenticates against the sync server.
 func (a *App) AccountLogin(serverURL, email, password string) error {
 	if serverURL == "" {
@@ -193,10 +202,7 @@ func (a *App) SyncNow() error {
 	if syncKey == nil {
 		return fmt.Errorf("sync vault key not available: please unlock the vault first")
 	}
-	connections, err = reencryptConnectionsForSync(connections, key, syncKey)
-	if err != nil {
-		return fmt.Errorf("failed to prepare connections for sync: %w", err)
-	}
+	connections = reencryptConnectionsForSync(connections, key, syncKey)
 
 	// Pro tier syncs the same connection set across all devices. Free tier
 	// keeps the previous capped upload behavior, capped at whatever
@@ -732,23 +738,28 @@ func reencryptSecretForSync(secret *string, localKey, syncKey []byte) (*string, 
 
 // reencryptConnectionsForSync translates passwords and passphrases from the
 // local vault key to the syncVaultKey format so they can be decrypted on any
-// device that knows the vault password.
-func reencryptConnectionsForSync(connections []models.Connection, localKey, syncKey []byte) ([]models.Connection, error) {
+// device that knows the vault password. A connection whose secret can't be
+// decrypted with the current local vault key (e.g. leftover data encrypted
+// under a different vault that was never reconciled) is left as-is instead
+// of aborting the whole sync — one broken connection must not block every
+// other connection from syncing. Re-saving that connection's password from
+// the UI re-encrypts it with the current key and clears the problem.
+func reencryptConnectionsForSync(connections []models.Connection, localKey, syncKey []byte) []models.Connection {
 	result := make([]models.Connection, len(connections))
 	for i, conn := range connections {
 		result[i] = conn
-		password, err := reencryptSecretForSync(conn.Password, localKey, syncKey)
-		if err != nil {
-			return nil, fmt.Errorf("connection %s: %w", conn.ID, err)
+		if password, err := reencryptSecretForSync(conn.Password, localKey, syncKey); err == nil {
+			result[i].Password = password
+		} else {
+			fmt.Printf("[WARN] sync: connection %s password undecryptable with current vault key, leaving unsynced: %v\n", conn.ID, err)
 		}
-		result[i].Password = password
-		passphrase, err := reencryptSecretForSync(conn.Passphrase, localKey, syncKey)
-		if err != nil {
-			return nil, fmt.Errorf("connection %s: %w", conn.ID, err)
+		if passphrase, err := reencryptSecretForSync(conn.Passphrase, localKey, syncKey); err == nil {
+			result[i].Passphrase = passphrase
+		} else {
+			fmt.Printf("[WARN] sync: connection %s passphrase undecryptable with current vault key, leaving unsynced: %v\n", conn.ID, err)
 		}
-		result[i].Passphrase = passphrase
 	}
-	return result, nil
+	return result
 }
 
 // translateSyncSecret converts a "sync:..." secret to a local-vault-encrypted
@@ -789,6 +800,45 @@ func translateSyncPassword(conn *models.Connection, localKey, syncKey []byte) er
 	}
 	conn.Passphrase = passphrase
 	return nil
+}
+
+// UnlockPendingConnection re-encrypts a single connection's password/passphrase
+// that came from sync still in "sync:" format because it was encrypted with a
+// DIFFERENT vault's password than the one unlocked on this device (syncVaultKey
+// is derived from the local vault password — see deriveSyncVaultKey in vault.go
+// — so it only matches automatically when every device shares the same vault
+// password). The caller supplies the password of the vault where the
+// connection was originally created; if it's correct, the secret is decrypted
+// with a one-off key derived from it and re-encrypted with this device's local
+// vault key so the connection becomes usable here going forward.
+func (a *App) UnlockPendingConnection(connectionID, originVaultPassword string) error {
+	localKey := a.getMasterKey()
+	if localKey == nil {
+		return fmt.Errorf("vault is locked")
+	}
+
+	conn, err := a.database.GetConnectionByID(connectionID)
+	if err != nil {
+		return err
+	}
+
+	pending := func(c *models.Connection) bool {
+		return (c.Password != nil && isSyncEncrypted(*c.Password)) ||
+			(c.Passphrase != nil && isSyncEncrypted(*c.Passphrase))
+	}
+	if !pending(conn) {
+		return nil
+	}
+
+	originKey := deriveSyncVaultKey(originVaultPassword)
+	if err := translateSyncPassword(conn, localKey, originKey); err != nil {
+		return err
+	}
+	if pending(conn) {
+		return fmt.Errorf("incorrect origin vault password")
+	}
+
+	return a.database.UpsertConnection(conn)
 }
 
 // processPendingPasswords re-encrypts all connections whose password or
