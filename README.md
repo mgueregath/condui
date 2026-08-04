@@ -278,7 +278,7 @@ Download the latest release from GitHub Releases.
 ## Windows
 
 ```bash
-Condui-windows-x64.exe
+Condui-windows-x64-installer.exe
 ```
 
 ## macOS (Apple Silicon & Intel)

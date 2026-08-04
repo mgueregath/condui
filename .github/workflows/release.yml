@@ -226,7 +226,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          cp "ssh-gui/bin/Condui-amd64-installer.exe" "dist/Condui-windows-x64.exe"
+          cp "ssh-gui/bin/Condui-amd64-installer.exe" "dist/Condui-windows-x64-installer.exe"
 
       # In-app updater asset (see ssh-gui/pkg/updater usage in main.go): the
       # bare .exe produced by `windows:package` before NSIS wraps it into an
@@ -256,7 +256,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer-unsigned
-          path: dist/Condui-windows-x64.exe
+          path: dist/Condui-windows-x64-installer.exe
 
       - name: Submit signing request to SignPath
         if: ${{ env.SIGNPATH_ENABLED == 'true' }}
@@ -273,12 +273,12 @@ jobs:
       - name: Replace with signed installer
         if: ${{ env.SIGNPATH_ENABLED == 'true' }}
         shell: bash
-        run: cp dist-signed/Condui-windows-x64.exe dist/Condui-windows-x64.exe
+        run: cp dist-signed/Condui-windows-x64-installer.exe dist/Condui-windows-x64-installer.exe
 
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: dist/Condui-windows-x64.exe
+          path: dist/Condui-windows-x64-installer.exe
           if-no-files-found: error
 
   build-linux:
@@ -366,7 +366,7 @@ jobs:
           files: |
             dist/Condui-mac.dmg
             dist/Condui-darwin-arm64-amd64.app.zip
-            dist/Condui-windows-x64.exe
+            dist/Condui-windows-x64-installer.exe
             dist/Condui-windows-amd64-update.exe
             dist/Condui-linux-x64.AppImage
             dist/Condui-linux-x64.deb

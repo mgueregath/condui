@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"log"
+	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -20,6 +21,32 @@ var assets embed.FS
 // builds report "dev", which the GitHub provider always treats as
 // out-of-date, so "Check for Updates" is exercisable locally too.
 var currentVersion = "dev"
+
+// updateAssetMatcher wraps github.DefaultAssetMatcher to exclude
+// fresh-install-only artifacts (NSIS installer, .deb, .rpm) from
+// consideration. Those assets share the same platform/arch filename tokens
+// as the in-app updater's own assets (e.g. "Condui-windows-x64-installer.exe"
+// and "Condui-windows-amd64-update.exe" both contain "windows"+"amd64"), so
+// without this filter DefaultAssetMatcher could pick whichever one happens
+// to come first in the release's asset list and hand the installer to a
+// running app to swap itself with — see docs/RELEASING.md.
+func updateAssetMatcher(req updater.CheckRequest, assets []github.ReleaseAsset) int {
+	candidates := make([]github.ReleaseAsset, 0, len(assets))
+	originalIndex := make([]int, 0, len(assets))
+	for i, a := range assets {
+		name := strings.ToLower(a.Name)
+		if strings.Contains(name, "installer") || strings.HasSuffix(name, ".deb") || strings.HasSuffix(name, ".rpm") {
+			continue
+		}
+		candidates = append(candidates, a)
+		originalIndex = append(originalIndex, i)
+	}
+	i := github.DefaultAssetMatcher(req, candidates)
+	if i < 0 {
+		return -1
+	}
+	return originalIndex[i]
+}
 
 func main() {
 
@@ -39,6 +66,7 @@ func main() {
 	gh, err := github.New(github.Config{
 		Repository:    buildconfig.Values.UpdateRepo,
 		ChecksumAsset: "SHA256SUMS",
+		AssetMatcher:  updateAssetMatcher,
 	})
 	if err != nil {
 		log.Fatalf("github.New: %v", err)

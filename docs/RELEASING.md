@@ -13,7 +13,7 @@ This produces:
 
 **Fresh-install artifacts** (what a user downloads from the Releases page the first time):
 - `Condui-mac.dmg` — signed and notarized universal (arm64 + amd64) build
-- `Condui-windows-x64.exe` — NSIS installer (unsigned until SignPath is approved, see below)
+- `Condui-windows-x64-installer.exe` — NSIS installer (unsigned until SignPath is approved, see below)
 - `Condui-linux-x64.AppImage`, `Condui-linux-x64.deb`, `Condui-linux-x64.rpm`
 
 **In-app updater artifacts** (what an already-installed Condui downloads via Account → Check for
@@ -53,6 +53,13 @@ Why the updater needs its own assets instead of reusing the DMG/installer:
 - `.deb`/`.rpm` have no auto-update path here — package-manager artifacts aren't something this updater
   (or any equivalent without a hosted APT/YUM repo) can swap in place. Users on those tracks reinstall the
   new `.deb`/`.rpm` manually, same as before this feature existed.
+- The NSIS installer, `.deb` and `.rpm` all contain the same platform/arch filename tokens as their
+  corresponding update asset (e.g. `Condui-windows-x64-installer.exe` and
+  `Condui-windows-amd64-update.exe` both match `windows`+`amd64`), so the default matcher alone can't tell
+  them apart — it just returns whichever comes first in the release's asset list. `main.go` wires a custom
+  `AssetMatcher` (`updateAssetMatcher`) that filters out anything with `installer`, `.deb`, or `.rpm` in
+  the name before delegating to `github.DefaultAssetMatcher`, so the updater can only ever pick a real
+  update asset.
 
 The Windows portable `.exe` ships unsigned for now, same as the installer (see SignPath section below) —
 signing it requires a second SignPath Artifact Configuration once that's set up.
@@ -100,8 +107,8 @@ open-source projects for free (no personal ID needed — they verify the binary 
    - `SIGNPATH_SIGNING_POLICY_SLUG`
 4. That's it — `.github/workflows/release.yml` already has the signing steps in the `build-windows` job,
    gated on `secrets.SIGNPATH_API_TOKEN != ''`. As soon as the secrets exist, the next tagged release
-   automatically submits `Condui-windows-x64.exe` to SignPath, waits for the signed artifact, and ships
-   that instead of the unsigned one. No workflow changes needed.
+   automatically submits `Condui-windows-x64-installer.exe` to SignPath, waits for the signed artifact,
+   and ships that instead of the unsigned one. No workflow changes needed.
 
 ## Notes
 
