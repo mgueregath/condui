@@ -15,6 +15,7 @@ import {
   GetVirtualBoxVMs,
   VirtualBoxAction,
   GetDockerStats,
+  SetSudoPassword,
 } from "../../bindings/ssh-gui/app";
 import { FaArrowDown, FaArrowRight, FaArrowUp, FaLock, FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch, FaPlus, FaRedoAlt, FaDesktop, FaSave, FaPause } from "react-icons/fa";
 import {
@@ -43,6 +44,8 @@ import { TbNetwork, TbBackground } from "react-icons/tb";
 import { TiFlashOutline } from "react-icons/ti";
 import { useTranslation } from "react-i18next";
 import AlertModal from "./common/AlertModal";
+import SudoPasswordModal from "./common/SudoPasswordModal";
+import { MdOutlineFlashAuto, MdOutlineRestartAlt } from "react-icons/md";
 
 const DB_TYPES = {
   PostgreSQL: {
@@ -255,6 +258,9 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
   const [alertModal, setAlertModal] = useState(null);
   const showAlert = (message, title = t("app.notice")) =>
     setAlertModal({ title, message });
+  
+  // Estado para modal de contraseña sudo
+  const [sudoPasswordModal, setSudoPasswordModal] = useState(false);
 
 
   // Estados para la Modal del Túnel (Crea y Edita)
@@ -293,6 +299,14 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
   // 2. Cargar datos dinámicos bajo demanda y Auto-refresh de Docker
   useEffect(() => {
     if (!sessionId) return;
+
+    // Limpiar datos al cambiar de sesión activa
+    setContainers([]);
+    setPorts([]);
+    setDatabases([]);
+    setVms([]);
+    setDockerStats({});
+    setVboxError(null);
 
     if (activeTab === "tunnels") {
       fetchTunnels();
@@ -542,7 +556,7 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
 
   const sortedVms = useMemo(() => (
     vms.filter((vm) =>
-      matchesSearch([vm.name, vm.uuid, vm.state, vm.memoryMb, vm.cpus, vm.os, vm.ip]),
+      matchesSearch([vm.name, vm.uuid, vm.state, vm.memoryMb, vm.cpus, vm.os, vm.ip, vm.autostart]),
     ).sort((a, b) => {
       const direction = vboxSort.direction === "asc" ? 1 : -1;
       if (vboxSort.key === "state") {
@@ -610,6 +624,10 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
       setContainers(res || []);
     } catch (err) {
       console.error("Error al obtener contenedores:", err);
+      // Si el error es SUDO_PASSWORD_REQUIRED, solicitar contraseña
+      if (err?.message?.includes("SUDO_PASSWORD_REQUIRED")) {
+        setSudoPasswordModal(true);
+      }
     }
   };
 
@@ -641,6 +659,14 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
     } catch (err) {
       console.error("Error al reiniciar contenedor:", err);
     }
+  };
+
+  // Manejar envío de contraseña sudo
+  const handleSudoPasswordSubmit = async (password) => {
+    await SetSudoPassword(sessionId, password);
+    setSudoPasswordModal(false);
+    // Reintentar obtener contenedores
+    await fetchContainers();
   };
 
   return (
@@ -1467,6 +1493,7 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
                   <div style={{ flex: "2", textAlign: "right" }}>{t("panel.actions")}</div>
                 </div>
                 {sortedVms.map(vm => {
+                  console.log("VM:", vm);
               const isRunning = vm.state === "running";
               const isPaused = vm.state === "paused";
               const isSaved = vm.state === "saved";
@@ -1567,6 +1594,7 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
                     {vm.cpus > 0 && <Spec icon={<PiCpuFill />} label={`${vm.cpus} vCPU${vm.cpus !== 1 ? "s" : ""}`} />}
                     {vm.os && <Spec icon={<PiDiscBold />} label={vm.os} />}
                     {vm.ip && <Spec icon={<TbNetwork />} label={vm.ip} mono />}
+                    {vm.autostart && <Spec icon={<MdOutlineFlashAuto />} label={t("panel.autostart")} />}
                     {isRunning && !vm.ip && (
                       <Spec icon={<TbNetwork />} label={t("panel.ipUnavailable")} muted />
                     )}
@@ -1977,6 +2005,12 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
         title={alertModal?.title}
         message={alertModal?.message}
         onClose={() => setAlertModal(null)}
+      />
+
+      <SudoPasswordModal
+        open={sudoPasswordModal}
+        onClose={() => setSudoPasswordModal(false)}
+        onSubmit={handleSudoPasswordSubmit}
       />
 
     </div>

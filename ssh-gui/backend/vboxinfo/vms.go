@@ -32,7 +32,7 @@ func GetVMs(client *ssh.Client) ([]models.VMInfo, error) {
 
 	// For each VM, call showvminfo once and guestproperty for the IP.
 	// Fields separated by | so we can split safely.
-	// Output per VM: uuid|name|state|memMB|cpus|ostype|ip
+	// Output per VM: uuid|name|state|memMB|cpus|ostype|ip|autostart
 	cmd := `VBoxManage list vms 2>/dev/null | awk -F'"' '{print $2}' | while IFS= read -r name; do` +
 		` [ -z "$name" ] && continue;` +
 		` info=$(VBoxManage showvminfo "$name" --machinereadable 2>/dev/null);` +
@@ -41,8 +41,9 @@ func GetVMs(client *ssh.Client) ([]models.VMInfo, error) {
 		` mem=$(printf '%s' "$info" | grep '^memory=' | head -1 | sed 's/memory=//');` +
 		` cpus=$(printf '%s' "$info" | grep '^cpus=' | head -1 | sed 's/cpus=//');` +
 		` os=$(printf '%s' "$info" | grep '^ostype=' | head -1 | sed 's/ostype=//;s/"//g');` +
+		` autostart=$(printf '%s' "$info" | grep '^autostart-enabled=' | head -1 | sed 's/autostart-enabled=//;s/"//g');` +
 		` ip=$(VBoxManage guestproperty get "$name" /VirtualBox/GuestInfo/Net/0/V4/IP 2>/dev/null | grep '^Value:' | sed 's/Value: //');` +
-		` printf '%s|%s|%s|%s|%s|%s|%s\n' "$uuid" "$name" "$state" "$mem" "$cpus" "$os" "$ip";` +
+		` printf '%s|%s|%s|%s|%s|%s|%s|%s\n' "$uuid" "$name" "$state" "$mem" "$cpus" "$os" "$ip" "$autostart";` +
 		` done`
 
 	out, err := s.Output(cmd)
@@ -56,7 +57,7 @@ func GetVMs(client *ssh.Client) ([]models.VMInfo, error) {
 		if line == "" {
 			continue
 		}
-		parts := strings.SplitN(line, "|", 7)
+		parts := strings.SplitN(line, "|", 8)
 		if len(parts) < 3 {
 			continue
 		}
@@ -74,15 +75,17 @@ func GetVMs(client *ssh.Client) ([]models.VMInfo, error) {
 
 		mem, _ := strconv.Atoi(field(3))
 		cpus, _ := strconv.Atoi(field(4))
+		autostart := strings.ToLower(field(7)) == "on"
 
 		vms = append(vms, models.VMInfo{
-			Name:     name,
-			UUID:     field(0),
-			State:    normalizeState(field(2)),
-			MemoryMB: mem,
-			CPUs:     cpus,
-			OS:       friendlyOS(field(5)),
-			IP:       field(6),
+			Name:      name,
+			UUID:      field(0),
+			State:     normalizeState(field(2)),
+			MemoryMB:  mem,
+			CPUs:      cpus,
+			OS:        friendlyOS(field(5)),
+			IP:        field(6),
+			Autostart: autostart,
 		})
 	}
 	return vms, nil
@@ -156,10 +159,10 @@ func normalizeState(raw string) string {
 // friendlyOS converts VBoxManage ostype identifiers to readable strings.
 func friendlyOS(raw string) string {
 	m := map[string]string{
-		"Ubuntu_64": "Ubuntu 64-bit", "Ubuntu":      "Ubuntu 32-bit",
-		"Debian_64": "Debian 64-bit", "Debian":      "Debian 32-bit",
-		"RedHat_64": "Red Hat 64-bit", "RedHat":     "Red Hat 32-bit",
-		"Fedora_64": "Fedora 64-bit", "Fedora":      "Fedora 32-bit",
+		"Ubuntu_64": "Ubuntu 64-bit", "Ubuntu": "Ubuntu 32-bit",
+		"Debian_64": "Debian 64-bit", "Debian": "Debian 32-bit",
+		"RedHat_64": "Red Hat 64-bit", "RedHat": "Red Hat 32-bit",
+		"Fedora_64": "Fedora 64-bit", "Fedora": "Fedora 32-bit",
 		"Windows11_64": "Windows 11", "Windows10_64": "Windows 10",
 		"Windows7_64": "Windows 7 64-bit", "Windows7": "Windows 7",
 		"WindowsNT_64": "Windows Server", "MacOS_64": "macOS",

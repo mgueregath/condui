@@ -33,6 +33,9 @@ type SSHSession struct {
 
 	Rows int
 	Cols int
+
+	// SudoPassword stores the sudo password for this session (if needed)
+	SudoPassword string
 }
 
 type LocalTerminal interface {
