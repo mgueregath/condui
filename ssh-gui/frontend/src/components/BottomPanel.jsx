@@ -43,6 +43,7 @@ import { TbNetwork, TbBackground } from "react-icons/tb";
 import { TiFlashOutline } from "react-icons/ti";
 import { useTranslation } from "react-i18next";
 import AlertModal from "./common/AlertModal";
+import { MdOutlineFlashAuto, MdOutlineRestartAlt } from "react-icons/md";
 
 const DB_TYPES = {
   PostgreSQL: {
@@ -294,6 +295,14 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
   useEffect(() => {
     if (!sessionId) return;
 
+    // Limpiar datos al cambiar de sesión activa
+    setContainers([]);
+    setPorts([]);
+    setDatabases([]);
+    setVms([]);
+    setDockerStats({});
+    setVboxError(null);
+
     if (activeTab === "tunnels") {
       fetchTunnels();
     }
@@ -542,7 +551,7 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
 
   const sortedVms = useMemo(() => (
     vms.filter((vm) =>
-      matchesSearch([vm.name, vm.uuid, vm.state, vm.memoryMb, vm.cpus, vm.os, vm.ip]),
+      matchesSearch([vm.name, vm.uuid, vm.state, vm.memoryMb, vm.cpus, vm.os, vm.ip, vm.autostart]),
     ).sort((a, b) => {
       const direction = vboxSort.direction === "asc" ? 1 : -1;
       if (vboxSort.key === "state") {
@@ -1467,6 +1476,7 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
                   <div style={{ flex: "2", textAlign: "right" }}>{t("panel.actions")}</div>
                 </div>
                 {sortedVms.map(vm => {
+                  console.log("VM:", vm);
               const isRunning = vm.state === "running";
               const isPaused = vm.state === "paused";
               const isSaved = vm.state === "saved";
@@ -1567,6 +1577,7 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
                     {vm.cpus > 0 && <Spec icon={<PiCpuFill />} label={`${vm.cpus} vCPU${vm.cpus !== 1 ? "s" : ""}`} />}
                     {vm.os && <Spec icon={<PiDiscBold />} label={vm.os} />}
                     {vm.ip && <Spec icon={<TbNetwork />} label={vm.ip} mono />}
+                    {vm.autostart && <Spec icon={<MdOutlineFlashAuto />} label={t("panel.autostart")} />}
                     {isRunning && !vm.ip && (
                       <Spec icon={<TbNetwork />} label={t("panel.ipUnavailable")} muted />
                     )}

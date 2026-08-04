@@ -135,3 +135,4 @@ temp/
 
 **/.task/checksum
 **/frontend/bindings
+**/frontend/.bindings*

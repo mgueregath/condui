@@ -349,6 +349,9 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // Allow native context menu in development mode
+    if (import.meta.env.DEV) return;
+
     const preventNativeContextMenu = (event) => event.preventDefault();
     document.addEventListener("contextmenu", preventNativeContextMenu);
 

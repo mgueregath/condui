@@ -290,7 +290,8 @@
     "remotePort": "Remote destination port",
     "remotePortPlaceholder": "E.g. 80 or 3306",
     "saveChanges": "Save changes",
-    "addTunnel": "Add tunnel"
+    "addTunnel": "Add tunnel",
+    "autostart": "Autostart"
   },
   "database": {
     "user": "User",
