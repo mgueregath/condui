@@ -4,7 +4,7 @@ tasks:
   go:mod:tidy:
     summary: Runs `go mod tidy`
     internal: true
-    # run: once
+    run: once
     deps:
       - dbmanager:setup
       - buildconfig:setup
@@ -23,7 +23,7 @@ tasks:
       at runtime). Copies the example on first run; never overwrites an
       existing file, so local edits survive rebuilds.
     internal: true
-    # run: once
+    run: once
     cmds:
       - cmd: powershell -NoProfile -Command "if (-not (Test-Path 'backend/buildconfig/build.config.yaml')) { Copy-Item 'backend/buildconfig/build.config.example.yaml' 'backend/buildconfig/build.config.yaml' }"
         platforms: [windows]
@@ -57,7 +57,7 @@ tasks:
       `go mod tidy` can resolve it. Removes stale workspace files when the
       private repository is not available.
     internal: true
-    # run: once
+    run: once
     cmds:
       - cmd: powershell -NoProfile -Command "if (Test-Path '../../navoro/go.mod') { if (-not (Test-Path 'go.work')) { go work init . ../../navoro }; go work use . ../../navoro } else { if (Test-Path 'go.work') { Remove-Item 'go.work' -Force }; if (Test-Path 'go.work.sum') { Remove-Item 'go.work.sum' -Force } }"
         platforms: [windows]
