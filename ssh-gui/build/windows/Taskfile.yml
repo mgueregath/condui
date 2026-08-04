@@ -17,7 +17,10 @@ vars:
   # App version baked into production builds via -ldflags (main.currentVersion),
   # read by the in-app updater. Falls back to a git tag, then a dev placeholder.
   VERSION:
-    sh: 'git describe --tags --always 2>/dev/null | sed "s/^v//" || echo 0.0.0-dev'
+    - sh: git describe --tags --always 2>nul | ForEach-Object { $_ -replace "^v","" }
+      platforms: [windows]
+    - sh: 'git describe --tags --always 2>/dev/null | sed "s/^v//" || echo 0.0.0-dev'
+      platforms: [linux, darwin]
 
 tasks:
   build:
