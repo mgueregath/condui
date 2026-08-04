@@ -18,7 +18,7 @@ func (a *App) GetDockerContainers(sessionID string) ([]models.DockerContainer, e
 	if !ok {
 		return nil, fmt.Errorf("session not found")
 	}
-	return dockerinfo.GetContainers(session.Client)
+	return dockerinfo.GetContainers(session.Client, session.SudoPassword)
 }
 
 func (a *App) GetListeningPorts(sessionID string) ([]models.PortInfo, error) {
@@ -29,6 +29,16 @@ func (a *App) GetListeningPorts(sessionID string) ([]models.PortInfo, error) {
 	return dockerinfo.GetListeningPorts(session.Client)
 }
 
+// SetSudoPassword establece la contraseña sudo para una sesión
+func (a *App) SetSudoPassword(sessionID string, password string) error {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+	session.SudoPassword = password
+	return nil
+}
+
 // ToggleContainer ejecuta las acciones vitales: start, stop o restart
 func (a *App) ToggleContainer(sessionID string, containerID string, action string) (string, error) {
 	session, ok := a.sessionManager.Get(sessionID)
@@ -36,7 +46,7 @@ func (a *App) ToggleContainer(sessionID string, containerID string, action strin
 		return "", fmt.Errorf("session not found")
 	}
 
-	output, err := dockerinfo.ToggleContainer(session.Client, containerID, action)
+	output, err := dockerinfo.ToggleContainer(session.Client, containerID, action, session.SudoPassword)
 	if err == nil {
 		a.emitLog("DOCKER", fmt.Sprintf("Contenedor %s ejecutó: %s", containerID, action), "success")
 	} else {
@@ -54,6 +64,9 @@ func (a *App) StartDockerLogs(sessionID string, containerID string) error {
 
 	a.StopDockerLogs(sessionID, containerID)
 
+	cmd := fmt.Sprintf("docker logs -f --tail=300 %s 2>&1", containerID)
+
+	// Intenta primero sin sudo
 	cmdSession, err := session.Client.NewSession()
 	if err != nil {
 		return err
@@ -65,9 +78,25 @@ func (a *App) StartDockerLogs(sessionID string, containerID string) error {
 		return err
 	}
 
-	if err := cmdSession.Start(fmt.Sprintf("docker logs -f --tail=300 %s 2>&1", containerID)); err != nil {
+	if err := cmdSession.Start(cmd); err != nil {
 		cmdSession.Close()
-		return err
+
+		// Si falla, intenta con sudo -n (non-interactive)
+		cmdSession, err = session.Client.NewSession()
+		if err != nil {
+			return err
+		}
+
+		stdout, err = cmdSession.StdoutPipe()
+		if err != nil {
+			cmdSession.Close()
+			return err
+		}
+
+		if err := cmdSession.Start("sudo -n " + cmd); err != nil {
+			cmdSession.Close()
+			return err
+		}
 	}
 
 	key := sessionID + ":" + containerID
@@ -114,7 +143,7 @@ func (a *App) GetDatabases(sessionID string) ([]models.DatabaseInfo, error) {
 	if !ok {
 		return nil, fmt.Errorf("session not found")
 	}
-	return dockerinfo.GetDatabases(session.Client)
+	return dockerinfo.GetDatabases(session.Client, session.SudoPassword)
 }
 
 // GetDockerStats returns a one-shot snapshot of CPU and memory usage
@@ -124,7 +153,7 @@ func (a *App) GetDockerStats(sessionID string) ([]models.DockerStats, error) {
 	if !ok {
 		return nil, fmt.Errorf("session not found")
 	}
-	return dockerinfo.GetStats(session.Client)
+	return dockerinfo.GetStats(session.Client, session.SudoPassword)
 }
 
 type SystemStats struct {

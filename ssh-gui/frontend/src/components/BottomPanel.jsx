@@ -15,6 +15,7 @@ import {
   GetVirtualBoxVMs,
   VirtualBoxAction,
   GetDockerStats,
+  SetSudoPassword,
 } from "../../bindings/ssh-gui/app";
 import { FaArrowDown, FaArrowRight, FaArrowUp, FaLock, FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch, FaPlus, FaRedoAlt, FaDesktop, FaSave, FaPause } from "react-icons/fa";
 import {
@@ -43,6 +44,7 @@ import { TbNetwork, TbBackground } from "react-icons/tb";
 import { TiFlashOutline } from "react-icons/ti";
 import { useTranslation } from "react-i18next";
 import AlertModal from "./common/AlertModal";
+import SudoPasswordModal from "./common/SudoPasswordModal";
 import { MdOutlineFlashAuto, MdOutlineRestartAlt } from "react-icons/md";
 
 const DB_TYPES = {
@@ -256,6 +258,9 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
   const [alertModal, setAlertModal] = useState(null);
   const showAlert = (message, title = t("app.notice")) =>
     setAlertModal({ title, message });
+  
+  // Estado para modal de contraseña sudo
+  const [sudoPasswordModal, setSudoPasswordModal] = useState(false);
 
 
   // Estados para la Modal del Túnel (Crea y Edita)
@@ -619,6 +624,10 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
       setContainers(res || []);
     } catch (err) {
       console.error("Error al obtener contenedores:", err);
+      // Si el error es SUDO_PASSWORD_REQUIRED, solicitar contraseña
+      if (err?.message?.includes("SUDO_PASSWORD_REQUIRED")) {
+        setSudoPasswordModal(true);
+      }
     }
   };
 
@@ -650,6 +659,14 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
     } catch (err) {
       console.error("Error al reiniciar contenedor:", err);
     }
+  };
+
+  // Manejar envío de contraseña sudo
+  const handleSudoPasswordSubmit = async (password) => {
+    await SetSudoPassword(sessionId, password);
+    setSudoPasswordModal(false);
+    // Reintentar obtener contenedores
+    await fetchContainers();
   };
 
   return (
@@ -1988,6 +2005,12 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
         title={alertModal?.title}
         message={alertModal?.message}
         onClose={() => setAlertModal(null)}
+      />
+
+      <SudoPasswordModal
+        open={sudoPasswordModal}
+        onClose={() => setSudoPasswordModal(false)}
+        onSubmit={handleSudoPasswordSubmit}
       />
 
     </div>

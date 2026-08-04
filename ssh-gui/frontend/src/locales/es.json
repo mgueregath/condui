@@ -291,7 +291,11 @@
     "remotePortPlaceholder": "Ej.: 80 o 3306",
     "saveChanges": "Guardar cambios",
     "addTunnel": "Agregar túnel",
-    "autostart": "Inicio automático"
+    "autostart": "Inicio automático",
+    "sudoPasswordTitle": "Contraseña Sudo Requerida",
+    "sudoPasswordMessage": "Docker requiere permisos de sudo. Por favor, ingresa tu contraseña.",
+    "sudoPasswordPlaceholder": "Contraseña sudo",
+    "sudoPasswordError": "Contraseña incorrecta. Por favor, inténtalo de nuevo."
   },
   "database": {
     "user": "Usuario",

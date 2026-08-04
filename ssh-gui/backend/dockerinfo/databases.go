@@ -58,19 +58,50 @@ var knownDBImages = []struct{ sub, name string }{
 
 // GetDatabases discovers database services running on the remote host, both
 // directly listening on known ports and exposed via Docker containers.
-func GetDatabases(client *ssh.Client) ([]models.DatabaseInfo, error) {
+func GetDatabases(client *ssh.Client, sudoPassword string) ([]models.DatabaseInfo, error) {
+	// SYS <port> <addr>  — puertos escuchando
+	// DOC <name>|<image>|<ports>  — contenedores docker
+	cmd := `ss -tlnp 2>/dev/null | awk 'NR>1{n=split($4,a,":");if(a[n]+0>0)print "SYS",a[n]+0,$4}'` +
+		`; docker ps --format 'DOC {{.Names}}|{{.Image}}|{{.Ports}}' 2>/dev/null || true`
+
+	// Intenta primero sin sudo
 	cmdSession, err := client.NewSession()
 	if err != nil {
 		return nil, err
 	}
 	defer cmdSession.Close()
 
-	// SYS <port> <addr>  — puertos escuchando
-	// DOC <name>|<image>|<ports>  — contenedores docker
-	cmd := `ss -tlnp 2>/dev/null | awk 'NR>1{n=split($4,a,":");if(a[n]+0>0)print "SYS",a[n]+0,$4}'` +
-		`; docker ps --format 'DOC {{.Names}}|{{.Image}}|{{.Ports}}' 2>/dev/null || true`
-
 	output, _ := cmdSession.CombinedOutput(cmd)
+
+	// Verifica si hay contenedores docker en la salida
+	hasDockerOutput := false
+	for _, line := range strings.Split(string(output), "\n") {
+		if strings.HasPrefix(line, "DOC ") {
+			hasDockerOutput = true
+			break
+		}
+	}
+
+	// Si no hay contenedores docker, intenta con sudo
+	if !hasDockerOutput {
+		cmdSession.Close()
+
+		cmdSession2, err2 := client.NewSession()
+		if err2 == nil {
+			defer cmdSession2.Close()
+
+			var dockerCmd string
+			if sudoPassword != "" {
+				dockerCmd = fmt.Sprintf("echo '%s' | sudo -S docker ps --format 'DOC {{.Names}}|{{.Image}}|{{.Ports}}' 2>/dev/null || true", sudoPassword)
+			} else {
+				dockerCmd = "sudo -n docker ps --format 'DOC {{.Names}}|{{.Image}}|{{.Ports}}' 2>/dev/null || true"
+			}
+
+			cmdSudo := `ss -tlnp 2>/dev/null | awk 'NR>1{n=split($4,a,":");if(a[n]+0>0)print "SYS",a[n]+0,$4}'; ` + dockerCmd
+
+			output, _ = cmdSession2.CombinedOutput(cmdSudo)
+		}
+	}
 
 	// Primera pasada: recoger puertos Docker mapeados para deduplicar
 	dockerPorts := map[int]bool{}
