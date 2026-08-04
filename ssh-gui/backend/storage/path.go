@@ -19,7 +19,7 @@ func DatabasePath() (string, error) {
 	appDir :=
 		filepath.Join(
 			configDir,
-			"Condui",
+			appDirName,
 		)
 
 
