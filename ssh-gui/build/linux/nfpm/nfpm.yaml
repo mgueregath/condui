@@ -9,9 +9,9 @@ platform: "linux"
 version: ${VERSION}
 section: "default"
 priority: "extra"
-maintainer: Mirko Gueregat <mgueregath@gmail.com>
+maintainer: Mirko Gueregat and Israel Díaz <mgueregath@gmail.com>
 description: "Condui - SSH and database explorer GUI"
-vendor: "Mirko Gueregat"
+vendor: "Codeffeine"
 homepage: "https://github.com/mgueregath/condui"
 license: "AGPL-3.0"
 release: "1"

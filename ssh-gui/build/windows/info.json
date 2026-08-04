@@ -4,12 +4,12 @@
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "{{.Info.ProductVersion}}",
-			"CompanyName": "{{.Info.CompanyName}}",
-			"FileDescription": "{{.Info.ProductName}}",
-			"LegalCopyright": "{{.Info.Copyright}}",
-			"ProductName": "{{.Info.ProductName}}",
-			"Comments": "{{.Info.Comments}}"
+			"ProductVersion": "0.1.0",
+			"CompanyName": "Codeffeine",
+			"FileDescription": "Condui",
+			"LegalCopyright": "© 2026, Codeffeine",
+			"ProductName": "Condui",
+			"Comments": "Condui - SSH and database explorer GUI"
 		}
 	}
 }
