@@ -1,0 +1,17 @@
+{
+  "name": "condui-vnc-connection-test",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "proxy": "node proxy.js"
+  },
+  "dependencies": {
+    "@novnc/novnc": "^1.7.0"
+  },
+  "devDependencies": {
+    "vite": "^8.0.5",
+    "ws": "^8.18.3"
+  }
+}

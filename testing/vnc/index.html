@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prueba de conexion VNC</title>
+  </head>
+  <body>
+    <main>
+      <form id="connection-form">
+        <label>
+          URL WebSocket
+          <input id="url" name="url" type="url" value="ws://127.0.0.1:6080" required />
+        </label>
+        <label>
+          Usuario
+          <input id="username" name="username" autocomplete="username" />
+        </label>
+        <label>
+          Contrasena
+          <input id="password" name="password" type="password" autocomplete="current-password" />
+        </label>
+        <button type="submit">Conectar</button>
+        <button id="disconnect" type="button" disabled>Desconectar</button>
+      </form>
+
+      <p id="status" role="status">Desconectado</p>
+      <div id="screen" aria-label="Escritorio VNC"></div>
+    </main>
+    <script type="module" src="/src.js"></script>
+  </body>
+</html>
