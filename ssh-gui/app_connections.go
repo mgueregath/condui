@@ -111,22 +111,12 @@ func (a *App) UpdateConnection(
 		connection.Password = existing.Password
 	} else if *connection.Password != "" {
 		key := a.getMasterKey()
-		if key != nil {
-			// Only encrypt if the value is not already encrypted (no ":" = plaintext)
-			isEncrypted := false
-			for _, c := range *connection.Password {
-				if c == ':' {
-					isEncrypted = true
-					break
-				}
+		if key != nil && !isConnectionEncrypted(*connection.Password) {
+			enc, err := encryptConnectionPassword(*connection.Password, key)
+			if err != nil {
+				return err
 			}
-			if !isEncrypted {
-				enc, err := encryptConnectionPassword(*connection.Password, key)
-				if err != nil {
-					return err
-				}
-				connection.Password = &enc
-			}
+			connection.Password = &enc
 		}
 	}
 
@@ -142,21 +132,12 @@ func (a *App) UpdateConnection(
 		connection.Passphrase = existing.Passphrase
 	} else if *connection.Passphrase != "" {
 		key := a.getMasterKey()
-		if key != nil {
-			isEncrypted := false
-			for _, c := range *connection.Passphrase {
-				if c == ':' {
-					isEncrypted = true
-					break
-				}
+		if key != nil && !isConnectionEncrypted(*connection.Passphrase) {
+			enc, err := encryptConnectionPassword(*connection.Passphrase, key)
+			if err != nil {
+				return err
 			}
-			if !isEncrypted {
-				enc, err := encryptConnectionPassword(*connection.Passphrase, key)
-				if err != nil {
-					return err
-				}
-				connection.Passphrase = &enc
-			}
+			connection.Passphrase = &enc
 		}
 	}
 

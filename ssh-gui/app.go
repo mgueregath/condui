@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"log"
 	"sync"
 	"time"
@@ -231,6 +232,51 @@ func (a *App) clearSyncVaultKey() {
 		a.syncVaultKey[i] = 0
 	}
 	a.syncVaultKey = nil
+}
+
+// getAccountSyncKey returns the stable per-account key derived from the
+// account's login credentials (account.DeriveSyncKey, keyed by email+account
+// password with a fixed salt) — identical on every device logged into the
+// same account, regardless of each device's own local vault password. This
+// is what makes a connection secret written on one device decryptable on
+// another automatically. Returns nil if no account is logged in yet.
+func (a *App) getAccountSyncKey() []byte {
+	syncKeyB64 := a.accountManager.GetState().SyncKey
+	if syncKeyB64 == "" {
+		return nil
+	}
+	key, err := base64.StdEncoding.DecodeString(syncKeyB64)
+	if err != nil {
+		return nil
+	}
+	return key
+}
+
+// preferredSyncEncryptKey returns the key used to wrap a connection secret
+// for upload: the account-wide key when available, so every other device
+// logged into the account can decrypt it regardless of its own local vault
+// password. Falls back to the legacy per-vault-password key (syncVaultKey)
+// only if the account key isn't available yet (e.g. offline/stale state).
+func (a *App) preferredSyncEncryptKey() []byte {
+	if k := a.getAccountSyncKey(); k != nil {
+		return k
+	}
+	return a.getSyncVaultKey()
+}
+
+// syncKeyCandidates returns, in preference order, every key that might
+// unwrap a "sync:" secret: the account-wide key first, then the legacy
+// per-vault-password key kept for secrets synced before the account-wide key
+// was used for this purpose (or for a peer device that hasn't upgraded yet).
+func (a *App) syncKeyCandidates() [][]byte {
+	var keys [][]byte
+	if k := a.getAccountSyncKey(); k != nil {
+		keys = append(keys, k)
+	}
+	if k := a.getSyncVaultKey(); k != nil {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 // approveHostKeyChannel sends a boolean on the channel for "host:port".

@@ -9,7 +9,7 @@
 # Default sync server the desktop app talks to. Point this at your own
 # condui-server instance (https://github.com/mgueregath/condui-server) or
 # leave it pointing at the hosted default.
-server_url: "https://sync.condui.app"
+server_url: "https://sync.condui.labs.codeffeine.io"
 
 # Informational: whether this build is expected to include the private
 # db manager submodule (ssh-gui/backend/dbexplorer). The actual enforcement

@@ -60,6 +60,11 @@ func (d *Database) GetConnections() (
 			return nil, err
 		}
 
+		connection.Tunnels, err = d.getTunnelsByConnectionID(connection.ID)
+		if err != nil {
+			return nil, err
+		}
+
 		result =
 			append(
 				result,

@@ -2,8 +2,14 @@ import { useState } from "react";
 import { UnlockPendingConnection } from "../../../bindings/ssh-gui/app";
 import { useTranslation } from "react-i18next";
 
-export default function UnlockPendingConnectionModal({ connection, onClose, onUnlocked }) {
+// `connections` is every connection currently pending cross-vault decryption,
+// not just the one whose lock badge was clicked: connections synced from the
+// same origin device share the same vault password, so trying that password
+// against all of them at once lets the user unlock a whole batch with a
+// single prompt instead of repeating it once per connection.
+export default function UnlockPendingConnectionModal({ connections, onClose, onUnlocked }) {
   const { t } = useTranslation();
+  const [pending, setPending] = useState(connections);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -12,22 +18,49 @@ export default function UnlockPendingConnectionModal({ connection, onClose, onUn
     e.preventDefault();
     setError("");
     setLoading(true);
-    try {
-      await UnlockPendingConnection(connection.id, password);
-      onUnlocked?.();
-      onClose?.();
-    } catch (err) {
-      setError(typeof err === "string" ? err : err?.message || t("connection.unlockPendingFailed"));
-    } finally {
-      setLoading(false);
+
+    const stillPending = [];
+    let unlockedCount = 0;
+    for (const conn of pending) {
+      try {
+        await UnlockPendingConnection(conn.id, password);
+        unlockedCount++;
+      } catch {
+        stillPending.push(conn);
+      }
     }
+
+    setLoading(false);
+    setPassword("");
+
+    if (unlockedCount > 0) {
+      onUnlocked?.();
+    }
+
+    if (stillPending.length === 0) {
+      onClose?.();
+      return;
+    }
+
+    setPending(stillPending);
+    setError(
+      unlockedCount > 0
+        ? t("connection.unlockPendingPartial", { unlocked: unlockedCount, remaining: stillPending.length })
+        : t("connection.unlockPendingFailed")
+    );
   };
+
+  const count = pending.length;
 
   return (
     <form onSubmit={handleUnlock}>
       <div className="modal-header">
         <h2>{t("connection.unlockPendingTitle")}</h2>
-        <p>{t("connection.unlockPendingDescription", { name: connection?.name })}</p>
+        <p>
+          {count === 1
+            ? t("connection.unlockPendingDescription", { name: pending[0]?.name })
+            : t("connection.unlockPendingDescriptionMulti", { count })}
+        </p>
       </div>
       <div className="modal-body">
         <input

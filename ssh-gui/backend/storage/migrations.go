@@ -47,6 +47,20 @@ func (d *Database) Migrate() error {
 		`,
 
 		`
+		CREATE TABLE IF NOT EXISTS tunnels (
+			id TEXT PRIMARY KEY,
+			connection_id TEXT NOT NULL,
+			local_port INTEGER NOT NULL,
+			remote_host TEXT NOT NULL,
+			remote_port INTEGER NOT NULL
+		);
+		`,
+
+		`
+		CREATE INDEX IF NOT EXISTS idx_tunnels_connection_id ON tunnels(connection_id);
+		`,
+
+		`
 		CREATE TABLE IF NOT EXISTS account (
 			id INTEGER PRIMARY KEY CHECK (id = 1),
 			server_url TEXT,

@@ -32,9 +32,15 @@ Unicode true
 ## !define WAILS_INSTALL_SCOPE     "user"             # Default "machine" - set to "user" for per-user install ($LOCALAPPDATA) without UAC prompt
 ####
 !define INFO_PROJECTNAME    "Condui"
-!define INFO_COMPANYNAME    "Mirko Gueregat"
+!define INFO_COMPANYNAME    "Codeffeine"
 !define INFO_PRODUCTNAME    "Condui"
-!define INFO_COPYRIGHT      "© 2026, Mirko Gueregat"
+!define INFO_COPYRIGHT      "© 2026, Codeffeine"
+## Per-user install (no UAC prompt) so the running app can self-replace its
+## own executable when the in-app updater applies an update. A machine-wide
+## install under Program Files requires admin rights that the app does not
+## run with, so the updater's helper process fails to swap the binary and
+## silently leaves the old version in place after "Restart & Apply".
+!define WAILS_INSTALL_SCOPE "user"
 ####
 ## Include the wails tools
 ####

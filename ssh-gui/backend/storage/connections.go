@@ -57,6 +57,12 @@ func (d *Database) CreateConnection(
 		connection.Color,
 		connection.JumpHostID,
 	)
+	if err != nil {
+		return err
+	}
 
+	if connection.Tunnels != nil {
+		connection.Tunnels, err = d.replaceTunnels(connection.ID, connection.Tunnels)
+	}
 	return err
 }

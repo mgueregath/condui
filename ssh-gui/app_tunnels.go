@@ -6,38 +6,65 @@ import (
 	"ssh-gui/backend/models"
 )
 
-// GetTunnels obtiene la lista de túneles dinámicos guardados para la sesión activa
-func (a *App) GetTunnels(sessionID string) ([]models.TunnelInfo, error) {
-	return a.tunnelManager.List(sessionID)
+// GetTunnels returns the tunnels persisted for a connection, with Active
+// reflecting whether each currently has a live listener in this process.
+func (a *App) GetTunnels(connectionID string) ([]models.TunnelInfo, error) {
+	tunnels, err := a.database.GetTunnelsByConnectionID(connectionID)
+	if err != nil {
+		return nil, err
+	}
+	a.tunnelManager.MarkActive(tunnels)
+	return tunnels, nil
 }
 
-// AddTunnel registra un nuevo túnel dinámico en la sesión actual
-func (a *App) AddTunnel(sessionID string, localPort int, remoteHost string, remotePort int) (models.TunnelInfo, error) {
-	return a.tunnelManager.Add(sessionID, localPort, remoteHost, remotePort, a.emitLog)
+// AddTunnel persists a new tunnel for a connection so it survives
+// reconnects/restarts and syncs to the user's other devices.
+func (a *App) AddTunnel(connectionID string, localPort int, remoteHost string, remotePort int) (models.TunnelInfo, error) {
+	tunnel, err := a.database.CreateTunnel(connectionID, localPort, remoteHost, remotePort)
+	if err != nil {
+		return models.TunnelInfo{}, err
+	}
+	a.triggerBackgroundSync()
+	return tunnel, nil
 }
 
-// DeleteTunnel elimina un túnel del registro (y lo apaga si está encendido)
-func (a *App) DeleteTunnel(sessionID string, tunnelID string) error {
-	// Apagar primero si está corriendo
-	_ = a.ToggleTunnel(sessionID, tunnelID, 0, "", 0, false)
+// DeleteTunnel removes a persisted tunnel, turning it off first if it has a
+// live listener running.
+func (a *App) DeleteTunnel(tunnelID string) error {
+	_ = a.tunnelManager.Toggle("", tunnelID, 0, "", 0, false, nil, a.emitLog)
 
-	return a.tunnelManager.Delete(sessionID, tunnelID, a.emitLog)
+	if err := a.database.DeleteTunnel(tunnelID); err != nil {
+		return err
+	}
+	a.triggerBackgroundSync()
+	return nil
 }
 
-// EditTunnel modifica los parámetros de un túnel existente
-func (a *App) EditTunnel(sessionID string, tunnelID string, localPort int, remoteHost string, remotePort int) (models.TunnelInfo, error) {
-	// Apagar el túnel primero si estuviera corriendo en tiempo de ejecución
-	_ = a.ToggleTunnel(sessionID, tunnelID, 0, "", 0, false)
+// EditTunnel updates a persisted tunnel's parameters, turning it off first
+// if it has a live listener running (its old host/port would otherwise keep
+// forwarding after the edit).
+func (a *App) EditTunnel(tunnelID string, localPort int, remoteHost string, remotePort int) (models.TunnelInfo, error) {
+	_ = a.tunnelManager.Toggle("", tunnelID, 0, "", 0, false, nil, a.emitLog)
 
-	return a.tunnelManager.Edit(sessionID, tunnelID, localPort, remoteHost, remotePort, a.emitLog)
+	tunnel, err := a.database.UpdateTunnel(tunnelID, localPort, remoteHost, remotePort)
+	if err != nil {
+		return models.TunnelInfo{}, err
+	}
+	a.triggerBackgroundSync()
+	return tunnel, nil
 }
 
-// ToggleTunnel enciende o apaga el túnel SSH local port forwarding de forma asíncrona
+// ToggleTunnel starts or stops the local port-forwarding listener for a
+// tunnel on the given live SSH session.
 func (a *App) ToggleTunnel(sessionID string, tunnelID string, localPort int, remoteHost string, remotePort int, activate bool) error {
+	if !activate {
+		return a.tunnelManager.Toggle(sessionID, tunnelID, localPort, remoteHost, remotePort, false, nil, a.emitLog)
+	}
+
 	session, ok := a.sessionManager.Get(sessionID)
 	if !ok {
 		return fmt.Errorf("session not found")
 	}
 
-	return a.tunnelManager.Toggle(sessionID, tunnelID, localPort, remoteHost, remotePort, activate, session.Client, a.emitLog)
+	return a.tunnelManager.Toggle(sessionID, tunnelID, localPort, remoteHost, remotePort, true, session.Client, a.emitLog)
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,17 +13,63 @@ import (
 	"ssh-gui/backend/account"
 )
 
+// connCipherPrefix marks values produced by encryptConnectionPassword so that
+// decryptConnectionPassword/isConnectionEncrypted can tell them apart from
+// plaintext with certainty, instead of guessing from a ":" separator that a
+// plaintext password may also happen to contain (see looksLikeEncryptedField).
+const connCipherPrefix = "enc:"
+
+// aesGCMNonceSize is the nonce length account.EncryptField always produces
+// (AES-GCM standard), used to validate the legacy (unprefixed) format below.
+const aesGCMNonceSize = 12
+
+// looksLikeEncryptedField reports whether s matches the exact
+// "nonce_b64:ciphertext_b64" shape produced by account.EncryptField, used to
+// recognize connections encrypted before connCipherPrefix was introduced.
+// Checking for the mere presence of a ":" is not enough: a user-chosen
+// plaintext password containing a colon (e.g. "pass:word123") would falsely
+// match and get stored unencrypted, later failing to decrypt as "vault
+// error" that changing the password again could never clear.
+func looksLikeEncryptedField(s string) bool {
+	idx := strings.IndexByte(s, ':')
+	if idx < 0 {
+		return false
+	}
+	nonce, err := base64.StdEncoding.DecodeString(s[:idx])
+	if err != nil || len(nonce) != aesGCMNonceSize {
+		return false
+	}
+	if _, err := base64.StdEncoding.DecodeString(s[idx+1:]); err != nil {
+		return false
+	}
+	return true
+}
+
+// isConnectionEncrypted reports whether a connection secret is already in an
+// encrypted form (either the current prefixed format or the legacy one).
+func isConnectionEncrypted(s string) bool {
+	return strings.HasPrefix(s, connCipherPrefix) || looksLikeEncryptedField(s)
+}
+
 const syncVaultSaltInput = "condui-sync-vault-v1"
 
-// deriveSyncVaultKey returns a stable key derived only from the vault password
-// (no device-specific salt), making it reproducible on any device with the same password.
+// deriveSyncVaultKey returns a stable key derived only from the local vault
+// password (no device-specific salt). It is kept as a legacy fallback: two
+// devices only derive the same key from it if they happen to share the exact
+// same LOCAL vault password, which is not guaranteed since each device's
+// vault password is independent by design. New writes prefer the
+// account-wide key (account.DeriveSyncKey, see getAccountSyncKey in app.go),
+// which is reproducible on any device logged into the same account
+// regardless of its local vault password; this one is only tried as a
+// fallback when decrypting older sync-format secrets, or for the manual
+// "unlock connection synced from another vault" flow.
 func deriveSyncVaultKey(vaultPassword string) []byte {
 	h := sha256.Sum256([]byte(syncVaultSaltInput))
 	return account.DeriveKey(vaultPassword, h[:])
 }
 
-// encryptForSync encrypts a plaintext password with the syncVaultKey and returns
-// it in the format "sync:nonce_b64:ct_b64".
+// encryptForSync encrypts a plaintext password with the given sync key and
+// returns it in the format "sync:nonce_b64:ct_b64".
 func encryptForSync(plaintext string, syncKey []byte) (string, error) {
 	enc, err := account.EncryptField(syncKey, plaintext)
 	if err != nil {
@@ -31,10 +78,27 @@ func encryptForSync(plaintext string, syncKey []byte) (string, error) {
 	return "sync:" + enc, nil
 }
 
-// decryptFromSync decrypts a "sync:nonce_b64:ct_b64" value.
-func decryptFromSync(encoded string, syncKey []byte) (string, error) {
+// decryptFromSync decrypts a "sync:nonce_b64:ct_b64" value, trying each
+// candidate key in order and returning the first successful decryption.
+// Multiple keys exist to support both the current account-wide sync key and
+// the legacy per-vault-password key for values written before it existed.
+func decryptFromSync(encoded string, syncKeys ...[]byte) (string, error) {
 	inner := strings.TrimPrefix(encoded, "sync:")
-	return account.DecryptField(syncKey, inner)
+	var lastErr error
+	for _, key := range syncKeys {
+		if key == nil {
+			continue
+		}
+		plain, err := account.DecryptField(key, inner)
+		if err == nil {
+			return plain, nil
+		}
+		lastErr = err
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("no sync key available")
+	}
+	return "", lastErr
 }
 
 // isSyncEncrypted reports whether the value was encrypted with the sync vault key.
@@ -48,21 +112,26 @@ func encryptConnectionPassword(plaintext string, key []byte) (string, error) {
 	if plaintext == "" {
 		return "", nil
 	}
-	return account.EncryptField(key, plaintext)
+	enc, err := account.EncryptField(key, plaintext)
+	if err != nil {
+		return "", err
+	}
+	return connCipherPrefix + enc, nil
 }
 
 // decryptConnectionPassword decrypts an encrypted password using the vault master key.
-// If the value doesn't look encrypted (no ":" separator), returns it as-is for
-// backward-compatibility with connections saved before encryption was added.
+// If the value doesn't look encrypted, returns it as-is for backward-compatibility
+// with connections saved before encryption was added.
 func decryptConnectionPassword(ciphertext string, key []byte) (string, error) {
 	if ciphertext == "" {
 		return "", nil
 	}
-	// Detect if value is already encrypted (contains base64:base64 pattern)
-	for _, c := range ciphertext {
-		if c == ':' {
-			return account.DecryptField(key, ciphertext)
-		}
+	if strings.HasPrefix(ciphertext, connCipherPrefix) {
+		return account.DecryptField(key, strings.TrimPrefix(ciphertext, connCipherPrefix))
+	}
+	if looksLikeEncryptedField(ciphertext) {
+		// Legacy encrypted value saved before connCipherPrefix was introduced.
+		return account.DecryptField(key, ciphertext)
 	}
 	// Plaintext (legacy) — return as-is
 	return ciphertext, nil

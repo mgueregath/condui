@@ -48,5 +48,10 @@ func (d *Database) GetConnectionByID(
 		return nil, err
 	}
 
+	connection.Tunnels, err = d.getTunnelsByConnectionID(connection.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &connection, nil
 }

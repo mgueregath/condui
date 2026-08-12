@@ -233,7 +233,7 @@ function ActionBtn({ children, title, color, onClick, disabled, style = {} }) {
   );
 }
 
-export default function BottomPanel({ sessionId, accountStatus, features, onUpgrade }) {
+export default function BottomPanel({ sessionId, connectionId, accountStatus, features, onUpgrade }) {
   const { t } = useTranslation();
   const isPro = accountStatus?.tier === "pro";
   const dbManagerEnabled = !!features?.dbManager;
@@ -337,12 +337,16 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
       const intervalId = setInterval(fetchVMs, 8000);
       return () => clearInterval(intervalId);
     }
-  }, [activeTab, sessionId]);
+  }, [activeTab, sessionId, connectionId]);
 
   // --- Operaciones de Tunnels ---
+  // Persisted per connection (survive reconnects/restarts and sync across
+  // devices); only ToggleTunnel needs sessionId, since starting a listener
+  // requires a live SSH client.
   const fetchTunnels = async () => {
+    if (!connectionId) return;
     try {
-      const res = await GetTunnels(sessionId);
+      const res = await GetTunnels(connectionId);
       setTunnels(res || []);
     } catch (err) {
       console.error("Error al obtener túneles:", err);
@@ -367,13 +371,12 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
 
   const handleSaveTunnel = async (e) => {
     e.preventDefault();
-    if (!sessionId || !formLocalPort || !formRemoteHost || !formRemotePort)
+    if (!connectionId || !formLocalPort || !formRemoteHost || !formRemotePort)
       return;
 
     try {
       if (editingTunnelId) {
         await EditTunnel(
-          sessionId,
           editingTunnelId,
           parseInt(formLocalPort, 10),
           formRemoteHost,
@@ -381,7 +384,7 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
         );
       } else {
         await AddTunnel(
-          sessionId,
+          connectionId,
           parseInt(formLocalPort, 10),
           formRemoteHost,
           parseInt(formRemotePort, 10),
@@ -414,7 +417,7 @@ export default function BottomPanel({ sessionId, accountStatus, features, onUpgr
     if (!window.confirm(t("panel.deleteTunnelConfirm")))
       return;
     try {
-      await DeleteTunnel(sessionId, tunnelId);
+      await DeleteTunnel(tunnelId);
       await fetchTunnels();
     } catch (err) {
       console.error("Error al eliminar túnel:", err);

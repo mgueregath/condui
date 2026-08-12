@@ -36,6 +36,12 @@ func (d *Database) UpdateConnection(
 		connection.JumpHostID,
 		connection.ID,
 	)
+	if err != nil {
+		return err
+	}
 
+	if connection.Tunnels != nil {
+		connection.Tunnels, err = d.replaceTunnels(connection.ID, connection.Tunnels)
+	}
 	return err
 }

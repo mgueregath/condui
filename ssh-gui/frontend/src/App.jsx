@@ -337,7 +337,7 @@ function App() {
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [accountStatus, setAccountStatus] = useState(null);
   const [shareTarget, setShareTarget] = useState(null); // connection to share
-  const [unlockPendingTarget, setUnlockPendingTarget] = useState(null); // connection needing origin vault password
+  const [unlockPendingTarget, setUnlockPendingTarget] = useState(null); // connections needing origin vault password
   const [pendingInvites, setPendingInvites] = useState([]);
   const [acceptingInviteId, setAcceptingInviteId] = useState(null);
   const [expandedFolders, setExpandedFolders] = useState([]);
@@ -1083,7 +1083,7 @@ function App() {
           connectingId={connectingId}
           activeSessionId={activeTab}
           onShareConnection={(c) => setShareTarget(c)}
-          onUnlockPendingConnection={(c) => setUnlockPendingTarget(c)}
+          onUnlockPendingConnection={() => setUnlockPendingTarget(connections.filter((c) => c.passwordPending))}
           onConnectVia={handleConnectVia}
           onAcceptInvite={handleAcceptInvite}
           onDeclineInvite={handleDeclineInvite}
@@ -1248,7 +1248,7 @@ function App() {
               </div>
             </div>
             {!isLocalActive && (
-              <BottomPanel sessionId={activeTab} accountStatus={accountStatus} features={features} onUpgrade={() => setAccountModalOpen(true)} />
+              <BottomPanel sessionId={activeTab} connectionId={activeTabData?.connectionId} accountStatus={accountStatus} features={features} onUpgrade={() => setAccountModalOpen(true)} />
             )}
           </div>
 
@@ -1462,11 +1462,12 @@ function App() {
         )}
       </Modal>
 
-      {/* Unlock connection synced from a different vault */}
-      <Modal open={!!unlockPendingTarget} onClose={() => setUnlockPendingTarget(null)}>
-        {unlockPendingTarget && (
+      {/* Unlock connections synced from a different vault. All connections currently
+          pending are offered together so their shared origin password is asked once. */}
+      <Modal open={!!unlockPendingTarget?.length} onClose={() => setUnlockPendingTarget(null)}>
+        {!!unlockPendingTarget?.length && (
           <UnlockPendingConnectionModal
-            connection={unlockPendingTarget}
+            connections={unlockPendingTarget}
             onClose={() => setUnlockPendingTarget(null)}
             onUnlocked={reload}
           />

@@ -144,6 +144,10 @@ func (a *App) AccountLogin(serverURL, email, password string) error {
 		return err
 	}
 	if a.getMasterKey() != nil {
+		// The account-wide sync key just became available; retry any
+		// connection left "pending" (e.g. synced before this device had
+		// logged in) before pushing the local state.
+		go a.processPendingPasswords()
 		a.triggerBackgroundSync()
 	}
 	// Immediately refresh to confirm tier from server and start the loop
@@ -195,12 +199,13 @@ func (a *App) SyncNow() error {
 		return err
 	}
 
-	// Re-encrypt passwords with syncVaultKey (stable across devices) before upload.
-	// Each device uses a different vault key (random salt), so we must translate
-	// to a key derivable on any device with the same vault password.
-	syncKey := a.getSyncVaultKey()
+	// Re-encrypt passwords with the account-wide sync key (stable across every
+	// device logged into this account, independent of each device's own local
+	// vault password) before upload, so a password changed on one device
+	// decrypts automatically on every other device without a manual unlock.
+	syncKey := a.preferredSyncEncryptKey()
 	if syncKey == nil {
-		return fmt.Errorf("sync vault key not available: please unlock the vault first")
+		return fmt.Errorf("sync key not available: please log in and unlock the vault first")
 	}
 	connections = reencryptConnectionsForSync(connections, key, syncKey)
 
@@ -507,7 +512,7 @@ func (a *App) mergeRemoteFolders(local []models.Folder, remote []models.Folder, 
 }
 
 func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.Connection, snapshot map[string]string, key []byte) ([]models.Connection, error) {
-	syncKey := a.getSyncVaultKey()
+	syncKeys := a.syncKeyCandidates()
 	localByID := map[string]models.Connection{}
 	remoteByID := map[string]models.Connection{}
 	order := make([]string, 0, len(local)+len(remote))
@@ -547,7 +552,7 @@ func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.
 			if connectionHash(chosen) == connectionHash(remoteConn) {
 				// Remote version chosen: translate its password from syncKey → localKey.
 				toStore := chosen
-				if err := translateSyncPassword(&toStore, key, syncKey); err != nil {
+				if err := translateSyncPassword(&toStore, key, syncKeys...); err != nil {
 					return nil, err
 				}
 				if err := a.database.UpsertConnection(&toStore); err != nil {
@@ -569,7 +574,7 @@ func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.
 			}
 			// New connection from remote: translate syncKey → localKey (or keep pending).
 			toStore := remoteConn
-			if err := translateSyncPassword(&toStore, key, syncKey); err != nil {
+			if err := translateSyncPassword(&toStore, key, syncKeys...); err != nil {
 				return nil, err
 			}
 			if err := a.database.UpsertConnection(&toStore); err != nil {
@@ -763,21 +768,20 @@ func reencryptConnectionsForSync(connections []models.Connection, localKey, sync
 }
 
 // translateSyncSecret converts a "sync:..." secret to a local-vault-encrypted
-// secret. If syncKey is nil or decryption fails, leaves the secret as "sync:..."
-// (pending) so it can be processed when the vault is next unlocked.
-func translateSyncSecret(secret *string, localKey, syncKey []byte) (*string, error) {
+// secret, trying each syncKey candidate in turn. If no candidate is provided
+// or none of them decrypt it, leaves the secret as "sync:..." (pending) so it
+// can be processed once a working key becomes available (account login,
+// vault unlock, or a manual origin-vault-password unlock).
+func translateSyncSecret(secret *string, localKey []byte, syncKeys ...[]byte) (*string, error) {
 	if secret == nil || *secret == "" {
 		return secret, nil
 	}
 	if !isSyncEncrypted(*secret) {
 		return secret, nil // already locally encrypted or legacy plaintext
 	}
-	if syncKey == nil {
-		return secret, nil // vault not yet unlocked — leave as pending
-	}
-	plain, err := decryptFromSync(*secret, syncKey)
+	plain, err := decryptFromSync(*secret, syncKeys...)
 	if err != nil {
-		return secret, nil // wrong vault password — leave as pending
+		return secret, nil // no candidate key worked — leave as pending
 	}
 	enc, err := encryptConnectionPassword(plain, localKey)
 	if err != nil {
@@ -788,13 +792,13 @@ func translateSyncSecret(secret *string, localKey, syncKey []byte) (*string, err
 
 // translateSyncPassword converts a connection's "sync:..." password and
 // passphrase to local-vault-encrypted values in place.
-func translateSyncPassword(conn *models.Connection, localKey, syncKey []byte) error {
-	password, err := translateSyncSecret(conn.Password, localKey, syncKey)
+func translateSyncPassword(conn *models.Connection, localKey []byte, syncKeys ...[]byte) error {
+	password, err := translateSyncSecret(conn.Password, localKey, syncKeys...)
 	if err != nil {
 		return fmt.Errorf("connection %s: %w", conn.ID, err)
 	}
 	conn.Password = password
-	passphrase, err := translateSyncSecret(conn.Passphrase, localKey, syncKey)
+	passphrase, err := translateSyncSecret(conn.Passphrase, localKey, syncKeys...)
 	if err != nil {
 		return fmt.Errorf("connection %s: %w", conn.ID, err)
 	}
@@ -842,12 +846,12 @@ func (a *App) UnlockPendingConnection(connectionID, originVaultPassword string) 
 }
 
 // processPendingPasswords re-encrypts all connections whose password or
-// passphrase is in "sync:" format (pending cross-device import) using the
-// now-available syncVaultKey.
+// passphrase is in "sync:" format (pending cross-device import) using
+// whichever sync key candidate now unlocks them.
 func (a *App) processPendingPasswords() {
 	localKey := a.getMasterKey()
-	syncKey := a.getSyncVaultKey()
-	if localKey == nil || syncKey == nil {
+	syncKeys := a.syncKeyCandidates()
+	if localKey == nil || len(syncKeys) == 0 {
 		return
 	}
 
@@ -863,7 +867,7 @@ func (a *App) processPendingPasswords() {
 			continue
 		}
 		toStore := conn
-		if err := translateSyncPassword(&toStore, localKey, syncKey); err != nil {
+		if err := translateSyncPassword(&toStore, localKey, syncKeys...); err != nil {
 			continue
 		}
 		if toStore.Password != conn.Password || toStore.Passphrase != conn.Passphrase {

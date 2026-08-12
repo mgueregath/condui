@@ -6,7 +6,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh"
 
 	"ssh-gui/backend/models"
@@ -15,148 +14,53 @@ import (
 // Logger emits a user-facing log event.
 type Logger func(logType, message, class string)
 
-// Manager tracks registered and running SSH local-port-forwarding tunnels.
+// Manager tracks the live listeners for SSH local-port-forwarding tunnels.
+// Tunnel configuration itself (which tunnels exist, their host/port) is
+// persisted in the database and synced across devices (see
+// backend/storage/tunnels.go and models.Connection.Tunnels) — this Manager
+// only owns runtime state that can't be persisted: open net.Listeners and
+// the goroutines bridging them to a live ssh.Client.
 type Manager struct {
-	mu                sync.RWMutex
-	runtimeTunnels    map[string]*models.ActiveTunnel
-	registeredTunnels map[string][]models.TunnelInfo
+	mu             sync.RWMutex
+	runtimeTunnels map[string]*models.ActiveTunnel // tunnelID -> live listener
+	tunnelSession  map[string]string               // tunnelID -> sessionID that opened it
 }
 
 // NewManager creates an empty tunnel manager.
 func NewManager() *Manager {
 	return &Manager{
-		runtimeTunnels:    make(map[string]*models.ActiveTunnel),
-		registeredTunnels: make(map[string][]models.TunnelInfo),
+		runtimeTunnels: make(map[string]*models.ActiveTunnel),
+		tunnelSession:  make(map[string]string),
 	}
 }
 
-// List returns the tunnels registered for the given session, with their live Active state.
-func (m *Manager) List(sessionID string) ([]models.TunnelInfo, error) {
+// MarkActive sets Active on each tunnel based on whether it currently has a
+// live listener in this process.
+func (m *Manager) MarkActive(tunnels []models.TunnelInfo) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-
-	list, exists := m.registeredTunnels[sessionID]
-	if !exists {
-		return []models.TunnelInfo{}, nil
+	for i := range tunnels {
+		tunnels[i].Active = m.runtimeTunnels[tunnels[i].ID] != nil
 	}
-
-	// Sincronizar el flag de Active en tiempo real basándose en si el listener genérico sigue vivo
-	for i := range list {
-		list[i].Active = m.runtimeTunnels[list[i].ID] != nil
-	}
-
-	return list, nil
-}
-
-// Add registers a new dynamic tunnel for the given session.
-func (m *Manager) Add(sessionID string, localPort int, remoteHost string, remotePort int, log Logger) (models.TunnelInfo, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	tunnelID := uuid.NewString()
-	newTunnel := models.TunnelInfo{
-		ID:         tunnelID,
-		LocalPort:  localPort,
-		RemoteHost: remoteHost,
-		RemotePort: remotePort,
-		Active:     false,
-	}
-
-	m.registeredTunnels[sessionID] = append(m.registeredTunnels[sessionID], newTunnel)
-	log("TUNNEL", fmt.Sprintf("Nuevo túnel registrado: :%d -> %s:%d", localPort, remoteHost, remotePort), "")
-
-	return newTunnel, nil
-}
-
-// Delete removes a tunnel from the registry. Callers should Toggle it off first.
-func (m *Manager) Delete(sessionID, tunnelID string, log Logger) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	list := m.registeredTunnels[sessionID]
-	for i, t := range list {
-		if t.ID == tunnelID {
-			m.registeredTunnels[sessionID] = append(list[:i], list[i+1:]...)
-			log("TUNNEL", fmt.Sprintf("Túnel :%d eliminado del registro.", t.LocalPort), "warn")
-			break
-		}
-	}
-	return nil
-}
-
-// CloseSession closes every running tunnel owned by a session and drops its registry.
-func (m *Manager) CloseSession(sessionID string, log Logger) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	list := m.registeredTunnels[sessionID]
-	for _, tunnel := range list {
-		active, exists := m.runtimeTunnels[tunnel.ID]
-		if !exists {
-			continue
-		}
-
-		_ = active.Listener.Close()
-		delete(m.runtimeTunnels, tunnel.ID)
-		log("TUNNEL", fmt.Sprintf("Túnel local :%d cerrado al cerrar la conexión.", active.LocalPort), "warn")
-	}
-
-	delete(m.registeredTunnels, sessionID)
-}
-
-// Edit updates the parameters of an existing tunnel. Callers should Toggle it off first.
-func (m *Manager) Edit(sessionID, tunnelID string, localPort int, remoteHost string, remotePort int, log Logger) (models.TunnelInfo, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	list, exists := m.registeredTunnels[sessionID]
-	if !exists {
-		return models.TunnelInfo{}, fmt.Errorf("no se encontraron túneles para esta sesión")
-	}
-
-	for i, t := range list {
-		if t.ID == tunnelID {
-			list[i].LocalPort = localPort
-			list[i].RemoteHost = remoteHost
-			list[i].RemotePort = remotePort
-
-			m.registeredTunnels[sessionID] = list
-			log("TUNNEL", fmt.Sprintf("Túnel editado con éxito: Mapeado a :%d", localPort), "success")
-			return list[i], nil
-		}
-	}
-
-	return models.TunnelInfo{}, fmt.Errorf("túnel no encontrado")
 }
 
 // Toggle starts or stops the local port-forwarding listener for a tunnel.
+// sessionID is only needed (and client must be non-nil) when activating, so
+// CloseSession can later tear it down if that session disconnects.
 func (m *Manager) Toggle(sessionID, tunnelID string, localPort int, remoteHost string, remotePort int, activate bool, client *ssh.Client, log Logger) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if !activate {
-		// APAGAR TÚNEL
 		if t, exists := m.runtimeTunnels[tunnelID]; exists {
-			t.Listener.Close()
+			_ = t.Listener.Close()
 			delete(m.runtimeTunnels, tunnelID)
+			delete(m.tunnelSession, tunnelID)
 			log("TUNNEL", fmt.Sprintf("Túnel local :%d cerrado de forma segura.", t.LocalPort), "warn")
 		}
 		return nil
 	}
 
-	// Si se activa por interfaz, pero no se pasaron parámetros directos, buscamos en el registro guardado
-	if localPort == 0 {
-		for _, t := range m.registeredTunnels[sessionID] {
-			if t.ID == tunnelID {
-				localPort = t.LocalPort
-				remoteHost = t.RemoteHost
-				remotePort = t.RemotePort
-				break
-			}
-		}
-	}
-
-	// ENCENDER TÚNEL
 	localAddr := fmt.Sprintf("127.0.0.1:%d", localPort)
 	listener, err := net.Listen("tcp", localAddr)
 	if err != nil {
@@ -170,6 +74,7 @@ func (m *Manager) Toggle(sessionID, tunnelID string, localPort int, remoteHost s
 		RemoteHost: remoteHost,
 		RemotePort: remotePort,
 	}
+	m.tunnelSession[tunnelID] = sessionID
 
 	log("TUNNEL", fmt.Sprintf("Túnel activo: local :%d retransmitiendo a %s:%d", localPort, remoteHost, remotePort), "success")
 
@@ -204,4 +109,23 @@ func (m *Manager) Toggle(sessionID, tunnelID string, localPort int, remoteHost s
 	}(listener, remoteHost, remotePort)
 
 	return nil
+}
+
+// CloseSession closes every running tunnel that was activated on the given
+// session, since its ssh.Client is about to become invalid.
+func (m *Manager) CloseSession(sessionID string, log Logger) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for tunnelID, owner := range m.tunnelSession {
+		if owner != sessionID {
+			continue
+		}
+		if t, exists := m.runtimeTunnels[tunnelID]; exists {
+			_ = t.Listener.Close()
+			delete(m.runtimeTunnels, tunnelID)
+			log("TUNNEL", fmt.Sprintf("Túnel local :%d cerrado al cerrar la conexión.", t.LocalPort), "warn")
+		}
+		delete(m.tunnelSession, tunnelID)
+	}
 }
