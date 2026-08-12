@@ -229,7 +229,20 @@ jobs:
             Write-Host "choco install nsis failed (attempt $i/$attempts), retrying in ${wait}s..."
             Start-Sleep -Seconds $wait
           }
-          echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+          # Locate makensis.exe instead of assuming a fixed install path —
+          # the chocolatey nsis package doesn't reliably land under
+          # "C:\Program Files (x86)\NSIS" on every runner/version.
+          $makensis = Get-ChildItem -Path 'C:\Program Files*\NSIS*' -Filter 'makensis.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $makensis) {
+            $makensis = Get-ChildItem -Path 'C:\ProgramData\chocolatey' -Filter 'makensis.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
+          if (-not $makensis) {
+            Write-Error "makensis.exe not found anywhere after 'choco install nsis'"
+            exit 1
+          }
+          Write-Host "Found makensis.exe at: $($makensis.FullName)"
+          $makensis.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Build NSIS installer
         working-directory: ssh-gui
