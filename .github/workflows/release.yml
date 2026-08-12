@@ -213,8 +213,22 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS3_VERSION }}
 
       - name: Install NSIS
+        # The community Chocolatey feed occasionally returns transient 5xx
+        # errors (e.g. 504 Gateway Timeout) unrelated to this repo — retry
+        # with backoff instead of failing the whole release on a hiccup.
         run: |
-          choco install nsis -y
+          $attempts = 5
+          for ($i = 1; $i -le $attempts; $i++) {
+            choco install nsis -y --no-progress
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($i -eq $attempts) {
+              Write-Error "choco install nsis failed after $attempts attempts"
+              exit 1
+            }
+            $wait = 15 * $i
+            Write-Host "choco install nsis failed (attempt $i/$attempts), retrying in ${wait}s..."
+            Start-Sleep -Seconds $wait
+          }
           echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Build NSIS installer
