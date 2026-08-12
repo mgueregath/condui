@@ -16,11 +16,18 @@ vars:
 
   # App version baked into production builds via -ldflags (main.currentVersion),
   # read by the in-app updater. Falls back to a git tag, then a dev placeholder.
+  #
+  # Task always runs `sh:` vars through its bundled mvdan/sh POSIX interpreter
+  # (never the native OS shell), on every platform including Windows — so
+  # this must be plain POSIX, not PowerShell/cmd syntax. A `platforms:` key
+  # is only meaningful inside `cmds:`, not inside a `vars:` entry; using it
+  # here previously left `.VERSION` as an unresolved two-item list that got
+  # stringified as a Go map literal wherever it was interpolated (e.g. into
+  # the generate:bindings checksum-cache filename), breaking every build.
+  # `${V#v}` (POSIX parameter expansion, no external `sed` dependency) strips
+  # a leading "v" if present.
   VERSION:
-    - sh: git describe --tags --always 2>nul | ForEach-Object { $_ -replace "^v","" }
-      platforms: [windows]
-    - sh: 'git describe --tags --always 2>/dev/null | sed "s/^v//" || echo 0.0.0-dev'
-      platforms: [linux, darwin]
+    sh: 'V="$(git describe --tags --always 2>/dev/null || echo 0.0.0-dev)"; echo "${V#v}"'
 
 tasks:
   build:

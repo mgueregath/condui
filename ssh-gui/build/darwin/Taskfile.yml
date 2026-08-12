@@ -14,8 +14,12 @@ vars:
 
   # App version baked into production builds via -ldflags (main.currentVersion),
   # read by the in-app updater. Falls back to a git tag, then a dev placeholder.
+  # `${V#v}` (POSIX parameter expansion) strips a leading "v" without relying
+  # on an external `sed` binary being on PATH — see build/windows/Taskfile.yml
+  # for why this must be plain POSIX (Task always runs `sh:` vars through its
+  # bundled mvdan/sh interpreter, on every platform).
   VERSION:
-    sh: 'git describe --tags --always 2>/dev/null | sed "s/^v//" || echo 0.0.0-dev'
+    sh: 'V="$(git describe --tags --always 2>/dev/null || echo 0.0.0-dev)"; echo "${V#v}"'
 
 tasks:
   build:
