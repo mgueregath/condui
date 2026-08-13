@@ -336,6 +336,7 @@ function App() {
   const [vaultUnlocked, setVaultUnlocked] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [accountStatus, setAccountStatus] = useState(null);
+  const [updateRelease, setUpdateRelease] = useState(null); // non-null while a newer version is available
   const [shareTarget, setShareTarget] = useState(null); // connection to share
   const [unlockPendingTarget, setUnlockPendingTarget] = useState(null); // connections needing origin vault password
   const [pendingInvites, setPendingInvites] = useState([]);
@@ -482,6 +483,21 @@ function App() {
       setHostKeyPrompt(event.data);
     });
     return () => unsub();
+  }, []);
+
+  // Backend checks GitHub Releases once a day (and once on startup) and
+  // emits these; drives the topbar update badge without opening any window.
+  useEffect(() => {
+    const unsubAvailable = Events.On("wails:updater:update-available", (event) => {
+      setUpdateRelease(event.data || {});
+    });
+    const unsubNone = Events.On("wails:updater:no-update", () => {
+      setUpdateRelease(null);
+    });
+    return () => {
+      unsubAvailable();
+      unsubNone();
+    };
   }, []);
 
   const handleReconnect = async (tab) => {
@@ -979,6 +995,20 @@ function App() {
           <span className="topbar-logo-tagline">{t("app.sshManager")}</span>
         </div>
         <div className="topbar-account">
+          {updateRelease && (
+            <button
+              className="topbar-update-badge"
+              onClick={() => setAccountModalOpen(true)}
+              title={
+                updateRelease.Version
+                  ? t("app.updateAvailableVersion", { version: updateRelease.Version })
+                  : t("app.updateAvailable")
+              }
+            >
+              <span className="topbar-update-dot" />
+              {t("app.updateAvailable")}
+            </button>
+          )}
           <button
             className="topbar-account-btn"
             onClick={() => setAccountModalOpen(true)}

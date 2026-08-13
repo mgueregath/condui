@@ -108,6 +108,7 @@ func NewApp() *App {
 func (a *App) ServiceStartup(ctx context.Context, options application.ServiceOptions) error {
 	go a.startDockerLogServer()
 	a.startTokenRefreshLoop(ctx)
+	a.startUpdateCheckLoop(ctx)
 	return nil
 }
 
@@ -144,6 +145,35 @@ func (a *App) startTokenRefreshLoop(parentCtx context.Context) {
 			case <-ticker.C:
 				a.doTokenRefresh()
 			case <-loopCtx.Done():
+				return
+			}
+		}
+	}()
+}
+
+// startUpdateCheckLoop checks GitHub Releases for a newer version on startup
+// and once every 24h thereafter, so the topbar update badge (driven by the
+// "wails:updater:update-available" / "wails:updater:no-update" events this
+// emits) stays current without the user opening the account modal. Uses
+// Updater.Check (not CheckAndInstall): it only inspects the provider chain
+// and emits — no window, no download, no auto-install.
+func (a *App) startUpdateCheckLoop(parentCtx context.Context) {
+	go func() {
+		select {
+		case <-time.After(3 * time.Second):
+		case <-parentCtx.Done():
+			return
+		}
+
+		_, _ = application.Get().Updater.Check(parentCtx)
+
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				_, _ = application.Get().Updater.Check(parentCtx)
+			case <-parentCtx.Done():
 				return
 			}
 		}

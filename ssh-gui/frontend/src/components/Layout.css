@@ -2768,7 +2768,23 @@ select.modern-input {
 /* Topbar account button (right side) */
 .topbar-account {
   margin-left: auto;
-  display: flex; align-items: center;
+  display: flex; align-items: center; gap: 8px;
+}
+.topbar-update-badge {
+  display: flex; align-items: center; gap: 6px;
+  background: none; border: 1px solid var(--accent);
+  border-radius: 8px; cursor: pointer;
+  padding: 5px 10px;
+  color: var(--accent); font-size: 12px; font-weight: 600;
+  white-space: nowrap;
+  transition: background .15s;
+}
+.topbar-update-badge:hover {
+  background: var(--bg-hover);
+}
+.topbar-update-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0;
 }
 .topbar-account-btn {
   display: flex; align-items: center; gap: 8px;
@@ -2831,6 +2847,12 @@ select.modern-input {
   background: var(--bg-surface); color: var(--text-primary);
   font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08);
 }
+.account-link-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--accent); font-size: 12px; text-align: center;
+  padding: 4px 0; text-decoration: underline;
+}
+.account-link-btn:hover { opacity: .8; }
 .account-info-card {
   display: flex; align-items: center; gap: 12px;
   padding: 14px 16px; background: var(--bg-elevated);
