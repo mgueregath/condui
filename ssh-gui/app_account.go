@@ -155,6 +155,36 @@ func (a *App) AccountLogin(serverURL, email, password string) error {
 	return nil
 }
 
+// AccountRequestPin asks the sync server to email a one-time login PIN to
+// an existing account, as an alternative to password login.
+func (a *App) AccountRequestPin(serverURL, email string) error {
+	if serverURL == "" {
+		serverURL = buildconfig.Values.ServerURL
+	}
+	return a.accountManager.RequestPin(serverURL, email)
+}
+
+// AccountLoginWithPin authenticates using a PIN emailed via
+// AccountRequestPin.
+func (a *App) AccountLoginWithPin(serverURL, email, pin string) error {
+	if serverURL == "" {
+		serverURL = buildconfig.Values.ServerURL
+	}
+	state, err := a.accountManager.LoginWithPin(serverURL, email, pin)
+	if err != nil {
+		return err
+	}
+	if err := a.saveAccountState(state); err != nil {
+		return err
+	}
+	if a.getMasterKey() != nil {
+		go a.processPendingPasswords()
+		a.triggerBackgroundSync()
+	}
+	go a.doTokenRefresh()
+	return nil
+}
+
 // AccountLogout logs out and clears local account data.
 func (a *App) AccountLogout() error {
 	// Stop the refresh loop so it doesn't try to refresh with a stale token

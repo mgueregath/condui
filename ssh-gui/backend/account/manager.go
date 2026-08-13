@@ -119,6 +119,44 @@ func (m *Manager) Login(serverURL, email, password string) (State, error) {
 	return s, nil
 }
 
+// RequestPin asks the server to email a one-time login PIN to an existing
+// account.
+func (m *Manager) RequestPin(serverURL, email string) error {
+	client := newAPIClient(serverURL, "")
+	return client.requestPin(email)
+}
+
+// LoginWithPin authenticates using a PIN emailed via RequestPin, and stores
+// credentials in memory like Login. Since there's no password, SyncKey is
+// left empty — app.go's syncKeyCandidates() fallback (already needed for
+// devices that only ever synced via SyncKey) covers blob decryption; the
+// vault master password still gates local decryption either way. Returns
+// updated State for persistence.
+func (m *Manager) LoginWithPin(serverURL, email, pin string) (State, error) {
+	client := newAPIClient(serverURL, "")
+	resp, err := client.loginWithPin(email, pin, deviceName())
+	if err != nil {
+		return State{}, err
+	}
+
+	s := State{
+		ServerURL:    serverURL,
+		AccessToken:  resp.AccessToken,
+		RefreshToken: resp.RefreshToken,
+		UserID:       resp.User.ID,
+		Email:        resp.User.Email,
+		Tier:         resp.User.Tier,
+		Limits:       resp.User.Limits,
+		PublicKey:    resp.User.PublicKey,
+		IdentityBlob: resp.User.IdentityBlob,
+	}
+
+	m.mu.Lock()
+	m.state = s
+	m.mu.Unlock()
+	return s, nil
+}
+
 // Logout clears in-memory state. Returns server URL and tokens for server-side logout.
 func (m *Manager) Logout() (serverURL, accessToken, refreshToken string) {
 	m.mu.Lock()

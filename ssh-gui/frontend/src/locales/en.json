@@ -42,6 +42,8 @@
     "sshManager": "SSH Manager",
     "signIn": "Sign in",
     "signInToSync": "Sign in to sync",
+    "updateAvailable": "Update available",
+    "updateAvailableVersion": "Version {{version}} is available",
     "remoteFiles": "Remote Files",
     "parentDirectory": "Parent directory",
     "uploadHere": "Upload file here",
@@ -127,7 +129,16 @@
     "version": "Version {{version}}",
     "checkForUpdates": "Check for Updates…",
     "checkingForUpdates": "Checking…",
-    "updateCheckFailed": "Update check failed: {{error}}"
+    "updateCheckFailed": "Update check failed: {{error}}",
+    "signInWithPin": "Sign in with an emailed PIN instead",
+    "signInWithPassword": "Sign in with password instead",
+    "emailRequired": "Enter your email first",
+    "sendPin": "Send PIN",
+    "sendingPin": "Sending…",
+    "pinSent": "PIN sent — check your email",
+    "enterPin": "6-digit PIN",
+    "pinRequestFailed": "Could not send PIN",
+    "pinLoginFailed": "Invalid or expired PIN"
   },
   "share": {
     "title": "Share connection",

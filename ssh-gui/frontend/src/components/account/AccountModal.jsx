@@ -3,6 +3,8 @@ import {
   GetAccountStatus,
   AccountLogin,
   AccountRegister,
+  AccountRequestPin,
+  AccountLoginWithPin,
   AccountLogout,
   SyncNow,
   GetAppVersion,
@@ -29,6 +31,10 @@ export default function AccountModal({ onClose }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
+  const [loginMode, setLoginMode] = useState("password"); // "password" | "pin"
+  const [pin, setPin] = useState("");
+  const [pinSent, setPinSent] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
   const [appVersion, setAppVersion] = useState("");
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateMsg, setUpdateMsg] = useState("");
@@ -84,6 +90,47 @@ export default function AccountModal({ onClose }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRequestPin = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!email) {
+      setError(t("account.emailRequired"));
+      return;
+    }
+    setPinLoading(true);
+    try {
+      await AccountRequestPin(SERVER_URL, email);
+      setPinSent(true);
+      setSyncMsg(t("account.pinSent"));
+    } catch (err) {
+      setError(typeof err === "string" ? err : err?.message || t("account.pinRequestFailed"));
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  const handleLoginWithPin = async (e) => {
+    e.preventDefault();
+    setError("");
+    setPinLoading(true);
+    try {
+      await AccountLoginWithPin(SERVER_URL, email, pin);
+      await refreshStatus();
+    } catch (err) {
+      setError(typeof err === "string" ? err : err?.message || t("account.pinLoginFailed"));
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  const switchLoginMode = (mode) => {
+    setLoginMode(mode);
+    setError("");
+    setSyncMsg("");
+    setPinSent(false);
+    setPin("");
   };
 
   const handleRegister = async (e) => {
@@ -237,13 +284,13 @@ export default function AccountModal({ onClose }) {
         <div className="account-tabs">
           <button
             className={`account-tab${tab === "login" ? " active" : ""}`}
-            onClick={() => { setTab("login"); setError(""); }}
+            onClick={() => { setTab("login"); switchLoginMode("password"); }}
           >
             {t("account.login")}
           </button>
           <button
             className={`account-tab${tab === "register" ? " active" : ""}`}
-            onClick={() => { setTab("register"); setError(""); }}
+            onClick={() => { setTab("register"); switchLoginMode("password"); }}
           >
             {t("account.register")}
           </button>
@@ -262,32 +309,84 @@ export default function AccountModal({ onClose }) {
           </div>
         )}
 
-        <form onSubmit={tab === "login" ? handleLogin : handleRegister} className="vault-form">
-          <input
-            className="modern-input"
-            type="email"
-            placeholder={t("account.email")}
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            autoFocus
-          />
-          <input
-            className="modern-input"
-            type="password"
-            placeholder={t("account.password")}
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-          />
+        {tab === "login" && loginMode === "pin" ? (
+          <form onSubmit={pinSent ? handleLoginWithPin : handleRequestPin} className="vault-form">
+            <input
+              className="modern-input"
+              type="email"
+              placeholder={t("account.email")}
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              disabled={pinSent}
+              autoFocus
+            />
+            {pinSent && (
+              <input
+                className="modern-input"
+                type="text"
+                inputMode="numeric"
+                placeholder={t("account.enterPin")}
+                value={pin}
+                onChange={e => setPin(e.target.value)}
+                autoFocus
+              />
+            )}
 
-          {error && <div className="vault-error">{error}</div>}
-          {syncMsg && <div className="vault-success">{syncMsg}</div>}
+            {error && <div className="vault-error">{error}</div>}
+            {syncMsg && <div className="vault-success">{syncMsg}</div>}
 
-          <button className="btn-primary" type="submit" disabled={loading}>
-            {loading
-              ? (tab === "login" ? t("account.signingIn") : t("account.creatingAccount"))
-              : (tab === "login" ? t("app.signIn") : t("account.createAccount"))}
-          </button>
-        </form>
+            <button className="btn-primary" type="submit" disabled={pinLoading}>
+              {pinSent
+                ? (pinLoading ? t("account.signingIn") : t("app.signIn"))
+                : (pinLoading ? t("account.sendingPin") : t("account.sendPin"))}
+            </button>
+
+            <button
+              type="button"
+              className="account-link-btn"
+              onClick={() => switchLoginMode("password")}
+            >
+              {t("account.signInWithPassword")}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={tab === "login" ? handleLogin : handleRegister} className="vault-form">
+            <input
+              className="modern-input"
+              type="email"
+              placeholder={t("account.email")}
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              autoFocus
+            />
+            <input
+              className="modern-input"
+              type="password"
+              placeholder={t("account.password")}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+
+            {error && <div className="vault-error">{error}</div>}
+            {syncMsg && <div className="vault-success">{syncMsg}</div>}
+
+            <button className="btn-primary" type="submit" disabled={loading}>
+              {loading
+                ? (tab === "login" ? t("account.signingIn") : t("account.creatingAccount"))
+                : (tab === "login" ? t("app.signIn") : t("account.createAccount"))}
+            </button>
+
+            {tab === "login" && (
+              <button
+                type="button"
+                className="account-link-btn"
+                onClick={() => switchLoginMode("pin")}
+              >
+                {t("account.signInWithPin")}
+              </button>
+            )}
+          </form>
+        )}
 
       </div>
       <div className="modal-footer">

@@ -79,6 +79,18 @@ func (c *apiClient) login(email, password, deviceName string) (*loginResponse, e
 	return &resp, err
 }
 
+func (c *apiClient) requestPin(email string) error {
+	return c.do("POST", "/api/v1/auth/pin/request", requestPinRequest{Email: email}, nil)
+}
+
+func (c *apiClient) loginWithPin(email, pin, deviceName string) (*loginResponse, error) {
+	var resp loginResponse
+	err := c.do("POST", "/api/v1/auth/pin/login", loginWithPinRequest{
+		Email: email, Pin: pin, DeviceName: deviceName,
+	}, &resp)
+	return &resp, err
+}
+
 func (c *apiClient) refreshToken(refreshToken string) (string, error) {
 	var resp refreshResponse
 	err := c.do("POST", "/api/v1/auth/refresh", refreshRequest{RefreshToken: refreshToken}, &resp)

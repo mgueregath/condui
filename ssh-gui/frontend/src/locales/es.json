@@ -42,6 +42,8 @@
     "sshManager": "Gestor SSH",
     "signIn": "Iniciar sesión",
     "signInToSync": "Inicia sesión para sincronizar",
+    "updateAvailable": "Actualización disponible",
+    "updateAvailableVersion": "La versión {{version}} está disponible",
     "remoteFiles": "Archivos remotos",
     "parentDirectory": "Directorio superior",
     "uploadHere": "Subir archivo aquí",
@@ -127,7 +129,16 @@
     "version": "Versión {{version}}",
     "checkForUpdates": "Buscar actualizaciones…",
     "checkingForUpdates": "Buscando…",
-    "updateCheckFailed": "Error al buscar actualizaciones: {{error}}"
+    "updateCheckFailed": "Error al buscar actualizaciones: {{error}}",
+    "signInWithPin": "Iniciar sesión con un PIN por correo",
+    "signInWithPassword": "Iniciar sesión con contraseña",
+    "emailRequired": "Ingresa tu correo primero",
+    "sendPin": "Enviar PIN",
+    "sendingPin": "Enviando…",
+    "pinSent": "PIN enviado — revisa tu correo",
+    "enterPin": "PIN de 6 dígitos",
+    "pinRequestFailed": "No se pudo enviar el PIN",
+    "pinLoginFailed": "PIN inválido o expirado"
   },
   "share": {
     "title": "Compartir conexión",

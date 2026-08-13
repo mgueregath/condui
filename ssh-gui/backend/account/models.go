@@ -71,6 +71,16 @@ type registerRequest struct {
 	Password string `json:"password"`
 }
 
+type requestPinRequest struct {
+	Email string `json:"email"`
+}
+
+type loginWithPinRequest struct {
+	Email      string `json:"email"`
+	Pin        string `json:"pin"`
+	DeviceName string `json:"deviceName"`
+}
+
 type refreshRequest struct {
 	RefreshToken string `json:"refreshToken"`
 }
