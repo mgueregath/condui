@@ -31,6 +31,7 @@ import {
   GetAccountStatus,
   GetFeatures,
   GetIncomingShares,
+  ReconcileSharedConnections,
   SyncNow,
   UploadDroppedFile,
 } from "../bindings/ssh-gui/app";
@@ -410,6 +411,13 @@ function App() {
     try {
       const shares = await GetIncomingShares();
       setPendingInvites((shares || []).filter((share) => share.status === "pending"));
+
+      // GetIncomingShares already excludes revoked/deleted shares, so any
+      // locally imported connection whose share id isn't in this list had
+      // its access pulled by the owner.
+      const activeShareIds = (shares || []).map((share) => share.id);
+      await ReconcileSharedConnections(activeShareIds);
+      await reload();
     } catch (err) {
       console.error("Failed to refresh share invitations", err);
     }

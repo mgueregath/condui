@@ -194,6 +194,7 @@
     "connecting": "Conectando…",
     "cancelConnect": "Cancelar conexión",
     "passwordPending": "Contraseña pendiente de sincronización. Haz clic para desbloquear esta conexión.",
+    "shareRevoked": "El dueño revocó el acceso a esta conexión compartida. Ya no se puede conectar; puedes eliminarla.",
     "unlockPendingTitle": "Desbloquear conexión sincronizada",
     "unlockPendingDescription": "\"{{name}}\" fue sincronizada desde una bóveda distinta. Ingresa la contraseña de la bóveda donde se creó originalmente esta conexión para desbloquearla en este dispositivo.",
     "unlockPendingDescriptionMulti": "{{count}} conexiones fueron sincronizadas desde una bóveda distinta. Ingresa la contraseña de la bóveda donde se crearon originalmente — las que coincidan se desbloquearán juntas.",

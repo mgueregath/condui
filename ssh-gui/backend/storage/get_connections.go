@@ -22,7 +22,9 @@ func (d *Database) GetConnections() (
 				private_key_path,
 				passphrase,
 				color,
-				jump_host_id
+				jump_host_id,
+				source_share_id,
+				share_revoked
 			FROM connections
 			ORDER BY name
 			`,
@@ -54,6 +56,8 @@ func (d *Database) GetConnections() (
 			&connection.Passphrase,
 			&connection.Color,
 			&connection.JumpHostID,
+			&connection.SourceShareID,
+			&connection.ShareRevoked,
 		)
 
 		if err != nil {

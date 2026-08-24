@@ -213,6 +213,10 @@ func (a *App) createSSHClientWithJump(ctx context.Context, connectionID, overrid
 		return nil, err
 	}
 
+	if connection.ShareRevoked {
+		return nil, fmt.Errorf("access to this shared connection was revoked by its owner")
+	}
+
 	key := a.getMasterKey()
 	if key == nil {
 		return nil, fmt.Errorf("vault is locked: please unlock the vault before connecting")

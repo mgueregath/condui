@@ -132,7 +132,8 @@ export default function ContextMenu({ x, y, items, onClose }) {
           <button
             key={i}
             className={`ctx-item${item.danger ? " danger" : ""}`}
-            onClick={() => { item.onClick(); onClose(); }}
+            disabled={item.disabled}
+            onClick={() => { if (item.disabled) return; item.onClick(); onClose(); }}
           >
             <span className="ctx-icon">{item.icon}</span>
             {item.label}

@@ -27,9 +27,13 @@ func (d *Database) CreateConnection(
 			private_key_path,
 			passphrase,
 			color,
-			jump_host_id
+			jump_host_id,
+			source_share_id,
+			share_revoked
 		)
 		VALUES(
+			?,
+			?,
 			?,
 			?,
 			?,
@@ -56,6 +60,8 @@ func (d *Database) CreateConnection(
 		connection.Passphrase,
 		connection.Color,
 		connection.JumpHostID,
+		connection.SourceShareID,
+		connection.ShareRevoked,
 	)
 	if err != nil {
 		return err

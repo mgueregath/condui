@@ -56,9 +56,11 @@ export default function ConnectionNode({
   const { t } = useTranslation();
   const [ctx, setCtx] = useState(null);
 
+  const revoked = !!connection.shareRevoked;
+
   const connect = (e) => {
     e?.stopPropagation();
-    if (!connecting) onOpen(connection);
+    if (!connecting && !revoked) onOpen(connection);
   };
 
   const cancelConnect = (e) => {
@@ -78,12 +80,14 @@ export default function ConnectionNode({
     {
       icon: <FaPlug />,
       label: t("connection.connect"),
-      onClick: () => !connecting && onOpen(connection),
+      disabled: revoked,
+      onClick: () => !connecting && !revoked && onOpen(connection),
     },
     {
       icon: <MdOpenInNew />,
       label: t("connection.newSession"),
-      onClick: () => !connecting && onOpen(connection, true),
+      disabled: revoked,
+      onClick: () => !connecting && !revoked && onOpen(connection, true),
     },
     { divider: true },
     {
@@ -115,7 +119,7 @@ export default function ConnectionNode({
 
   return (
     <div
-      className="drawer-conn-item"
+      className={`drawer-conn-item${revoked ? " conn-revoked" : ""}`}
       onDoubleClick={connect}
       onContextMenu={handleContextMenu}
       style={{ "--connection-color": connection.color }}
@@ -146,6 +150,14 @@ export default function ConnectionNode({
               <FaLock />
             </button>
           )}
+          {revoked && (
+            <span
+              className="conn-revoked-badge"
+              title={t("connection.shareRevoked")}
+            >
+              <FaLock />
+            </span>
+          )}
         </div>
         <div className="conn-host">
           {connection.username}@{connection.host}
@@ -155,7 +167,8 @@ export default function ConnectionNode({
       <div className={`conn-actions ${connecting ? "connecting" : ""}`}>
         <button
           className={`conn-action-btn ${connecting ? "cancel" : ""}`}
-          title={connecting ? t("connection.cancelConnect") : t("connection.connect")}
+          title={revoked ? t("connection.shareRevoked") : connecting ? t("connection.cancelConnect") : t("connection.connect")}
+          disabled={revoked && !connecting}
           onClick={connecting ? cancelConnect : connect}
         >
           {connecting ? <FaTimes /> : <FaPlug />}

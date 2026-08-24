@@ -2055,6 +2055,13 @@ select.modern-input {
 .ctx-item:hover {
   background: var(--bg-hover);
 }
+.ctx-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.ctx-item:disabled:hover {
+  background: transparent;
+}
 .ctx-item.danger {
   color: var(--red);
 }
@@ -2090,6 +2097,25 @@ select.modern-input {
   cursor: pointer;
 }
 .conn-pending-badge:hover { opacity: 1; }
+
+.conn-revoked-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 5px;
+  font-size: 9px;
+  color: var(--red, #ef4444);
+  opacity: 0.85;
+  vertical-align: middle;
+}
+
+.drawer-conn-item.conn-revoked {
+  opacity: 0.6;
+}
+
+.drawer-conn-item.conn-revoked .conn-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
 
 .ctx-has-submenu {
   position: relative;

@@ -409,11 +409,43 @@ func (a *App) AcceptShare(shareID, encryptedKey, blobID string) error {
 		return fmt.Errorf("invalid shared connection data: %w", err)
 	}
 
-	conn.ID = "" // will be assigned by CreateConnection
+	conn.ID = ""        // will be assigned by CreateConnection
+	conn.FolderID = nil // sender's folder doesn't exist locally; drop into root
+	conn.SourceShareID = &shareID
 	sharedName := "[Shared] " + conn.Name
 	conn.Name = sharedName
 
 	return a.CreateConnection(conn)
+}
+
+// ReconcileSharedConnections checks every locally imported shared connection
+// against the caller-supplied set of still-active incoming share IDs (as
+// returned by GetIncomingShares) and marks any connection whose share is no
+// longer in that set as revoked: credentials are wiped and connecting is
+// blocked, but the entry is kept so the user can see what happened.
+func (a *App) ReconcileSharedConnections(activeShareIDs []string) error {
+	refs, err := a.database.GetActiveSharedConnections()
+	if err != nil {
+		return err
+	}
+	if len(refs) == 0 {
+		return nil
+	}
+
+	active := make(map[string]bool, len(activeShareIDs))
+	for _, id := range activeShareIDs {
+		active[id] = true
+	}
+
+	for _, ref := range refs {
+		if active[ref.ShareID] {
+			continue
+		}
+		if err := a.database.MarkConnectionShareRevoked(ref.ConnectionID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ============================================================

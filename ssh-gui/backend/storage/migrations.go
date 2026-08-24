@@ -88,6 +88,8 @@ func (d *Database) Migrate() error {
 		`ALTER TABLE account ADD COLUMN sync_key TEXT`,
 		`ALTER TABLE connections ADD COLUMN jump_host_id TEXT REFERENCES connections(id)`,
 		`ALTER TABLE connections ADD COLUMN passphrase TEXT`,
+		`ALTER TABLE connections ADD COLUMN source_share_id TEXT`,
+		`ALTER TABLE connections ADD COLUMN share_revoked INTEGER NOT NULL DEFAULT 0`,
 	}
 	for _, alt := range alterations {
 		if _, err := d.DB.Exec(alt); err != nil {

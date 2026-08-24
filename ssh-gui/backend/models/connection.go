@@ -33,6 +33,18 @@ type Connection struct {
 	// and is awaiting decryption (vault not yet unlocked with the correct password).
 	PasswordPending bool `json:"passwordPending,omitempty"`
 
+	// SourceShareID, when set, means this connection was imported by accepting
+	// a share invite (see AcceptShare) rather than created locally. It's the
+	// share_invites.id on condui-server, used to detect when the owner
+	// revokes or deletes that share.
+	SourceShareID *string `json:"sourceShareId,omitempty"`
+
+	// ShareRevoked is true once the owner has revoked/deleted the share this
+	// connection was imported from. The credentials are wiped and connecting
+	// is blocked, but the entry is kept (not deleted) so the user can see
+	// what happened and remove it themselves.
+	ShareRevoked bool `json:"shareRevoked,omitempty"`
+
 	// Tunnels are the local-port-forwarding tunnels configured for this
 	// connection. Persisted and synced alongside it. Deliberately no
 	// `omitempty`: nil (key absent/null) means "leave stored tunnels

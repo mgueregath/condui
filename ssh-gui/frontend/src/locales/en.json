@@ -194,6 +194,7 @@
     "connecting": "Connecting…",
     "cancelConnect": "Cancel connection",
     "passwordPending": "Password pending synchronization. Click to unlock this connection.",
+    "shareRevoked": "The owner revoked access to this shared connection. It can no longer be used to connect; you may delete it.",
     "unlockPendingTitle": "Unlock synced connection",
     "unlockPendingDescription": "\"{{name}}\" was synced from a different vault. Enter the password of the vault where this connection was originally created to unlock it on this device.",
     "unlockPendingDescriptionMulti": "{{count}} connections were synced from a different vault. Enter the password of the vault where they were originally created — connections matching it will be unlocked together.",
