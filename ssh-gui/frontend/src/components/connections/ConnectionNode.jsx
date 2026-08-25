@@ -89,6 +89,11 @@ export default function ConnectionNode({
       disabled: revoked,
       onClick: () => !connecting && !revoked && onOpen(connection, true),
     },
+    ...(connection.passwordPending ? [{
+      icon: <FaLock />,
+      label: t("connection.unlockPendingAction"),
+      onClick: () => onUnlockPending?.(connection),
+    }] : []),
     { divider: true },
     {
       icon: <FaEdit />,
