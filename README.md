@@ -361,9 +361,11 @@ db_manager_enabled: false               # informational; see below
 - `server_url` is `go:embed`-ded into the Go binary (`backend/buildconfig`) and inlined into the frontend
   bundle as `VITE_CONDUI_SERVER_URL` at the same time, so both sides agree on one value. Editing the file
   after a binary is built has no effect — it is never read from disk at runtime, only at build time.
-- Whether the private database explorer submodule (`ssh-gui/backend/dbexplorer`, not present in the public
-  repo) gets compiled in and its UI shown is controlled by the `dbmanager` Go build tag, not this file —
-  `db_manager_enabled` here is purely documentation of intent.
+- Whether the database explorer submodule (`ssh-gui/backend/dbexplorer`, the public
+  [navoro](https://github.com/mgueregath/navoro) repo) gets compiled in and its UI shown is controlled by
+  the `dbmanager` Go build tag, not this file — `db_manager_enabled` here is purely documentation of
+  intent. Build with `-tags dbmanager` (or `EXTRA_TAGS=dbmanager` for the Taskfile build tasks) to enable
+  it; official releases are built this way.
 
 ## Sync Server (local dev)
 

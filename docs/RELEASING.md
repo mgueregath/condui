@@ -23,9 +23,9 @@ Updates; see [Updating](#updating) below):
 - `Condui-linux-x64.AppImage` — reused as-is; it's already a swappable single-file binary
 - `SHA256SUMS` — digests the updater verifies downloads against
 
-The public build never includes the private `ssh-gui/backend/dbexplorer` (navoro) submodule or the
-`dbmanager` Go build tag — the workflow checks out the repo without submodules, matching how an outside
-contributor would build the OSS repo.
+The public build includes `ssh-gui/backend/dbexplorer` (navoro) — now a public repo — checking out the
+submodule recursively and building with the `dbmanager` Go build tag (`EXTRA_TAGS: dbmanager` on each
+platform's build step) to enable the database explorer feature.
 
 ## Updating
 

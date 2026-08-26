@@ -6,14 +6,15 @@ tasks:
     internal: true
     run: once
     deps:
+      - dbmanager:build-frontend
       - dbmanager:setup
       - buildconfig:setup
     cmds:
       # -e: keep tidying even if resolving fails for a package. Needed because
       # backend/dbmanager/dbmanager.go (gated by the `dbmanager` build tag)
-      # imports the private navoro module, which `go mod tidy` still probes
-      # for regardless of active tags — and which isn't reachable without
-      # access to that private repo (OSS clones, CI, contributors).
+      # imports the navoro module, which `go mod tidy` still probes for
+      # regardless of active tags — harmless now that navoro is public, but
+      # kept so an offline/network-restricted environment doesn't fail tidy.
       - go mod tidy -e
 
   buildconfig:setup:
@@ -52,25 +53,48 @@ tasks:
 
   dbmanager:setup:
     summary: >
-      Generates a local go.work linking the private navoro repository when
-      it is cloned alongside condui, so `-tags dbmanager` builds and
-      `go mod tidy` can resolve it. Removes stale workspace files when the
-      private repository is not available.
+      Generates a local go.work linking the navoro repository so `-tags
+      dbmanager` builds and `go mod tidy` can resolve it against real source
+      (the pinned module version alone lacks navoro's built frontend/dist,
+      which is gitignored upstream and must be built locally first — see
+      dbmanager:build-frontend). Prefers the git submodule
+      (backend/dbexplorer), used by CI and the tagged release build; falls
+      back to a sibling navoro checkout (../../navoro) for maintainers who
+      keep it as an independent clone. Removes stale workspace files when
+      neither is available.
     internal: true
     run: once
     cmds:
-      - cmd: powershell -NoProfile -Command "if (Test-Path '../../navoro/go.mod') { if (-not (Test-Path 'go.work')) { go work init . ../../navoro }; go work use . ../../navoro } else { if (Test-Path 'go.work') { Remove-Item 'go.work' -Force }; if (Test-Path 'go.work.sum') { Remove-Item 'go.work.sum' -Force } }"
+      - cmd: powershell -NoProfile -Command "if (Test-Path 'backend/dbexplorer/go.mod') { if (-not (Test-Path 'go.work')) { go work init . backend/dbexplorer }; go work use . backend/dbexplorer } elseif (Test-Path '../../navoro/go.mod') { if (-not (Test-Path 'go.work')) { go work init . ../../navoro }; go work use . ../../navoro } else { if (Test-Path 'go.work') { Remove-Item 'go.work' -Force }; if (Test-Path 'go.work.sum') { Remove-Item 'go.work.sum' -Force } }"
         platforms: [windows]
       - cmd: |
-          if [ -f ../../navoro/go.mod ]; then
+          if [ -f backend/dbexplorer/go.mod ]; then
+            DBEXPLORER_DIR=backend/dbexplorer
+          elif [ -f ../../navoro/go.mod ]; then
+            DBEXPLORER_DIR=../../navoro
+          fi
+          if [ -n "${DBEXPLORER_DIR:-}" ]; then
             if [ ! -f go.work ]; then
-              go work init . ../../navoro 2>/dev/null || test -f go.work
+              go work init . "$DBEXPLORER_DIR" 2>/dev/null || test -f go.work
             fi
-            go work use . ../../navoro
+            go work use . "$DBEXPLORER_DIR"
           else
             rm -f go.work go.work.sum
           fi
         platforms: [linux, darwin]
+
+  dbmanager:build-frontend:
+    summary: >
+      Builds the navoro submodule's React frontend (backend/dbexplorer/core/frontend/dist),
+      go:embed'd into the dbmanager-tagged binary. Skipped if already built or
+      if the submodule isn't checked out (no top-level `dir:`, so a missing
+      submodule directory can't fail the status check itself).
+    internal: true
+    run: once
+    status:
+      - test -f backend/dbexplorer/core/frontend/dist/index.html || test ! -f backend/dbexplorer/go.mod
+    cmds:
+      - cd backend/dbexplorer/core/frontend && npm ci && npm run build
 
   install:frontend:deps:
     summary: Install frontend dependencies
