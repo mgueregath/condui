@@ -98,7 +98,7 @@ function PendingInviteNode({ invite, accepting, onAccept, onDecline }) {
           disabled={accepting}
           onClick={(e) => {
             e.stopPropagation();
-            if (confirm(t("app.declineInvitationConfirm"))) onDecline(invite);
+            onDecline(invite);
           }}
         >
           <FaTimes />
@@ -346,6 +346,10 @@ function App() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState(null);
+  const [deleteFolderBusy, setDeleteFolderBusy] = useState(false);
+  const [deleteFolderError, setDeleteFolderError] = useState("");
+  const [declineInviteTarget, setDeclineInviteTarget] = useState(null);
   const [terminalContextMenu, setTerminalContextMenu] = useState(null);
   const [features, setFeatures] = useState({});
 
@@ -920,7 +924,14 @@ function App() {
     }
   };
 
-  const handleDeclineInvite = async (invite) => {
+  const handleDeclineInvite = (invite) => {
+    setDeclineInviteTarget(invite);
+  };
+
+  const confirmDeclineInvite = async () => {
+    const invite = declineInviteTarget;
+    if (!invite) return;
+    setDeclineInviteTarget(null);
     setAcceptingInviteId(invite.id);
     try {
       await CancelShare(invite.id);
@@ -951,6 +962,22 @@ function App() {
       setDeleteError(typeof err === "string" ? err : err?.message || t("app.unableDeleteConnection"));
     } finally {
       setDeleteBusy(false);
+    }
+  };
+
+  const confirmDeleteFolder = async () => {
+    if (!deleteFolderTarget) return;
+    setDeleteFolderBusy(true);
+    setDeleteFolderError("");
+    try {
+      await DeleteFolder(deleteFolderTarget.id);
+      await reload();
+      setDeleteFolderTarget(null);
+    } catch (err) {
+      console.error(err);
+      setDeleteFolderError(typeof err === "string" ? err : err?.message || t("app.unableDeleteFolder"));
+    } finally {
+      setDeleteFolderBusy(false);
     }
   };
 
@@ -1110,13 +1137,9 @@ function App() {
             setEditingFolder(f);
             setFolderModalOpen(true);
           }}
-          onDeleteFolder={async (f) => {
-            try {
-              await DeleteFolder(f.id);
-              await reload();
-            } catch (err) {
-              console.error(err);
-            }
+          onDeleteFolder={(f) => {
+            setDeleteFolderError("");
+            setDeleteFolderTarget(f);
           }}
           connectingId={connectingId}
           activeSessionId={activeTab}
@@ -1455,6 +1478,67 @@ function App() {
               onClick={confirmDeleteConnection}
             >
               {deleteBusy ? t("app.deleting") : t("common.delete")}
+            </button>
+          </div>
+        </div>
+      </Modal>
+      <Modal
+        open={!!deleteFolderTarget}
+        onClose={() => {
+          if (!deleteFolderBusy) {
+            setDeleteFolderTarget(null);
+            setDeleteFolderError("");
+          }
+        }}
+      >
+        <div>
+          <div className="modal-header">
+            <h2>{t("connection.deleteFolder")}</h2>
+            <p>{deleteFolderTarget?.name}</p>
+          </div>
+          <div className="modal-body">
+            <div className="ssh-error-box" style={{ borderColor: "var(--red)" }}>
+              <div className="ssh-error-title" style={{ color: "var(--red)" }}>
+                {t("app.cannotUndo")}
+              </div>
+            </div>
+            {deleteFolderError && <div className="vault-error">{deleteFolderError}</div>}
+          </div>
+          <div className="modal-footer">
+            <button
+              className="btn-secondary"
+              disabled={deleteFolderBusy}
+              onClick={() => {
+                setDeleteFolderTarget(null);
+                setDeleteFolderError("");
+              }}
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              className="btn-primary"
+              disabled={deleteFolderBusy}
+              onClick={confirmDeleteFolder}
+            >
+              {deleteFolderBusy ? t("app.deleting") : t("common.delete")}
+            </button>
+          </div>
+        </div>
+      </Modal>
+      <Modal open={!!declineInviteTarget} onClose={() => setDeclineInviteTarget(null)}>
+        <div>
+          <div className="modal-header">
+            <h2>{t("app.declineInvitation")}</h2>
+          </div>
+          <div className="modal-body">
+            <p>{t("app.declineInvitationConfirm")}</p>
+          </div>
+          <div className="modal-footer">
+            <button className="btn-secondary" onClick={() => setDeclineInviteTarget(null)}>
+              {t("common.cancel")}
+            </button>
+            <button className="btn-primary" onClick={confirmDeclineInvite}>
+              {t("common.confirm")}
             </button>
           </div>
         </div>

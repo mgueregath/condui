@@ -16,9 +16,7 @@ export default function FolderNode({ folder, expanded, onToggle, onEdit, onDelet
   const menuItems = [
     { icon: <FaEdit />, label: t("connection.renameFolder"), onClick: () => onEdit(folder) },
     { divider: true },
-    { icon: <FaTrash />, label: t("connection.deleteFolder"), danger: true, onClick: () => {
-      if (confirm(t("connection.deleteFolderConfirm", { name: folder.name }))) onDelete(folder);
-    }},
+    { icon: <FaTrash />, label: t("connection.deleteFolder"), danger: true, onClick: () => onDelete(folder) },
   ];
 
   return (

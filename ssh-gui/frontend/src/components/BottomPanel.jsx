@@ -45,6 +45,7 @@ import { TiFlashOutline } from "react-icons/ti";
 import { useTranslation } from "react-i18next";
 import AlertModal from "./common/AlertModal";
 import SudoPasswordModal from "./common/SudoPasswordModal";
+import Modal from "./common/Modal";
 import { MdOutlineFlashAuto, MdOutlineRestartAlt } from "react-icons/md";
 
 const DB_TYPES = {
@@ -261,6 +262,8 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
   
   // Estado para modal de contraseña sudo
   const [sudoPasswordModal, setSudoPasswordModal] = useState(false);
+  const [deleteTunnelTarget, setDeleteTunnelTarget] = useState(null);
+  const [forceStopTarget, setForceStopTarget] = useState(null);
 
 
   // Estados para la Modal del Túnel (Crea y Edita)
@@ -413,9 +416,14 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
     }
   };
 
-  const handleDeleteTunnel = async (tunnelId) => {
-    if (!window.confirm(t("panel.deleteTunnelConfirm")))
-      return;
+  const handleDeleteTunnel = (tunnelId) => {
+    setDeleteTunnelTarget(tunnelId);
+  };
+
+  const confirmDeleteTunnel = async () => {
+    const tunnelId = deleteTunnelTarget;
+    if (!tunnelId) return;
+    setDeleteTunnelTarget(null);
     try {
       await DeleteTunnel(tunnelId);
       await fetchTunnels();
@@ -1656,10 +1664,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
                         title={t("panel.forceStopHelp")}
                         color="var(--red)"
                         disabled={isLoading}
-                        onClick={() => {
-                          if (window.confirm(t("panel.forceStopConfirm", { name: vm.name })))
-                            handleVMAction(vm.name, "stop-force");
-                        }}
+                        onClick={() => setForceStopTarget(vm)}
                       >
                         &nbsp;<TiFlashOutline /> &nbsp;
                       </ActionBtn>
@@ -2015,6 +2020,45 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
         onClose={() => setSudoPasswordModal(false)}
         onSubmit={handleSudoPasswordSubmit}
       />
+
+      <Modal open={!!deleteTunnelTarget} onClose={() => setDeleteTunnelTarget(null)}>
+        <div>
+          <div className="modal-header">
+            <h2>{t("panel.deleteTunnelConfirm")}</h2>
+          </div>
+          <div className="modal-footer">
+            <button className="btn-secondary" onClick={() => setDeleteTunnelTarget(null)}>
+              {t("common.cancel")}
+            </button>
+            <button className="btn-primary" onClick={confirmDeleteTunnel}>
+              {t("common.confirm")}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!forceStopTarget} onClose={() => setForceStopTarget(null)}>
+        <div>
+          <div className="modal-header">
+            <h2>{t("panel.forceStopConfirm", { name: forceStopTarget?.name })}</h2>
+          </div>
+          <div className="modal-footer">
+            <button className="btn-secondary" onClick={() => setForceStopTarget(null)}>
+              {t("common.cancel")}
+            </button>
+            <button
+              className="btn-primary"
+              onClick={() => {
+                const vm = forceStopTarget;
+                setForceStopTarget(null);
+                handleVMAction(vm.name, "stop-force");
+              }}
+            >
+              {t("common.confirm")}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
     </div>
   );

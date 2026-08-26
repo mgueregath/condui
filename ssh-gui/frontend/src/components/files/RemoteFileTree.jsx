@@ -54,6 +54,8 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
     setAlertModal({ title, message });
 
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [textPrompt, setTextPrompt] = useState(null);
+  const [unsavedConfirm, setUnsavedConfirm] = useState(false);
 
   const load = async (targetPath) => {
     if (!sessionId) return;
@@ -96,10 +98,22 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
     setEditor((e) => ({ ...e, modified: false }));
   };
 
-  const closeEditor = async () => {
+  const closeEditor = () => {
     if (editor.modified) {
-      if (window.confirm(t("files.saveChangesConfirm"))) await saveEditor();
+      setUnsavedConfirm(true);
+      return;
     }
+    setEditor({ open: false, path: "", content: "", modified: false });
+  };
+
+  const discardAndCloseEditor = () => {
+    setUnsavedConfirm(false);
+    setEditor({ open: false, path: "", content: "", modified: false });
+  };
+
+  const saveAndCloseEditor = async () => {
+    await saveEditor();
+    setUnsavedConfirm(false);
     setEditor({ open: false, path: "", content: "", modified: false });
   };
 
@@ -114,21 +128,32 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
     refresh();
   };
 
-  const renameFile = async (item) => {
-    const name = prompt(t("files.newName"), item.name);
-    if (!name) return;
-    const parent = item.path.substring(0, item.path.lastIndexOf("/"));
-    await RenameRemoteFile(sessionId, item.path, `${parent}/${name}`);
-    refresh();
+  const renameFile = (item) => {
+    setTextPrompt({ mode: "rename", item, value: item.name });
   };
 
-  const createFolder = async () => {
-    const name = prompt(t("files.folderName"));
-    if (!name) return;
-    await CreateRemoteDirectory(
-      sessionId,
-      path === "/" ? `/${name}` : `${path}/${name}`,
-    );
+  const createFolder = () => {
+    setTextPrompt({ mode: "newFolder", value: "" });
+  };
+
+  const confirmTextPrompt = async () => {
+    if (!textPrompt) return;
+    const name = textPrompt.value.trim();
+    if (!name) {
+      setTextPrompt(null);
+      return;
+    }
+    if (textPrompt.mode === "rename") {
+      const item = textPrompt.item;
+      const parent = item.path.substring(0, item.path.lastIndexOf("/"));
+      await RenameRemoteFile(sessionId, item.path, `${parent}/${name}`);
+    } else {
+      await CreateRemoteDirectory(
+        sessionId,
+        path === "/" ? `/${name}` : `${path}/${name}`,
+      );
+    }
+    setTextPrompt(null);
     refresh();
   };
 
@@ -295,6 +320,53 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
             </button>
             <button className="btn-primary" onClick={confirmDeleteFile}>
               {t("common.delete")}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!textPrompt} onClose={() => setTextPrompt(null)}>
+        <div>
+          <div className="modal-header">
+            <h2>{textPrompt?.mode === "rename" ? t("files.newName") : t("files.folderName")}</h2>
+          </div>
+          <div className="modal-body">
+            <div className="form-group">
+              <input
+                autoFocus
+                className="modern-input"
+                value={textPrompt?.value || ""}
+                onChange={(e) =>
+                  setTextPrompt((p) => ({ ...p, value: e.target.value }))
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") confirmTextPrompt();
+                }}
+              />
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button className="btn-secondary" onClick={() => setTextPrompt(null)}>
+              {t("common.cancel")}
+            </button>
+            <button className="btn-primary" onClick={confirmTextPrompt}>
+              {t("common.save")}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={unsavedConfirm} onClose={() => setUnsavedConfirm(false)}>
+        <div>
+          <div className="modal-header">
+            <h2>{t("files.saveChangesConfirm")}</h2>
+          </div>
+          <div className="modal-footer">
+            <button className="btn-secondary" onClick={discardAndCloseEditor}>
+              {t("files.discardChanges")}
+            </button>
+            <button className="btn-primary" onClick={saveAndCloseEditor}>
+              {t("common.save")}
             </button>
           </div>
         </div>

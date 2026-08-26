@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { CancelShare, GetSentShares, ShareConnection } from "../../../bindings/ssh-gui/app";
 import { useTranslation } from "react-i18next";
+import Modal from "../common/Modal";
 
 function statusLabel(status, t) {
   if (status === "accepted") return t("share.accepted");
@@ -18,6 +19,7 @@ export default function ShareModal({ connection, onClose }) {
   const [cancellingId, setCancellingId] = useState("");
   const [error, setError] = useState("");
   const [sentShares, setSentShares] = useState([]);
+  const [cancelTarget, setCancelTarget] = useState(null);
 
   const loadSentShares = async () => {
     setSentLoading(true);
@@ -55,6 +57,13 @@ export default function ShareModal({ connection, onClose }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const confirmCancel = async () => {
+    if (!cancelTarget) return;
+    const share = cancelTarget;
+    setCancelTarget(null);
+    await handleCancel(share);
   };
 
   const handleCancel = async (share) => {
@@ -155,9 +164,7 @@ export default function ShareModal({ connection, onClose }) {
                 <button
                   className="btn-secondary btn-sm"
                   disabled={cancellingId === share.id}
-                  onClick={() => {
-                    if (confirm(t("share.cancelShareConfirm"))) handleCancel(share);
-                  }}
+                  onClick={() => setCancelTarget(share)}
                 >
                   {cancellingId === share.id ? t("share.cancelling") : t("common.cancel")}
                 </button>
@@ -169,6 +176,22 @@ export default function ShareModal({ connection, onClose }) {
       <div className="modal-footer">
         <button className="btn-secondary" onClick={onClose}>{t("common.close")}</button>
       </div>
+
+      <Modal open={!!cancelTarget} onClose={() => setCancelTarget(null)}>
+        <div>
+          <div className="modal-header">
+            <h2>{t("share.cancelShareConfirm")}</h2>
+          </div>
+          <div className="modal-footer">
+            <button className="btn-secondary" onClick={() => setCancelTarget(null)}>
+              {t("common.cancel")}
+            </button>
+            <button className="btn-primary" onClick={confirmCancel}>
+              {t("common.confirm")}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
