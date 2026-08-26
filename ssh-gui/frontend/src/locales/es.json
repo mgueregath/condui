@@ -17,7 +17,27 @@
     "ok": "OK"
   },
   "settings": {
-    "language": "Idioma"
+    "title": "Configuracion",
+    "language": "Idioma",
+    "languageDescription": "Selecciona el idioma de la aplicacion.",
+    "plan": "Plan actual",
+    "appVersion": "Version de la aplicacion",
+    "accountDescription": "Administra tu cuenta y plan de Condui Sync.",
+    "syncDescription": "Controla el estado de sincronizacion entre dispositivos.",
+    "syncStatus": "Estado de sincronizacion",
+    "signInRequired": "Inicia sesion para sincronizar tus datos.",
+    "appearanceDescription": "Personaliza el idioma y la apariencia de Condui.",
+    "securityDescription": "Revisa la proteccion de tus credenciales y sesiones.",
+    "securityManaged": "Credenciales protegidas por la boveda local",
+    "securityManagedDescription": "Las opciones adicionales de seguridad estaran disponibles proximamente.",
+    "updatesDescription": "Consulta la version instalada y busca actualizaciones.",
+    "sections": {
+      "account": "Cuenta",
+      "sync": "Sincronizacion",
+      "appearance": "Apariencia",
+      "security": "Seguridad",
+      "updates": "Actualizaciones"
+    }
   },
   "app": {
     "notice": "Aviso",

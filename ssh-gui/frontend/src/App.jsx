@@ -1573,7 +1573,7 @@ function App() {
         onClose={() => setAlertModal(null)}
       />
       {/* Account modal */}
-      <Modal open={accountModalOpen} onClose={() => { setAccountModalOpen(false); refreshAccountStatus(); }}>
+      <Modal className="settings-modal-shell" open={accountModalOpen} onClose={() => { setAccountModalOpen(false); refreshAccountStatus(); }}>
         <AccountModal onClose={() => { setAccountModalOpen(false); refreshAccountStatus(); }} />
       </Modal>
 
