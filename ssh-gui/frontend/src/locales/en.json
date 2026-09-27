@@ -243,6 +243,7 @@
     "type": "Type",
     "saveChangesConfirm": "Save changes?",
     "discardChanges": "Discard changes",
+    "deleteDirectoryConfirm": "Delete {{name}} and all its contents?",
     "deleteConfirm": "Delete {{name}}?",
     "newName": "New name",
     "folderName": "Folder name",

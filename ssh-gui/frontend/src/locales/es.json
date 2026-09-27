@@ -243,6 +243,7 @@
     "type": "Tipo",
     "saveChangesConfirm": "¿Guardar los cambios?",
     "discardChanges": "Descartar cambios",
+    "deleteDirectoryConfirm": "Eliminar {{name}} y todo su contenido?",
     "deleteConfirm": "¿Eliminar {{name}}?",
     "newName": "Nuevo nombre",
     "folderName": "Nombre de la carpeta",

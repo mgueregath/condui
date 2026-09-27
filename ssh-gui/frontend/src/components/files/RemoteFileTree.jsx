@@ -310,7 +310,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
           <div className="modal-body">
             <div className="ssh-error-box" style={{ borderColor: "var(--red)" }}>
               <p style={{ margin: 0 }}>
-                {t("files.deleteConfirm", { name: deleteTarget?.name })}
+                {t(deleteTarget?.isDirectory ? "files.deleteDirectoryConfirm" : "files.deleteConfirm", { name: deleteTarget?.name })}
               </p>
             </div>
           </div>

@@ -60,7 +60,7 @@ func (a *App) UploadFile(sessionID string, remoteDirectory string) error {
 		return fmt.Errorf("cancelado")
 	}
 
-	return a.uploadLocalFile(sessionID, remoteDirectory, localPath)
+	return a.uploadLocalPath(sessionID, remoteDirectory, localPath)
 }
 
 func (a *App) UploadDroppedFile(sessionID string, remoteDirectory string, localPath string) error {
@@ -68,7 +68,7 @@ func (a *App) UploadDroppedFile(sessionID string, remoteDirectory string, localP
 		return fmt.Errorf("local path required")
 	}
 
-	return a.uploadLocalFile(sessionID, remoteDirectory, localPath)
+	return a.uploadLocalPath(sessionID, remoteDirectory, localPath)
 }
 
 func (a *App) uploadLocalFile(sessionID string, remoteDirectory string, localPath string) error {
