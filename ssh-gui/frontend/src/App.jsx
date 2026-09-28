@@ -634,11 +634,16 @@ function App() {
       }
 
       if (event.key.toLowerCase() === "c") {
+        // Returning false only stops xterm; also cancel the native clipboard action.
+        event.preventDefault();
+        event.stopPropagation();
         copyTerminalSelection();
         return false;
       }
 
       if (event.key.toLowerCase() === "v") {
+        event.preventDefault();
+        event.stopPropagation();
         pasteIntoTerminal();
         return false;
       }
