@@ -1,5 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
+import RemoteMarkdownPreview from "./RemoteMarkdownPreview";
+import "./RemoteFileEditor.css";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
@@ -24,6 +26,7 @@ const getLanguage = (path) => {
     yaml: "yaml",
     yml: "yaml",
     md: "markdown",
+    markdown: "markdown",
     sql: "sql",
     xml: "xml",
     env: "plaintext",
@@ -40,6 +43,7 @@ const isImage = (path) => {
 
 export default function RemoteFileEditorModal({
   open,
+  sessionId,
   path,
   content,
   modified,
@@ -49,6 +53,12 @@ export default function RemoteFileEditorModal({
 }) {
   const { t } = useTranslation();
   const image = isImage(path);
+  const markdown = ["md", "markdown"].includes(getExtension(path));
+  const [preview, setPreview] = useState(true);
+
+  useEffect(() => {
+    setPreview(true);
+  }, [open, path, sessionId]);
 
   useEffect(() => {
     if (!open) return;
@@ -85,11 +95,23 @@ export default function RemoteFileEditorModal({
             ×
           </button>
         </div>
+        {markdown && (
+          <div className="remote-markdown-toolbar">
+            <button className="btn-secondary" aria-pressed={preview} onClick={() => setPreview(true)}>
+              {t("files.preview")}
+            </button>
+            <button className="btn-secondary" aria-pressed={!preview} onClick={() => setPreview(false)}>
+              {t("common.edit")}
+            </button>
+          </div>
+        )}
         <div className="remote-editor-body">
           {image ? (
             <div className="remote-image-viewer">
               <img src={`data:image/*;base64,${content}`} alt={fileName} />
             </div>
+          ) : markdown && preview ? (
+            <RemoteMarkdownPreview content={content} path={path} sessionId={sessionId} />
           ) : (
             <Editor
               height="100%"

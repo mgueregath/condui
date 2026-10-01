@@ -1,0 +1,15 @@
+.remote-editor-window {
+  --editor-bg: var(--terminal-bg);
+  --editor-bg-code: var(--terminal-titlebar);
+  --editor-text: var(--bg-base);
+  --editor-text-muted: var(--text-muted);
+  --editor-link: color-mix(in srgb, var(--accent) 55%, var(--bg-white));
+  --editor-border: color-mix(in srgb, var(--border) 25%, var(--editor-bg));
+  --editor-toolbar-bg: var(--text-muted);
+  --editor-toolbar-text: var(--text-primary);
+  --editor-toolbar-border: var(--border);
+}
+
+.remote-editor-body {
+  background: var(--editor-bg);
+}

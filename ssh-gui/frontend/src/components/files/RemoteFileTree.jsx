@@ -285,6 +285,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
 
       <RemoteFileEditorModal
         open={editor.open}
+        sessionId={sessionId}
         path={editor.path}
         content={editor.content}
         modified={editor.modified}

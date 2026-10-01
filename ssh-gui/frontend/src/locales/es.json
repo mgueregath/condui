@@ -237,6 +237,8 @@
     "deleteFolderConfirm": "¿Eliminar la carpeta «{{name}}»?"
   },
   "files": {
+    "preview": "Vista previa",
+    "imageUnavailable": "No se pudo cargar la imagen",
     "name": "Nombre",
     "size": "Tamaño",
     "modified": "Modificado",
