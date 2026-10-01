@@ -105,7 +105,11 @@ export default function ContextMenu({ x, y, items, onClose }) {
       onClose();
     };
     const handleEsc    = (e) => { if (e.key === "Escape") onClose(); };
-    const handleScroll = ()  => onClose();
+    const handleScroll = (e) => {
+      if (ref.current?.contains(e.target)) return;
+      if (e.target.closest?.(".ctx-submenu-panel")) return;
+      onClose();
+    };
     document.addEventListener("mousedown", handleDown);
     document.addEventListener("keydown", handleEsc);
     document.addEventListener("scroll", handleScroll, true);
