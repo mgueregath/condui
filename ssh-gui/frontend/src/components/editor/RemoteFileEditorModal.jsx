@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -47,9 +48,24 @@ export default function RemoteFileEditorModal({
   onSave,
 }) {
   const { t } = useTranslation();
+  const image = isImage(path);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleSaveShortcut = (event) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== "s") return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (modified && !image && !event.repeat) onSave();
+    };
+
+    document.addEventListener("keydown", handleSaveShortcut, true);
+    return () => document.removeEventListener("keydown", handleSaveShortcut, true);
+  }, [open, modified, image, onSave]);
+
   if (!open) return null;
   const fileName = path?.split("/").pop();
-  const image = isImage(path);
   const language = getLanguage(path);
 
   return createPortal(
