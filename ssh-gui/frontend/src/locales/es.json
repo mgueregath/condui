@@ -237,6 +237,10 @@
     "deleteFolderConfirm": "¿Eliminar la carpeta «{{name}}»?"
   },
   "files": {
+    "savingChanges": "Guardando cambios...",
+    "changesSaved": "Cambios guardados",
+    "unsavedChanges": "Modificaciones sin guardar",
+    "saveChangesFailed": "No se pudieron guardar los cambios",
     "preview": "Vista previa",
     "imageUnavailable": "No se pudo cargar la imagen",
     "name": "Nombre",

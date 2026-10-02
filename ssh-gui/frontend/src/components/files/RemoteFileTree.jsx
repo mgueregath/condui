@@ -95,7 +95,9 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
 
   const saveEditor = async () => {
     await SaveRemoteFile(sessionId, editor.path, editor.content);
-    setEditor((e) => ({ ...e, modified: false }));
+    setEditor((e) => e.path === editor.path && e.content === editor.content
+      ? { ...e, modified: false }
+      : e);
   };
 
   const closeEditor = () => {

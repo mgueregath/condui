@@ -237,6 +237,10 @@
     "deleteFolderConfirm": "Delete folder “{{name}}”?"
   },
   "files": {
+    "savingChanges": "Saving changes...",
+    "changesSaved": "Changes saved",
+    "unsavedChanges": "Unsaved changes",
+    "saveChangesFailed": "Unable to save changes",
     "preview": "Preview",
     "imageUnavailable": "Unable to load image",
     "name": "Name",

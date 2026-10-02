@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import RemoteMarkdownPreview from "./RemoteMarkdownPreview";
 import "./RemoteFileEditor.css";
@@ -55,6 +55,35 @@ export default function RemoteFileEditorModal({
   const image = isImage(path);
   const markdown = ["md", "markdown"].includes(getExtension(path));
   const [preview, setPreview] = useState(true);
+  const [saveStatus, setSaveStatus] = useState("idle");
+  const saveContext = useRef({ saving: false });
+
+  useEffect(() => {
+    saveContext.current = { saving: false };
+    setSaveStatus("idle");
+    return () => { saveContext.current = { saving: false }; };
+  }, [open, path, sessionId]);
+
+  useEffect(() => {
+    if (saveStatus !== "saved") return;
+    const timer = setTimeout(() => setSaveStatus("idle"), 3000);
+    return () => clearTimeout(timer);
+  }, [saveStatus]);
+
+  const handleSave = useCallback(async () => {
+    const context = saveContext.current;
+    if (!open || image || !modified || context.saving) return;
+    context.saving = true;
+    setSaveStatus("saving");
+    try {
+      await onSave();
+      if (saveContext.current === context) setSaveStatus("saved");
+    } catch {
+      if (saveContext.current === context) setSaveStatus("error");
+    } finally {
+      context.saving = false;
+    }
+  }, [open, image, modified, onSave]);
 
   useEffect(() => {
     setPreview(true);
@@ -67,16 +96,25 @@ export default function RemoteFileEditorModal({
       if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== "s") return;
       event.preventDefault();
       event.stopPropagation();
-      if (modified && !image && !event.repeat) onSave();
+      if (!event.repeat) handleSave();
     };
 
     document.addEventListener("keydown", handleSaveShortcut, true);
     return () => document.removeEventListener("keydown", handleSaveShortcut, true);
-  }, [open, modified, image, onSave]);
+  }, [open, handleSave]);
 
   if (!open) return null;
   const fileName = path?.split("/").pop();
   const language = getLanguage(path);
+  const status = saveStatus === "saving" || saveStatus === "error"
+    ? saveStatus
+    : modified ? "unsaved" : saveStatus;
+  const statusLabels = {
+    saving: "files.savingChanges",
+    saved: "files.changesSaved",
+    unsaved: "files.unsavedChanges",
+    error: "files.saveChangesFailed",
+  };
 
   return createPortal(
     <div className="remote-editor-backdrop">
@@ -126,19 +164,27 @@ export default function RemoteFileEditorModal({
                 wordWrap: "on",
                 padding: { top: 12 },
               }}
-              onChange={(v) => onChange(v ?? "")}
+              onChange={(v) => {
+                if (!saveContext.current.saving) setSaveStatus("idle");
+                onChange(v ?? "");
+              }}
             />
           )}
         </div>
         <div className="remote-editor-footer">
+          {!image && (
+            <span className="remote-editor-save-status" data-state={status} role="status" aria-live="polite">
+              {statusLabels[status] ? t(statusLabels[status]) : ""}
+            </span>
+          )}
           <button className="btn-secondary" onClick={onClose}>
             {t("common.close")}
           </button>
           {!image && (
             <button
               className="btn-primary"
-              disabled={!modified}
-              onClick={onSave}
+              disabled={!modified || saveStatus === "saving"}
+              onClick={handleSave}
             >
               {t("common.save")}
             </button>
