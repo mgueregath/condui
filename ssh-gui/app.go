@@ -25,6 +25,7 @@ type App struct {
 	database *storage.Database
 
 	transferManager *transfers.Manager
+	activeTransfers sync.Map
 
 	dockerLogMu       sync.Mutex
 	dockerLogSessions map[string]*ssh.Session
@@ -35,9 +36,9 @@ type App struct {
 	tunnelManager *tunnels.Manager
 
 	// Security: vault encryption
-	masterKey     []byte
-	syncVaultKey  []byte // Argon2(vaultPassword, fixedSalt) — same on all devices with same password
-	masterKeyMu   sync.RWMutex
+	masterKey    []byte
+	syncVaultKey []byte // Argon2(vaultPassword, fixedSalt) — same on all devices with same password
+	masterKeyMu  sync.RWMutex
 
 	// Host key verification: maps "host:port" to approval channel
 	hostKeyChannels sync.Map

@@ -871,6 +871,7 @@ function App() {
       fileTreeRef.current?.refresh();
     } catch (err) {
       const message = getUploadErrorMessage(err);
+
       if (message.includes("cancelad")) {
         console.log("Subida cancelada por el usuario.");
         return;
@@ -903,6 +904,7 @@ function App() {
           fileTreeRef.current?.refresh();
         } catch (err) {
           const message = getUploadErrorMessage(err);
+          if (message.includes("transferencia cancelada")) return;
           console.error("Error al subir archivo arrastrado:", err);
           showAlert(t("app.uploadError", { error: message }));
         }

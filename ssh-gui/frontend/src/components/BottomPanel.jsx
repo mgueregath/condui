@@ -1,3 +1,4 @@
+import TransferList from "./TransferList";
 import { useState, useEffect, useMemo } from "react";
 import { Events } from "@wailsio/runtime";
 import {
@@ -34,7 +35,7 @@ import {
   SiScylladb,
   SiOpensearch,
 } from "react-icons/si";
-import { LuLogs, LuNetwork, LuDownload, LuUpload } from "react-icons/lu";
+import { LuLogs, LuNetwork } from "react-icons/lu";
 import { BiTransfer } from "react-icons/bi";
 import { GiWarpPipe } from "react-icons/gi";
 import { IoIosAdd } from "react-icons/io";
@@ -883,79 +884,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
         )}
         {/* PESTAÑA: TRANSFERS */}
         {activeTab === "transfers" && (
-          <div className="transfers-tab-content" style={{ padding: "12px" }}>
-            {Object.keys(transfers).length === 0 ? (
-              <div
-                className="empty-state"
-                style={{
-                  color: "var(--text-muted)",
-                  textAlign: "center",
-                  padding: "40px",
-                }}
-              >
-                {t("panel.noTransfers")}
-              </div>
-            ) : (
-              Object.values(transfers).map((t) => (
-                <div
-                  key={t.id}
-                  className="transfer-item"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    marginBottom: "8px",
-                    gap: "15px",
-                    fontSize: "12px",
-                    borderBottom: "1px solid var(--border-subtle)",
-                    paddingBottom: "6px",
-                  }}
-                >
-                  <span style={{ fontSize: "14px" }}>
-                    {t.direction === "upload" ? <LuUpload /> : <LuDownload />}
-                  </span>
-                  <span
-                    style={{
-                      flex: 1,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    {t.name}
-                  </span>
-                  <div
-                    style={{
-                      width: "150px",
-                      backgroundColor: "var(--bg-hover)",
-                      borderRadius: "4px",
-                      height: "8px",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${t.progress}%`,
-                        backgroundColor:
-                          t.status === "error" ? "var(--red)" : "var(--green)",
-                        height: "100%",
-                        transition: "width 0.2s",
-                      }}
-                    ></div>
-                  </div>
-                  <span
-                    style={{
-                      width: "40px",
-                      textAlign: "right",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
-                    {t.progress}%
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
+          <TransferList transfers={transfers} />
         )}
         {/* PESTAÑA: TUNNELS */}
         {activeTab === "tunnels" && (

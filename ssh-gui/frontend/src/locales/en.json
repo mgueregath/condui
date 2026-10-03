@@ -270,6 +270,20 @@
     "disk": "Disk"
   },
   "panel": {
+    "transferDirection": "Direction",
+    "transferFile": "File",
+    "transferSize": "Size",
+    "transferProgress": "Progress",
+    "transferUpload": "Upload",
+    "transferDownload": "Download",
+    "transferAverageSpeed": "Average speed",
+    "transferCancelling": "Cancelling...",
+    "transferStatus": {
+      "active": "In progress",
+      "done": "Completed",
+      "error": "Error",
+      "cancelled": "Cancelled"
+    },
     "logs": "Logs",
     "transfers": "Transfers",
     "tunnels": "Tunnels",

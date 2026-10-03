@@ -1,17 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/wailsapp/wails/v3/pkg/application"
 
-	"ssh-gui/backend/models"
 	sftpservice "ssh-gui/backend/sftp"
 )
 
@@ -92,63 +90,9 @@ func (a *App) uploadLocalFile(sessionID string, remoteDirectory string, localPat
 		remotePath = fmt.Sprintf("%s/%s", remoteDirectory, fileName)
 	}
 
-	// Abrir archivo local para obtener su peso total
-	localFile, err := os.Open(localPath)
-	if err != nil {
-		return err
-	}
-	defer localFile.Close()
-
-	stat, err := localFile.Stat()
-	if err != nil {
-		return err
-	}
-	if stat.IsDir() {
-		return fmt.Errorf("cannot upload directories")
-	}
-
-	// Crear archivo en el servidor remoto por SFTP
-	remoteFile, err := session.SFTP.Create(remotePath)
-	if err != nil {
-		return err
-	}
-	defer remoteFile.Close()
-
-	transferID := uuid.NewString()
-	a.emitLog("SFTP", "Iniciando subida de: "+fileName, "")
-
-	// Envolver el destino en nuestro ProgressWriter
-	progress := &models.ProgressWriter{
-		Total:     stat.Size(),
-		ID:        transferID,
-		FileName:  fileName,
-		Direction: "upload",
-	}
-
-	// MultiWriter escribe en el archivo remoto y a la vez computa el progreso
-	mw := io.MultiWriter(remoteFile, progress)
-	_, err = io.Copy(mw, localFile)
-
-	if err != nil {
-		application.Get().Event.Emit("transfer-status", map[string]any{
-			"id":        transferID,
-			"name":      fileName,
-			"status":    "error",
-			"direction": "upload",
-		})
-		a.emitLog("SFTP", "Error al subir "+fileName, "error")
-		return err
-	}
-
-	application.Get().Event.Emit("transfer-status", map[string]any{
-		"id":        transferID,
-		"name":      fileName,
-		"progress":  100,
-		"status":    "done",
-		"direction": "upload",
+	return a.runFileTransfer(fileName, "upload", func(ctx context.Context, progress func(int64) io.Writer) error {
+		return sftpservice.UploadFile(ctx, session.SFTP, localPath, remotePath, progress)
 	})
-	a.emitLog("SFTP", "Subida completada: "+fileName, "success")
-	return nil
 }
 
 func (a *App) DownloadFile(
@@ -164,6 +108,10 @@ func (a *App) DownloadFile(
 		return fmt.Errorf("session not found")
 	}
 
+	if session.SFTP == nil {
+		return fmt.Errorf("sftp client nil")
+	}
+
 	// 1. Abrir diálogo nativo para guardar archivo
 	fileName := sftpservice.GetRemoteFileName(remotePath, session.RemoteOS)
 
@@ -175,55 +123,9 @@ func (a *App) DownloadFile(
 		return fmt.Errorf("descarga cancelada por el usuario")
 	}
 
-	src, err := session.SFTP.Open(remotePath)
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-
-	stat, err := src.Stat()
-	if err != nil {
-		return err
-	}
-
-	dst, err := os.Create(chosenLocalPath)
-	if err != nil {
-		return err
-	}
-	defer dst.Close()
-
-	transferID := uuid.NewString()
-	a.emitLog("SFTP", "Iniciando descarga de: "+fileName, "")
-
-	progress := &models.ProgressWriter{
-		Total:     stat.Size(),
-		ID:        transferID,
-		FileName:  fileName,
-		Direction: "download",
-	}
-
-	mw := io.MultiWriter(dst, progress)
-	_, err = io.Copy(mw, src)
-	if err != nil {
-		application.Get().Event.Emit("transfer-status", map[string]any{
-			"id":        transferID,
-			"name":      fileName,
-			"status":    "error",
-			"direction": "download",
-		})
-		a.emitLog("SFTP", "Error al descargar "+fileName, "error")
-		return err
-	}
-
-	application.Get().Event.Emit("transfer-status", map[string]any{
-		"id":        transferID,
-		"name":      fileName,
-		"progress":  100,
-		"status":    "done",
-		"direction": "download",
+	return a.runFileTransfer(fileName, "download", func(ctx context.Context, progress func(int64) io.Writer) error {
+		return sftpservice.DownloadFile(ctx, session.SFTP, remotePath, chosenLocalPath, progress)
 	})
-	a.emitLog("SFTP", "Descarga completada: "+fileName, "success")
-	return nil
 }
 
 func (a *App) DeleteRemoteFile(
