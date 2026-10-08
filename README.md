@@ -292,7 +292,7 @@ A single universal binary (arm64 + amd64) in one installer.
 ## Linux
 
 ```bash
-Condui-linux-x64.AppImage
+Condui-<version>-linux-x86_64.AppImage
 # or
 Condui-linux-x64.deb
 # or

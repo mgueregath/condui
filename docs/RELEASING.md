@@ -14,13 +14,13 @@ This produces:
 **Fresh-install artifacts** (what a user downloads from the Releases page the first time):
 - `Condui-mac.dmg` — signed and notarized universal (arm64 + amd64) build
 - `Condui-windows-x64-installer.exe` — NSIS installer (unsigned until SignPath is approved, see below)
-- `Condui-linux-x64.AppImage`, `Condui-linux-x64.deb`, `Condui-linux-x64.rpm`
+- `Condui-<version>-linux-x86_64.AppImage`, `Condui-linux-x64.deb`, `Condui-linux-x64.rpm`
 
 **In-app updater artifacts** (what an already-installed Condui downloads via Account → Check for
 Updates; see [Updating](#updating) below):
 - `Condui-darwin-arm64-amd64.app.zip` — the same signed/notarized `.app` bundle, zipped
 - `Condui-windows-amd64-update.exe` — the bare `.exe` (no installer wrapper)
-- `Condui-linux-x64.AppImage` — reused as-is; it's already a swappable single-file binary
+- `Condui-<version>-linux-x86_64.AppImage` — reused as-is; it's already a swappable single-file binary
 - `SHA256SUMS` — digests the updater verifies downloads against
 
 The public build includes `ssh-gui/backend/dbexplorer` (navoro) — now a public repo — checking out the
@@ -48,7 +48,7 @@ Why the updater needs its own assets instead of reusing the DMG/installer:
   `windows`, `linux`, `amd64`, `arm64` — with `x64`/`x86_64`/`aarch64` aliases). The macOS zip is named
   with **both** arch tokens since it's a universal binary that needs to match either host arch.
 - The AppImage needs no separate asset: it's already a bare, swappable single-file binary, and its
-  existing name (`Condui-linux-x64.AppImage`) already contains matcher-recognized tokens (`linux`, `x64`
+  name (`Condui-<version>-linux-x86_64.AppImage`) contains matcher-recognized tokens (`linux`, `x86_64`
   as an `amd64` alias).
 - `.deb`/`.rpm` have no auto-update path here — package-manager artifacts aren't something this updater
   (or any equivalent without a hosted APT/YUM repo) can swap in place. Users on those tracks reinstall the

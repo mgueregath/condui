@@ -25,7 +25,7 @@ jobs:
             name: macOS
           - os: windows-latest
             name: Windows
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             name: Linux
     name: Build (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
@@ -53,11 +53,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             pkg-config gcc libc6-dev \
-            libgtk-4-dev libwebkitgtk-6.0-dev
+            libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Install wails3 CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS3_VERSION }}
+        run: go install ${{ runner.os == 'Linux' && '-tags gtk3 ' || '' }}github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS3_VERSION }}
 
       - name: Build
         working-directory: ssh-gui
+        env:
+          EXTRA_TAGS: ${{ runner.os == 'Linux' && 'gtk3' || '' }}
         run: wails3 task build
