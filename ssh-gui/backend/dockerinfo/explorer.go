@@ -10,6 +10,7 @@ import (
 )
 
 type ExplorerContainer struct {
+	Mounts []ExplorerMount
 	ID     string `json:"Id"`
 	Name   string
 	Image  string
@@ -27,6 +28,7 @@ type ExplorerImage struct {
 	Size     int64
 }
 type ExplorerSnapshot struct {
+	Volumes    []ExplorerVolume
 	Containers []ExplorerContainer
 	Images     []ExplorerImage
 }
@@ -69,11 +71,14 @@ func GetExplorerSnapshot(client *ssh.Client, password string) (*ExplorerSnapshot
 	// Empty lists must not invoke inspect without arguments.
 	command := `containers=$(docker container ls -aq) || exit 1
 images=$(docker image ls -aq --no-trunc) || exit 1
+volumes=$(docker volume ls -q) || exit 1
 images=$(printf '%s\n' "$images" | sort -u) || exit 1
 printf '{"Containers":'
 if [ -n "$containers" ]; then docker container inspect $containers || exit 1; else printf '[]'; fi
 printf ',"Images":'
 if [ -n "$images" ]; then docker image inspect $images || exit 1; else printf '[]'; fi
+printf ',"Volumes":'
+if [ -n "$volumes" ]; then docker volume inspect $volumes || exit 1; else printf '[]'; fi
 printf '}'`
 	output, err := explorerCommand(client, password, command)
 	if err != nil {

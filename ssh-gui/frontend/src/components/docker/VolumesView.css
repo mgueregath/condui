@@ -1,0 +1,49 @@
+.dx-table.dx-volumes-table {
+  table-layout: fixed;
+  min-width: 1100px;
+}
+
+.dx-volumes-table .dx-volume-col-select { width: 48px; }
+.dx-volumes-table .dx-volume-col-name { width: 24%; }
+.dx-volumes-table .dx-volume-col-driver { width: 95px; }
+.dx-volumes-table .dx-volume-col-created { width: 135px; }
+.dx-volumes-table .dx-volume-col-path { width: 23%; }
+.dx-volumes-table .dx-volume-col-actions { width: 85px; }
+
+.dx-table.dx-volumes-table th,
+.dx-table.dx-volumes-table td {
+  overflow-wrap: normal;
+}
+
+.dx-volumes-table th,
+.dx-volumes-table td:nth-child(4),
+.dx-volumes-table button {
+  white-space: nowrap;
+}
+
+.dx-volumes-table th:first-child,
+.dx-volumes-table td:first-child {
+  text-align: center;
+}
+
+.dx-volumes-table th:last-child,
+.dx-volumes-table td:last-child {
+  text-align: right;
+}
+
+.dx-volume-text,
+.dx-volumes-table small,
+.dx-volume-usage li {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dx-volume-usage {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dx-volume-usage li + li { margin-top: 4px; }

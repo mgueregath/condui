@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FaDocker, FaSyncAlt } from "react-icons/fa";
-import { getSnapshot, deleteImage, controlStack } from "./explorerApi";
+import { getSnapshot, deleteImage, deleteVolume, controlStack } from "./explorerApi";
 import { imageTags } from "./explorerData";
 import StacksView from "./StacksView";
 import ImagesView from "./ImagesView";
+import VolumesView from "./VolumesView";
 import ConfirmAction from "./ConfirmAction";
 import "./translations";
 import "./DockerExplorer.css";
@@ -13,7 +14,7 @@ const errorText = error => error?.message || String(error);
 
 export default function DockerExplorer({ sessionID }) {
  const { t } = useTranslation("dockerExplorer");
- const [snapshot, setSnapshot] = useState({Containers: [], Images: []});
+ const [snapshot, setSnapshot] = useState({Containers: [], Images: [], Volumes: []});
  const [view, setView] = useState("stacks");
  const [search, setSearch] = useState("");
  const [busy, setBusy] = useState(false);
@@ -25,7 +26,7 @@ export default function DockerExplorer({ sessionID }) {
   locked.current = true; setBusy(true); setStatus({text: t("loading"), error: false});
   try {
    const data = await getSnapshot(sessionID);
-   setSnapshot({Containers: data.Containers || [], Images: data.Images || []});
+   setSnapshot({Containers: data.Containers || [], Images: data.Images || [], Volumes: data.Volumes || []});
    setStatus({text: t("updated"), error: false});
   } catch (error) { setStatus({text: errorText(error), error: true}); }
   finally { locked.current = false; setBusy(false); }
@@ -39,7 +40,7 @@ export default function DockerExplorer({ sessionID }) {
   try { await operation(); } catch (error) { errors.push(errorText(error)); }
   try {
    const data = await getSnapshot(sessionID);
-   setSnapshot({Containers: data.Containers || [], Images: data.Images || []});
+   setSnapshot({Containers: data.Containers || [], Images: data.Images || [], Volumes: data.Volumes || []});
   } catch (error) { errors.push(t("refreshFailed") + ": " + errorText(error)); }
   setStatus({text: errors.length ? errors.join(" ") : success, error: !!errors.length});
   locked.current = false; setBusy(false);
@@ -65,13 +66,28 @@ export default function DockerExplorer({ sessionID }) {
    }, t("deleted"))
   });
  }
+ function requestDeleteVolumes(volumes) {
+  if (busy) return;
+  setConfirmation({
+   title: t("deleteVolumesTitle"), description: t("deleteVolumesDescription"),
+   items: volumes.map(volume => volume.Name),
+   run: () => mutate(async () => {
+    const errors = [];
+    for (const volume of volumes) {
+     try { await deleteVolume(sessionID, volume.Name); }
+     catch (error) { errors.push(volume.Name + ": " + errorText(error)); }
+    }
+    if (errors.length) throw new Error(errors.join(" "));
+   }, t("volumesDeleted"))
+  });
+ }
  const query = search.trim().toLowerCase();
  return <main className="docker-explorer">
   <header className="dx-header"><h1><FaDocker aria-hidden="true" /> Docker</h1>
    <button type="button" className="btn-primary" disabled={busy} onClick={refresh}><FaSyncAlt aria-hidden="true" /> {t("refresh")}</button>
   </header>
   <nav className="dx-tabs" aria-label={t("views")}>
-   {["stacks", "images"].map(tab => <button type="button" key={tab} aria-pressed={view === tab} onClick={() => setView(tab)}>{t(tab)}</button>)}
+   {["stacks", "images", "volumes"].map(tab => <button type="button" key={tab} aria-pressed={view === tab} onClick={() => setView(tab)}>{t(tab)}</button>)}
   </nav>
   <p className={"dx-status" + (status.error ? " error" : "")} role="status" aria-live="polite">{status.text}</p>
   <input className="modern-input dx-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder={t("search")} aria-label={t("search")} />
@@ -80,6 +96,9 @@ export default function DockerExplorer({ sessionID }) {
   </section>
   <section hidden={view !== "images"} aria-label={t("images")}>
    <ImagesView images={snapshot.Images} containers={snapshot.Containers} query={query} busy={busy} onDelete={requestDelete} />
+  </section>
+  <section hidden={view !== "volumes"} aria-label={t("volumes")}>
+   <VolumesView volumes={snapshot.Volumes} containers={snapshot.Containers} query={query} busy={busy} onDelete={requestDeleteVolumes} />
   </section>
   <ConfirmAction request={confirmation} onClose={() => setConfirmation(null)} onConfirm={() => confirmation?.run()} />
  </main>;

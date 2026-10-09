@@ -14,3 +14,7 @@ export function groupContainers(containers) {
  }
  return [...groups.values()].sort((a, b) => a.project.localeCompare(b.project));
 }
+
+export const volumeReferences = (containers, volume) => containers.filter(container =>
+ (container.Mounts || []).some(mount => mount.Type === "volume" && mount.Name === volume.Name)
+);

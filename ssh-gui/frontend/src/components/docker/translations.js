@@ -100,3 +100,33 @@ i18n.addResourceBundle("en", "dockerExplorer", {
   "images": "Images",
   "search": "Search..."
 });
+
+i18n.addResourceBundle("es", "dockerExplorer", {
+  "volumes": "Volúmenes",
+  "volume": "Volumen",
+  "driver": "Driver",
+  "mountpoint": "Punto de montaje",
+  "volumeNote": "Sin uso: ningún contenedor activo o detenido referencia el volumen. Se muestran volúmenes Docker, no bind mounts.",
+  "selectVisibleVolumes": "Seleccionar o deseleccionar volúmenes sin uso visibles",
+  "selectVolume": "Seleccionar {{name}}",
+  "deleteVolume": "Eliminar volumen {{name}}",
+  "emptyVolumes": "No hay volúmenes que mostrar.",
+  "deleteVolumesTitle": "Eliminar volúmenes sin uso",
+  "deleteVolumesDescription": "Esta acción elimina permanentemente los volúmenes seleccionados y sus datos. No se puede deshacer. La eliminación se realizará sin forzar.",
+  "volumesDeleted": "Volúmenes eliminados."
+}, true, true);
+
+i18n.addResourceBundle("en", "dockerExplorer", {
+  "volumes": "Volumes",
+  "volume": "Volume",
+  "driver": "Driver",
+  "mountpoint": "Mount point",
+  "volumeNote": "Unused: no running or stopped container references the volume. This list includes Docker volumes, not bind mounts.",
+  "selectVisibleVolumes": "Select or deselect visible unused volumes",
+  "selectVolume": "Select {{name}}",
+  "deleteVolume": "Delete volume {{name}}",
+  "emptyVolumes": "No volumes to display.",
+  "deleteVolumesTitle": "Delete unused volumes",
+  "deleteVolumesDescription": "This permanently removes the selected volumes and their data. It cannot be undone. Volumes will be removed without forcing.",
+  "volumesDeleted": "Volumes deleted."
+}, true, true);

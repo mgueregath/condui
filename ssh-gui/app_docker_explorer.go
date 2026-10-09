@@ -44,3 +44,11 @@ func (a *App) ControlDockerExplorerStack(sessionID, project, action string) erro
 	}
 	return dockerinfo.ControlExplorerStack(session.Client, session.SudoPassword, project, action)
 }
+
+func (a *App) DeleteDockerExplorerVolume(sessionID, name string) error {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return fmt.Errorf("sesion desconectada")
+	}
+	return dockerinfo.DeleteExplorerVolume(session.Client, session.SudoPassword, name)
+}
