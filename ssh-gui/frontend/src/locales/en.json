@@ -271,6 +271,7 @@
   },
   "panel": {
     "transferDirection": "Direction",
+    "transferDate": "Date",
     "transferFile": "File",
     "transferSize": "Size",
     "transferProgress": "Progress",

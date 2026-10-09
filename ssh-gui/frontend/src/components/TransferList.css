@@ -1,34 +1,8 @@
 .transfer-list { padding: 12px; }
 .transfer-empty { color: var(--text-muted); text-align: center; padding: 40px; }
 .transfer-alert { color: var(--red); }
-.transfer-table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--card-radius); }
-.transfer-table {
-  width: 100%;
-  min-width: 800px;
-  table-layout: fixed;
-  border-collapse: collapse;
-  font-size: 12px;
-  text-align: left;
-  color: var(--text-primary);
-  background: var(--bg-surface);
-}
-.transfer-direction-column { width: 40px; }
-.transfer-size-column { width: 110px; }
-.transfer-progress-column { width: 180px; }
-.transfer-speed-column { width: 130px; }
-.transfer-status-column { width: 120px; }
-.transfer-actions-column { width: 80px; }
-.transfer-table th {
-  padding: 8px 12px;
-  background: var(--bg-hover);
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border);
-  font-weight: 600;
-  white-space: nowrap;
-}
-.transfer-table td { height: 40px; padding: 6px 12px; border-bottom: 1px solid var(--border-subtle); }
-.transfer-table tbody tr:last-child td { border-bottom: none; }
-.transfer-table tbody tr:hover { background: var(--bg-hover); }
+.transfer-table-scroll { overflow-x: auto; }
+.transfer-date { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .transfer-direction { color: var(--text-secondary); text-align: center; }
 .transfer-direction svg { display: block; width: 14px; height: 14px; }
 .transfer-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -62,11 +36,11 @@
   padding: 4px;
   border: 1px solid var(--border);
   border-radius: 4px;
-  background: transparent;
-  color: var(--text-secondary);
+  background: color-mix(in oklab, var(--red), black 10%);
+  color: white;
   cursor: pointer;
 }
-.transfer-action:hover:not(:disabled) { background: var(--bg-hover); color: var(--red); }
+.transfer-action:hover:not(:disabled) { background: var(--red); color: white; }
 .transfer-action:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .transfer-action:disabled { opacity: 0.5; cursor: default; }
 .transfer-action svg { width: 14px; height: 14px; }

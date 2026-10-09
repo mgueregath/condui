@@ -3,9 +3,10 @@ import { CancelTransfer } from "../../bindings/ssh-gui/app";
 import { useTranslation } from "react-i18next";
 import { LuDownload, LuUpload, LuX, LuLoader } from "react-icons/lu";
 import "./TransferList.css";
+import "./PanelList.css";
 
 export default function TransferList({ transfers }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [cancelling, setCancelling] = useState({});
   const [error, setError] = useState("");
 
@@ -28,19 +29,11 @@ export default function TransferList({ transfers }) {
         <p className="transfer-empty">{t("panel.noTransfers")}</p>
       ) : (
         <div className="transfer-table-scroll">
-          <table className="transfer-table">
-            <colgroup>
-              <col className="transfer-direction-column" />
-              <col />
-              <col className="transfer-size-column" />
-              <col className="transfer-progress-column" />
-              <col className="transfer-speed-column" />
-              <col className="transfer-status-column" />
-              <col className="transfer-actions-column" />
-            </colgroup>
+          <table className="transfer-table panel-table panel-table-transfers">
             <thead>
               <tr>
                 <th scope="col"><span className="transfer-sr-only">{t("panel.transferDirection")}</span></th>
+                <th scope="col">{t("panel.transferDate")}</th>
                 <th scope="col">{t("panel.transferFile")}</th>
                 <th scope="col" className="transfer-number">{t("panel.transferSize")}</th>
                 <th scope="col">{t("panel.transferProgress")}</th>
@@ -60,6 +53,7 @@ export default function TransferList({ transfers }) {
                       {transfer.direction === "upload" ? <LuUpload aria-hidden="true" /> : <LuDownload aria-hidden="true" />}
                       <span className="transfer-sr-only">{t("panel.transfer" + (transfer.direction === "upload" ? "Upload" : "Download"))}</span>
                     </td>
+                    <td className="transfer-date">{transfer.startedAt ? new Date(transfer.startedAt).toLocaleString(i18n.language) : "-"}</td>
                     <td className="transfer-name" title={transfer.name}>{transfer.name}</td>
                     <td className="transfer-number">{((transfer.total || 0) / (1024 * 1024)).toFixed(2)} MiB</td>
                     <td>

@@ -1,4 +1,5 @@
 import TransferList from "./TransferList";
+import "./PanelList.css";
 import { useState, useEffect, useMemo } from "react";
 import { Events } from "@wailsio/runtime";
 import {
@@ -152,7 +153,6 @@ const DB_TYPES = {
 };
 
 const TABS = [
-  { id: "logs", labelKey: "panel.logs", icon: <LuLogs /> },
   { id: "transfers", labelKey: "panel.transfers", icon: <BiTransfer /> },
   { id: "tunnels", labelKey: "panel.tunnels", icon: <GiWarpPipe /> },
   { id: "ports", labelKey: "panel.ports", icon: <LuNetwork /> },
@@ -239,7 +239,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
   const { t } = useTranslation();
   const isPro = accountStatus?.tier === "pro";
   const dbManagerEnabled = !!features?.dbManager;
-  const [activeTab, setActiveTab] = useState("logs");
+  const [activeTab, setActiveTab] = useState("transfers");
 
   // Estados de datos
   const [logs, setLogs] = useState([]);
@@ -260,7 +260,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
   const [alertModal, setAlertModal] = useState(null);
   const showAlert = (message, title = t("app.notice")) =>
     setAlertModal({ title, message });
-  
+
   // Estado para modal de contraseña sudo
   const [sudoPasswordModal, setSudoPasswordModal] = useState(false);
   const [deleteTunnelTarget, setDeleteTunnelTarget] = useState(null);
@@ -290,7 +290,10 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
       const data = event.data;
       setTransfers((prev) => ({
         ...prev,
-        [data.id]: data,
+        [data.id]: {
+          ...data,
+          startedAt: prev[data.id]?.startedAt ?? Date.now() - (data.elapsedSeconds || 0) * 1000,
+        },
       }));
     });
 
@@ -901,42 +904,22 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
                 {t("panel.noTunnels")}
               </div>
             ) : (
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: "12px",
-                  textAlign: "left",
-                  background: "var(--bg-surface)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--card-radius)",
-                }}
-              >
+              <table className="panel-table panel-table-tunnels">
                 <thead>
-                  <tr
-                    style={{
-                      color: "var(--text-secondary)",
-                      background: "var(--bg-hover)",
-                      borderBottom: "1px solid var(--border)",
-                    }}
-                  >
-                    <th style={{ padding: "8px 12px" }}>{t("panel.localPort")}</th>
+                  <tr>
+                    <th>{t("panel.localPort")}</th>
                     <th>{t("panel.remoteDestination")}</th>
                     <th>{t("panel.status")}</th>
-                    <th style={{ textAlign: "right", paddingRight: "12px" }}>
+                    <th style={{ textAlign: "right", paddingRight: 0 }}>
                       {t("panel.actions")}
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {tunnels.map((tunnel) => (
-                    <tr
-                      key={tunnel.id}
-                      style={{ borderBottom: "1px solid var(--border-subtle)" }}
-                    >
+                    <tr key={tunnel.id}>
                       <td
                         style={{
-                          padding: "10px 12px",
                           fontWeight: "600",
                           color: "var(--blue)",
                         }}
@@ -964,7 +947,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
                           {tunnel.active ? t("panel.listening") : t("panel.inactive")}
                         </span>
                       </td>
-                      <td style={{ textAlign: "right", paddingRight: "12px" }}>
+                      <td style={{ textAlign: "right", paddingRight: 0 }}>
                         <button
                           onClick={() => handleToggleTunnel(tunnel)}
                           style={{
@@ -1034,45 +1017,45 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
                 {t("panel.noPortResults")}
               </div>
             ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+              <table className="panel-table panel-table-ports">
                 <thead>
-                  <tr style={{ color: "var(--text-secondary)", background: "var(--bg-hover)", borderBottom: "1px solid var(--border)" }}>
-                    <th style={{ padding: "7px 12px", textAlign: "left", width: "70px" }}>
-                      <button className="ports-sort-btn" onClick={() => handlePortSort("proto")}>
+                  <tr >
+                    <th style={{ textAlign: "left", width: "70px" }}>
+                      <button className="panel-sort-btn" onClick={() => handlePortSort("proto")}>
                         {t("panel.protocol")}
-                        <span className="ports-sort-icon">{sortIcon(portSort, "proto")}</span>
+                        <span className="panel-sort-icon">{sortIcon(portSort, "proto")}</span>
                       </button>
                     </th>
-                    <th style={{ padding: "7px 12px", textAlign: "left", width: "80px" }}>
-                      <button className="ports-sort-btn" onClick={() => handlePortSort("port")}>
+                    <th style={{ textAlign: "left", width: "80px" }}>
+                      <button className="panel-sort-btn" onClick={() => handlePortSort("port")}>
                         {t("connection.port")}
-                        <span className="ports-sort-icon">{sortIcon(portSort, "port")}</span>
+                        <span className="panel-sort-icon">{sortIcon(portSort, "port")}</span>
                       </button>
                     </th>
-                    <th style={{ padding: "7px 12px", textAlign: "left" }}>{t("panel.address")}</th>
-                    <th style={{ padding: "7px 12px", textAlign: "left" }}>
-                      <button className="ports-sort-btn" onClick={() => handlePortSort("process")}>
+                    <th style={{ textAlign: "left" }}>{t("panel.address")}</th>
+                    <th style={{ textAlign: "left" }}>
+                      <button className="panel-sort-btn" onClick={() => handlePortSort("process")}>
                         {t("panel.process")}
-                        <span className="ports-sort-icon">{sortIcon(portSort, "process")}</span>
+                        <span className="panel-sort-icon">{sortIcon(portSort, "process")}</span>
                       </button>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {visiblePorts.map((p, i) => (
-                    <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                      <td style={{ padding: "7px 12px" }}>
+                    <tr key={i} >
+                      <td>
                         <span className={`port-proto-badge ${p.proto.toLowerCase()}`}>
                           {p.proto}
                         </span>
                       </td>
-                      <td style={{ padding: "7px 12px", fontWeight: 700, color: "var(--accent)", fontFamily: "monospace" }}>
+                      <td style={{ fontWeight: 700, color: "var(--accent)", fontFamily: "monospace" }}>
                         {p.port}
                       </td>
-                      <td style={{ padding: "7px 12px", color: "var(--text-secondary)", fontFamily: "monospace", fontSize: "11px" }}>
+                      <td style={{ color: "var(--text-secondary)", fontFamily: "monospace", fontSize: "11px" }}>
                         {p.address}
                       </td>
-                      <td style={{ padding: "7px 12px", color: p.process === "-" ? "var(--text-muted)" : "var(--text-primary)", fontWeight: p.process !== "-" ? 500 : 400 }}>
+                      <td style={{ color: p.process === "-" ? "var(--text-muted)" : "var(--text-primary)", fontWeight: p.process !== "-" ? 500 : 400 }}>
                         {p.process}
                       </td>
                     </tr>
@@ -1147,28 +1130,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
                     return (
                     <div
                       key={c.id}
-                      className="docker-container-row"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "between",
-                        background: "var(--bg-surface)",
-                        border: "1px solid var(--border-subtle)",
-                        borderRadius: "6px",
-                        padding: "8px 12px",
-                        gap: "16px",
-                        transition: "border-color 0.15s, background-color 0.15s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = "var(--border)";
-                        e.currentTarget.style.backgroundColor = "var(--bg-hover)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor =
-                          "var(--border-subtle)";
-                        e.currentTarget.style.backgroundColor =
-                          "var(--bg-surface)";
-                      }}
+                      className="panel-list-row"
                     >
                       {/* 1. IDENTIFICACIÓN DEL CONTENEDOR (Nombre e Imagen) */}
                       <div
@@ -1399,7 +1361,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
 
         {/* ===================== TAB: VIRTUALBOX ===================== */}
         {activeTab === "virtualbox" && (
-          <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 6 }}>
             {vboxError ? (
               <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
                 <FaDesktop style={{ fontSize: 28, opacity: 0.3, display: "block", margin: "0 auto 10px" }} />
@@ -1460,17 +1422,8 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
               return (
                 <div
                   key={vm.uuid || vm.name}
-                  style={{
-                    background: "var(--bg-surface)",
-                    border: "1px solid var(--border-subtle)",
-                    borderLeft: `3px solid ${stateColor}`,
-                    borderRadius: 7, padding: "10px 14px",
-                    alignItems: "center",
-                    display: "flex",
-                    justifyContent: "between",
-                    opacity: isLoading ? 0.65 : 1,
-                    transition: "opacity .2s",
-                  }}
+                  className="panel-list-row"
+                  style={{ opacity: isLoading ? 0.65 : 1 }}
                 >
                   <div
                     style={{
@@ -1600,7 +1553,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
                   )}
                   </div>
 
-                  
+
                 </div>
               );
                 })}
@@ -1645,7 +1598,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
                 {t("panel.noDatabaseResults")}
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <div className="panel-list-header">
                   <div style={{ flex: "0 0 20px" }} />
                   <div style={{ flex: "1 1 0" }}>
@@ -1670,25 +1623,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
                   return (
                     <div
                       key={i}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        background: "var(--bg-surface)",
-                        border: "1px solid var(--border-subtle)",
-                        borderLeft: `3px solid ${color}`,
-                        borderRadius: "6px",
-                        padding: "10px 14px",
-                        gap: "14px",
-                        transition: "border-color 0.15s, background-color 0.15s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = "var(--border)";
-                        e.currentTarget.style.backgroundColor = "var(--bg-hover)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = "var(--border-subtle)";
-                        e.currentTarget.style.backgroundColor = "var(--bg-surface)";
-                      }}
+                      className="panel-list-row"
                     >
                       {/* Icono */}
                       <div style={{ fontSize: "20px", color, flexShrink: 0 }}>
