@@ -1,0 +1,66 @@
+.dx-images-table {
+  table-layout: fixed;
+  min-width: 960px;
+}
+
+.dx-images-table .dx-col-select {
+  width: 48px;
+}
+
+.dx-images-table .dx-col-image {
+  width: 34%;
+}
+
+.dx-images-table .dx-col-created {
+  width: 140px;
+}
+
+.dx-images-table .dx-col-size {
+  width: 100px;
+}
+
+.dx-images-table .dx-col-actions {
+  width: 110px;
+}
+
+.dx-images-table th,
+.dx-images-table td {
+  overflow-wrap: normal;
+}
+
+.dx-images-table th,
+.dx-images-table td:nth-child(3),
+.dx-images-table td:nth-child(4),
+.dx-images-table td:last-child,
+.dx-images-table button {
+  white-space: nowrap;
+}
+
+.dx-images-table th:first-child,
+.dx-images-table td:first-child {
+  text-align: center;
+}
+
+.dx-images-table th:last-child,
+.dx-images-table td:last-child {
+  text-align: right;
+}
+
+.dx-image-tag,
+.dx-images-table small,
+.dx-image-usage li {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dx-image-usage {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dx-image-usage li + li {
+  margin-top: 4px;
+}

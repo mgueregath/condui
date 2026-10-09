@@ -290,6 +290,7 @@
     "tunnels": "Tunnels",
     "ports": "Ports",
     "docker": "Docker",
+    "dockerExplorer": "Stacks and Images",
     "virtualbox": "VirtualBox",
     "databases": "Databases",
     "proOnly": "Available on the Pro plan",

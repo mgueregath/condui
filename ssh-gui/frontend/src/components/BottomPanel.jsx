@@ -1,7 +1,7 @@
 import TransferList from "./TransferList";
 import "./PanelList.css";
 import { useState, useEffect, useMemo } from "react";
-import { Events } from "@wailsio/runtime";
+import { Events, Call } from "@wailsio/runtime";
 import {
   GetTunnels,
   ToggleTunnel,
@@ -783,6 +783,14 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
               }}
             >
               <FaTrash /> {t("panel.clear")}
+            </button>
+          )}
+          {activeTab === "docker" && (
+            <button
+              className="bottom-action-btn"
+              onClick={() => Call.ByName("main.App.OpenDockerExplorerWindow", sessionId).catch((error) => window.alert(String(error)))}
+            >
+              <FaDocker /> {t("panel.dockerExplorer")}
             </button>
           )}
           {showPanelSearch && (

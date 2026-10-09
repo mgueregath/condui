@@ -1,0 +1,30 @@
+.dx-table.dx-stacks-table {
+  width: 100%;
+  min-width: 1000px;
+  table-layout: fixed;
+}
+
+.dx-stacks-table .dx-stack-col-container { width: 25%; }
+.dx-stacks-table .dx-stack-col-service { width: 15%; }
+.dx-stacks-table .dx-stack-col-image { width: 28%; }
+.dx-stacks-table .dx-stack-col-state { width: 10%; }
+.dx-stacks-table .dx-stack-col-ports { width: 20%; }
+
+.dx-table.dx-stacks-table th,
+.dx-table.dx-stacks-table td {
+  overflow-wrap: normal;
+}
+
+.dx-table.dx-stacks-table th,
+.dx-table.dx-stacks-table .dx-state {
+  white-space: nowrap;
+}
+
+.dx-table.dx-stacks-table .dx-stack-text,
+.dx-table.dx-stacks-table .dx-ports li {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
