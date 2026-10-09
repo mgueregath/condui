@@ -44,6 +44,8 @@ body,
 #root {
   width: 100%;
   height: 100%;
+  overflow: hidden;
+  overscroll-behavior-x: none;
   font-family: "Inter", system-ui, sans-serif;
   font-size: 13px;
   background: var(--bg-base);

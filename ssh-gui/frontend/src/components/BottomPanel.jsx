@@ -38,7 +38,6 @@ import {
 import { LuLogs, LuNetwork } from "react-icons/lu";
 import { BiTransfer } from "react-icons/bi";
 import { GiWarpPipe } from "react-icons/gi";
-import { IoIosAdd } from "react-icons/io";
 import { PiCpuFill, PiMemoryFill, PiDiscBold } from "react-icons/pi";
 import { GrRefresh, GrFormRefresh } from "react-icons/gr";
 import { TbNetwork, TbBackground } from "react-icons/tb";
@@ -47,6 +46,7 @@ import { useTranslation } from "react-i18next";
 import AlertModal from "./common/AlertModal";
 import SudoPasswordModal from "./common/SudoPasswordModal";
 import Modal from "./common/Modal";
+import TunnelModal from "./TunnelModal";
 import { MdOutlineFlashAuto, MdOutlineRestartAlt } from "react-icons/md";
 
 const DB_TYPES = {
@@ -1765,178 +1765,18 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
         )}
       </div>
 
-      {/* MODAL INTERNA COMPARTIDA: CREACIÓN / EDICIÓN DE TÚNELES */}
-      {isModalOpen && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.4)",
-            backdropFilter: "blur(3px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 99999,
-          }}
-        >
-          <div
-            style={{
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--card-radius)",
-              padding: "20px",
-              width: "400px",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
-            }}
-          >
-            <h3
-              style={{
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "var(--text-primary)",
-                marginBottom: "16px",
-              }}
-            >
-              {editingTunnelId
-                ? <><FaEdit /> {t("panel.editTunnel")}</>
-                : <><IoIosAdd /> {t("panel.configureTunnel")}</>}
-            </h3>
-
-            <form
-              onSubmit={handleSaveTunnel}
-              style={{ display: "flex", flexDirection: "column", gap: "12px" }}
-            >
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: "4px" }}
-              >
-                <label
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: "600",
-                    color: "var(--text-secondary)",
-                  }}
-                >
-                  {t("panel.localListeningPort")}
-                </label>
-                <input
-                  type="number"
-                  placeholder={t("panel.localPortPlaceholder")}
-                  value={formLocalPort}
-                  onChange={(e) => setFormLocalPort(e.target.value)}
-                  required
-                  style={{
-                    background: "var(--bg-elevated)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "4px",
-                    padding: "6px 10px",
-                    fontSize: "12px",
-                    color: "var(--text-primary)",
-                  }}
-                />
-              </div>
-
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: "4px" }}
-              >
-                <label
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: "600",
-                    color: "var(--text-secondary)",
-                  }}
-                >
-                  {t("panel.remoteHost")}
-                </label>
-                <input
-                  type="text"
-                  placeholder={t("panel.remoteHostPlaceholder")}
-                  value={formRemoteHost}
-                  onChange={(e) => setFormRemoteHost(e.target.value)}
-                  required
-                  style={{
-                    background: "var(--bg-elevated)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "4px",
-                    padding: "6px 10px",
-                    fontSize: "12px",
-                    color: "var(--text-primary)",
-                  }}
-                />
-              </div>
-
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: "4px" }}
-              >
-                <label
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: "600",
-                    color: "var(--text-secondary)",
-                  }}
-                >
-                  {t("panel.remotePort")}
-                </label>
-                <input
-                  type="number"
-                  placeholder={t("panel.remotePortPlaceholder")}
-                  value={formRemotePort}
-                  onChange={(e) => setFormRemotePort(e.target.value)}
-                  required
-                  style={{
-                    background: "var(--bg-elevated)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "4px",
-                    padding: "6px 10px",
-                    fontSize: "12px",
-                    color: "var(--text-primary)",
-                  }}
-                />
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "8px",
-                  marginTop: "12px",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  style={{
-                    background: "none",
-                    border: "1px solid var(--border)",
-                    color: "var(--text-secondary)",
-                    borderRadius: "4px",
-                    padding: "6px 12px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                  }}
-                >
-                  {t("common.cancel")}
-                </button>
-                <button
-                  type="submit"
-                  style={{
-                    background: "var(--accent)",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "4px",
-                    padding: "6px 16px",
-                    fontSize: "12px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                  }}
-                >
-                  {editingTunnelId ? t("panel.saveChanges") : t("panel.addTunnel")}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
+      <TunnelModal
+        open={isModalOpen}
+        editingTunnelId={editingTunnelId}
+        formLocalPort={formLocalPort}
+        setFormLocalPort={setFormLocalPort}
+        formRemoteHost={formRemoteHost}
+        setFormRemoteHost={setFormRemoteHost}
+        formRemotePort={formRemotePort}
+        setFormRemotePort={setFormRemotePort}
+        onSubmit={handleSaveTunnel}
+        onClose={() => setIsModalOpen(false)}
+      />
       <AlertModal
         open={!!alertModal}
         title={alertModal?.title}
