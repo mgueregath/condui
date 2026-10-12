@@ -1,5 +1,8 @@
 # Monitoreo de recursos del sistema
 
+El desglose de RAM, CPU logica, particiones y limites de consulta se describe en
+[resource-monitor-details.md](resource-monitor-details.md).
+
 ## Linux
 
 `ssh-gui/app_system_stats.go` expone `GetSystemStats` y valida la salida.
@@ -27,7 +30,7 @@ producen una tasa cero. El agregado de disco incluye dispositivos y particiones;
 en configuraciones con particiones o dispositivos apilados puede contar actividad
 mas de una vez, por lo que no equivale necesariamente al I/O fisico.
 
-El protocolo interno contiene nueve lineas: CPU, memoria usada/total en bytes,
+El protocolo interno empieza con nueve lineas de resumen: CPU, memoria usada/total en bytes,
 disco usado/total en bytes, uptime en segundos, red inicial RX/TX, disco inicial
 read/write, red final RX/TX, disco final read/write y duracion en segundos.
 La salida incompleta, no numerica o fuera de rango genera un error.
@@ -48,7 +51,7 @@ depender del shell predeterminado de la cuenta SSH. No requiere sudo ni instalar
 | Red | Contadores Ibytes/Obytes de `netstat -ibn`, una fila Link por interfaz; excluye loopback. |
 | Disco I/O | Contadores acumulados Bytes (Read)/Bytes (Write) de los drivers IOBlockStorageDriver, obtenidos con `ioreg`. |
 
-Usa el protocolo de nueve lineas. Los contadores de disco estan en bytes, mientras
+Usa el protocolo de nueve lineas de resumen y registros de detalle. Los contadores de disco estan en bytes, mientras
 que Linux los entrega en sectores de 512 bytes; el parser aplica la unidad correcta.
 Las muestras de red y disco rodean la medicion de CPU. La duracion se mide con
 `date +%s`, con resolucion de un segundo; las tasas son aproximadas y un ajuste del

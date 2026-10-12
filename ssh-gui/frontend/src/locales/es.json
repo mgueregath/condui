@@ -267,7 +267,20 @@
   },
   "resources": {
     "free": "libres",
-    "disk": "Disco"
+    "disk": "Disco",
+    "total": "Total",
+    "used": "Usada",
+    "reserved": "Reservada (wired)",
+    "notReported": "No informada",
+    "buffers": "Buffer / caché",
+    "available": "Disponible",
+    "core": "CPU lógica {{id}}",
+    "coresUnavailable": "Desglose por CPU no disponible. En macOS requiere Python 3 en el host.",
+    "memoryOverlap": "Reservada es parte de la usada. Buffer/caché puede ser recuperable y estar incluido en disponible. En Linux, reservada no se informa por separado.",
+    "partitions": "Particiones montadas",
+    "partitionsUnavailable": "No hay datos de particiones disponibles.",
+    "partitionRefresh": "Actualización cada 60 segundos. Se muestra la última lectura válida.",
+    "updated": "Última lectura: {{time}}"
   },
   "panel": {
     "transferDirection": "Dirección",

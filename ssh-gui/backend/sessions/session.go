@@ -4,11 +4,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sync"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
 	"ssh-gui/backend/osinfo"
+	"ssh-gui/backend/systeminfo"
 )
 
 type SSHSession struct {
@@ -23,6 +25,9 @@ type SSHSession struct {
 	SFTP *sftp.Client
 
 	RemoteOS osinfo.OSType
+
+	SystemStatsMu    sync.Mutex
+	SystemPartitions systeminfo.PartitionCache
 
 	Stdin  io.WriteCloser
 	Stdout io.Reader

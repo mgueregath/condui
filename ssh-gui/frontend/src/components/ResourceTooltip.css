@@ -1,0 +1,58 @@
+.resource-tooltip-trigger {
+  display: inline-flex;
+  border-radius: 3px;
+}
+
+.resource-tooltip-trigger:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.resource-tooltip {
+  position: fixed;
+  z-index: 10000;
+  box-sizing: border-box;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: #151321;
+  color: #c9d1de;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.resource-tooltip strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.resource-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 3px 0;
+}
+
+.resource-detail-row > :last-child {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.resource-detail-note {
+  margin: 8px 0 0;
+  color: #9dafc5;
+  font-size: 11px;
+}
+
+.resource-partition {
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.resource-partition-path {
+  overflow-wrap: anywhere;
+  font-family: "JetBrains Mono", monospace;
+}

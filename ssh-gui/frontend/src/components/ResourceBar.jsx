@@ -1,32 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { GetSystemStats } from "../../bindings/ssh-gui/app";
 import { useTranslation } from "react-i18next";
 import { FaArrowDown, FaArrowUp } from "react-icons/fa";
-
-function fmtGB(gb) {
-  if (gb >= 1000) return `${(gb / 1024).toFixed(1)}T`;
-  if (gb >= 1) return `${gb.toFixed(1)}G`;
-  return `${(gb * 1024).toFixed(0)}M`;
-}
-
-function fmtBps(bps) {
-  if (bps >= 1e9) return `${(bps / 1e9).toFixed(1)}G`;
-  if (bps >= 1e6) return `${(bps / 1e6).toFixed(1)}M`;
-  if (bps >= 1e3) return `${(bps / 1e3).toFixed(0)}K`;
-  return `${Math.round(bps)}B`;
-}
-
-function fmtUptime(secs) {
-  const s = Math.floor(secs);
-  const mo = Math.floor(s / 2592000);
-  const d = Math.floor((s % 2592000) / 86400);
-  const h = Math.floor((s % 86400) / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  if (mo > 0) return `${mo}mo${d}d`;
-  if (d > 0) return `${d}d${h}h`;
-  if (h > 0) return `${h}h${m}m`;
-  return `${m}m`;
-}
+import ResourceTooltip from "./ResourceTooltip";
+import { CPUDetails, MemoryDetails, DiskDetails } from "./ResourceDetails";
+import { fmtGB, fmtBps, fmtUptime } from "./resourceFormat";
 
 function barColor(pct) {
   if (pct > 85) return "var(--red)";
@@ -34,43 +12,45 @@ function barColor(pct) {
   return "var(--accent)";
 }
 
-function StatItem({ label, pct, text }) {
+function StatItem({ label, pct, text, details }) {
   const clamp = Math.min(100, Math.max(0, pct));
   return (
-    <div className="res-item">
-      <span className="res-label">{label}</span>
-      <div className="res-bar">
-        <div
-          className="res-bar-fill"
-          style={{ width: `${clamp}%`, background: barColor(clamp) }}
-        />
+    <ResourceTooltip content={details}>
+      <div className="res-item">
+        <span className="res-label">{label}</span>
+        <div className="res-bar">
+          <div
+            className="res-bar-fill"
+            style={{ width: `${clamp}%`, background: barColor(clamp) }}
+          />
+        </div>
+        <span className="res-value">{text}</span>
       </div>
-      <span className="res-value">{text}</span>
-    </div>
+    </ResourceTooltip>
   );
 }
 
 export default function ResourceBar({ sessionId, disconnected }) {
   const { t } = useTranslation();
   const [stats, setStats] = useState(null);
-  const timer = useRef(null);
 
   useEffect(() => {
     setStats(null);
     if (!sessionId || disconnected) return;
-
+    let active = true;
+    let timer;
     const fetchStats = async () => {
       try {
-        const s = await GetSystemStats(sessionId);
-        setStats(s);
+        const result = await GetSystemStats(sessionId);
+        if (active) setStats(result);
       } catch {
-        /* ignore — session may still be starting */
+        // Keep the last valid sample while the remote session recovers.
+      } finally {
+        if (active) timer = setTimeout(fetchStats, 5000);
       }
     };
-
     fetchStats();
-    timer.current = setInterval(fetchStats, 5000);
-    return () => clearInterval(timer.current);
+    return () => { active = false; clearTimeout(timer); };
   }, [sessionId, disconnected]);
 
   // Siempre renderizar la barra cuando hay sesión activa (aunque no haya stats aún)
@@ -91,18 +71,21 @@ export default function ResourceBar({ sessionId, disconnected }) {
       {stats ? (
         <>
           <StatItem
+            details={<CPUDetails stats={stats} />}
             label="CPU"
             pct={stats.cpuPercent}
             text={`${Math.round(stats.cpuPercent)}%`}
           />
           <div className="res-sep" />
           <StatItem
+            details={<MemoryDetails stats={stats} />}
             label="RAM"
             pct={memPct}
             text={`${fmtGB(stats.memFreeGB)} ${t("resources.free")}`}
           />
           <div className="res-sep" />
           <StatItem
+            details={<DiskDetails stats={stats} />}
             label={t("resources.disk")}
             pct={diskPct}
             text={`${fmtGB(stats.diskFreeGB)} ${t("resources.free")}`}
