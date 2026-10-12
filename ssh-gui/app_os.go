@@ -29,3 +29,19 @@ func (a *App) DetectRemoteOS(sessionID string) (osinfo.OSType, error) {
 
 	return remoteOS, nil
 }
+
+// DetectRemoteLinuxDistribution returns distribution metadata for a Linux SSH host.
+func (a *App) DetectRemoteLinuxDistribution(sessionID string) (osinfo.LinuxDistribution, error) {
+	remoteOS, err := a.DetectRemoteOS(sessionID)
+	if err != nil {
+		return osinfo.LinuxDistribution{}, err
+	}
+	if remoteOS != osinfo.OSLinux {
+		return osinfo.LinuxDistribution{}, fmt.Errorf("remote host is not Linux")
+	}
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return osinfo.LinuxDistribution{}, fmt.Errorf("session not found")
+	}
+	return osinfo.DetectRemoteLinuxDistribution(session.Client)
+}

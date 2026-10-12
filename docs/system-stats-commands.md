@@ -1,74 +1,73 @@
-# Comandos para Stats de Sistema por OS
+# Monitoreo de recursos del sistema
 
-Referencia de comandos para obtener stats de sistema en hosts remotos por SSH.
-El formato recomendado es salida numerica simple para mapearla a `SystemStats`
-sin depender de texto localizado del sistema operativo.
+## Linux
 
-> Estado actual: `ssh-gui/app_docker.go` implementa el flujo Linux usando `/proc`.
-> macOS y Windows quedan documentados aqui como base para extender soporte
-> multiplataforma.
+`ssh-gui/app_system_stats.go` expone `GetSystemStats` y valida la salida.
+`ssh-gui/backend/systeminfo/linux.go` contiene el comando remoto de referencia.
+La interfaz `SystemStats` que consume el frontend conserva sus campos y unidades.
 
-## Formato esperado
+El recolector es comun para Debian, RHEL, Fedora, Arch, SUSE, Alpine y las demas
+familias Linux. No necesita elegir comandos por distribucion ni leer os-release
+para cada consulta. Requiere `/proc` accesible, shell POSIX, `awk`, `df` y `sleep`.
+Utiliza opciones compatibles con GNU y BusyBox; no requiere `free`, `sysstat`,
+`systemd` ni permisos sudo. La compatibilidad en hosts reales requiere validacion manual.
 
-| Campo `SystemStats` | Unidad | Salida recomendada |
-| --- | --- | --- |
-| `cpuPercent` | porcentaje | `0` a `100` |
-| `memUsedGB` / `memFreeGB` / `memTotalGB` | bytes de entrada, GB en Go | `used total` |
-| `diskUsedGB` / `diskFreeGB` / `diskTotalGB` | bytes de entrada, GB en Go | `used total` |
-| `uptimeSecs` | segundos | `seconds` |
-| `netRxBps` / `netTxBps` | bytes por segundo | calcular diferencia entre dos snapshots |
-| `diskReadBps` / `diskWriteBps` | bytes por segundo | calcular diferencia entre dos snapshots |
+| Metrica | Fuente y calculo |
+| --- | --- |
+| CPU | Diferencia de dos lecturas de `/proc/stat`; idle incluye iowait. |
+| Memoria | `/proc/meminfo`: MemTotal menos MemAvailable; fallback con memoria libre, buffers, cache y memoria recuperable para kernels antiguos. |
+| Disco raiz | `df -Pk /`; bloques de 1024 bytes convertidos sin enteros de 32 bits. |
+| Uptime | `/proc/uptime`. |
+| Red | Diferencia de bytes RX/TX de `/proc/net/dev`, excluyendo loopback. |
+| Disco I/O | Diferencia de sectores de `/proc/diskstats`, multiplicada por 512 bytes; excluye loop, ram y zram. |
 
-## Tabla de comandos
+CPU, red y disco se muestrean alrededor de `sleep 1`. Las tasas se dividen por el
+tiempo transcurrido medido con `/proc/uptime`. Los contadores que retroceden
+producen una tasa cero. El agregado de disco incluye dispositivos y particiones;
+en configuraciones con particiones o dispositivos apilados puede contar actividad
+mas de una vez, por lo que no equivale necesariamente al I/O fisico.
 
-| Metrica | Linux | macOS | Windows PowerShell |
-| --- | --- | --- | --- |
-| CPU % | `cpu1=$(awk 'NR==1{print $2+$3+$4+$5+$6+$7+$8+$9,$5+$6}' /proc/stat 2>/dev/null); sleep 0.2; cpu2=$(awk 'NR==1{print $2+$3+$4+$5+$6+$7+$8+$9,$5+$6}' /proc/stat 2>/dev/null); awk -v a="$cpu1" -v b="$cpu2" 'BEGIN{split(a,x," ");split(b,y," ");dt=y[1]-x[1];di=y[2]-x[2];if(dt>0){pct=(1-di/dt)*100;if(pct<0)pct=0;if(pct>100)pct=100;printf "%.0f\n",pct}else print 0}'` | `top -l 2 -n 0 -s 1 \| awk '/CPU usage/ {idle=$7} END {gsub(/%/,"",idle); printf "%.0f\n",100-idle}'` | `(Get-Counter '\Processor(_Total)\% Processor Time').CounterSamples.CookedValue \| ForEach-Object { [math]::Round($_) }` |
-| Memoria | `free -b 2>/dev/null \| awk '/Mem:/{printf "%d %d\n",$3,$2}'` | `vm_stat \| awk '/Pages active/ {a=$3} /Pages wired/ {w=$4} /Pages occupied by compressor/ {c=$5} END {gsub("\\\\.","",a);gsub("\\\\.","",w);gsub("\\\\.","",c); used=(a+w+c)*4096; cmd="sysctl -n hw.memsize"; cmd \| getline total; close(cmd); printf "%.0f %.0f\n",used,total}'` | `$os=Get-CimInstance Win32_OperatingSystem; $total=[double]$os.TotalVisibleMemorySize*1024; $free=[double]$os.FreePhysicalMemory*1024; "{0} {1}" -f [math]::Round($total-$free),[math]::Round($total)` |
-| Disco raiz | `df -B1 / 2>/dev/null \| awk 'NR==2{printf "%d %d\n",$3,$2}'` | `df -k / \| awk 'NR==2{printf "%.0f %.0f\n",$3*1024,$2*1024}'` | `$d=Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"; "{0} {1}" -f ($d.Size-$d.FreeSpace),$d.Size` |
-| Uptime | `awk '{printf "%.0f\n",$1}' /proc/uptime 2>/dev/null` | `boot=$(sysctl -n kern.boottime \| sed -E 's/.*sec = ([0-9]+).*/\1/'); now=$(date +%s); echo $((now-boot))` | `$os=Get-CimInstance Win32_OperatingSystem; [math]::Round(((Get-Date)-$os.LastBootUpTime).TotalSeconds)` |
-| Red snapshot RX/TX | `awk 'NR>2{gsub(/:/,"",$1);if($1!="lo"){rx+=$2;tx+=$10}} END{print rx+0,tx+0}' /proc/net/dev 2>/dev/null` | `netstat -ibn \| awk 'NR>1 && $1!="lo0" {rx+=$7; tx+=$10} END {print rx+0,tx+0}'` | `Get-NetAdapterStatistics \| Measure-Object -Property ReceivedBytes,SentBytes -Sum \| ForEach-Object {}` *(usar script recomendado abajo)* |
-| Disco snapshot read/write | `awk '$3!~/^loop/{r+=$6;w+=$10} END{print r+0,w+0}' /proc/diskstats 2>/dev/null` | `iostat -Id disk0 1 2 \| awk 'NF>=3 && $1 ~ /^disk/ {r=$2; w=$3} END {printf "%.0f %.0f\n",r*1024,w*1024}'` | `Get-Counter '\PhysicalDisk(_Total)\Disk Read Bytes/sec','\PhysicalDisk(_Total)\Disk Write Bytes/sec'` |
+El protocolo interno contiene nueve lineas: CPU, memoria usada/total en bytes,
+disco usado/total en bytes, uptime en segundos, red inicial RX/TX, disco inicial
+read/write, red final RX/TX, disco final read/write y duracion en segundos.
+La salida incompleta, no numerica o fuera de rango genera un error.
+La memoria libre mostrada representa memoria disponible, incluyendo cache recuperable.
 
-## Scripts recomendados por OS
+## macOS
 
-### Linux
+Implementado en `ssh-gui/backend/systeminfo/macos.go`. `GetSystemStats` selecciona
+el recolector segun el OS remoto. Ambos comandos se ejecutan con `/bin/sh`, sin
+depender del shell predeterminado de la cuenta SSH. No requiere sudo ni instalar paquetes.
 
-Este es el flujo equivalente al implementado actualmente. Emite ocho lineas:
-CPU, memoria, disco, uptime, red snapshot 1, disco snapshot 1, red snapshot 2,
-disco snapshot 2.
+| Metrica | Fuente y calculo |
+| --- | --- |
+| CPU | Segunda muestra de `top -l 2 -n 0 -s 1`: 100 menos idle. |
+| Memoria | `vm_stat`: paginas activas, wired y ocupadas por el compresor, multiplicadas por el tamano de pagina informado; total desde `sysctl -n hw.memsize`. |
+| Disco | `df -Pk /System/Volumes/Data` cuando existe, o `/` en sistemas anteriores. |
+| Uptime | Diferencia entre `date +%s` y `sysctl -n kern.boottime`. |
+| Red | Contadores Ibytes/Obytes de `netstat -ibn`, una fila Link por interfaz; excluye loopback. |
+| Disco I/O | Contadores acumulados Bytes (Read)/Bytes (Write) de los drivers IOBlockStorageDriver, obtenidos con `ioreg`. |
 
-```sh
-cpu1=$(awk 'NR==1{print $2+$3+$4+$5+$6+$7+$8+$9,$5+$6}' /proc/stat 2>/dev/null)
-sleep 0.2
-cpu2=$(awk 'NR==1{print $2+$3+$4+$5+$6+$7+$8+$9,$5+$6}' /proc/stat 2>/dev/null)
-awk -v a="$cpu1" -v b="$cpu2" 'BEGIN{split(a,x," ");split(b,y," ");dt=y[1]-x[1];di=y[2]-x[2];if(dt>0){pct=(1-di/dt)*100;if(pct<0)pct=0;if(pct>100)pct=100;printf "%.0f\n",pct}else print 0}'
-free -b 2>/dev/null | awk '/Mem:/{printf "%d %d\n",$3,$2}' || echo '0 0'
-df -B1 / 2>/dev/null | awk 'NR==2{printf "%d %d\n",$3,$2}' || echo '0 0'
-awk '{printf "%.0f\n",$1}' /proc/uptime 2>/dev/null || echo 0
-awk 'NR>2{gsub(/:/,"",$1);if($1!="lo"){rx+=$2;tx+=$10}} END{print rx+0,tx+0}' /proc/net/dev 2>/dev/null || echo '0 0'
-awk '$3!~/^loop/{r+=$6;w+=$10} END{print r+0,w+0}' /proc/diskstats 2>/dev/null || echo '0 0'
-sleep 1
-awk 'NR>2{gsub(/:/,"",$1);if($1!="lo"){rx+=$2;tx+=$10}} END{print rx+0,tx+0}' /proc/net/dev 2>/dev/null || echo '0 0'
-awk '$3!~/^loop/{r+=$6;w+=$10} END{print r+0,w+0}' /proc/diskstats 2>/dev/null || echo '0 0'
-```
+Usa el protocolo de nueve lineas. Los contadores de disco estan en bytes, mientras
+que Linux los entrega en sectores de 512 bytes; el parser aplica la unidad correcta.
+Las muestras de red y disco rodean la medicion de CPU. La duracion se mide con
+`date +%s`, con resolucion de un segundo; las tasas son aproximadas y un ajuste del
+reloj del host puede afectar la muestra. La memoria usada es una estimacion basada
+en paginas activas, wired y comprimidas; no reproduce exactamente Activity Monitor.
+El espacio libre de APFS se calcula como total menos usado y puede incluir espacio
+reservado o compartido. Red y disco agregan las interfaces y drivers visibles;
+interfaces virtuales o drivers apilados pueden duplicar actividad.
 
-### macOS
+Fuentes: [memoria virtual de Apple](https://developer.apple.com/library/archive/documentation/Performance/Conceptual/ManagingMemory/Articles/VMPages.html),
+[contadores de IOBlockStorageDriver](https://github.com/apple-oss-distributions/IOStorageFamily/blob/main/IOBlockStorageDriver.h),
+[implementacion de netstat](https://github.com/apple-oss-distributions/network_cmds/blob/main/netstat.tproj/if.c).
 
-Emite el mismo esquema de ocho lineas. Para disco I/O se usa `iostat` sobre
-discos `disk*` y se suma la actividad visible.
+Validacion pendiente en hosts macOS Intel y Apple Silicon. No se ejecutaron
+pruebas dinamicas ni builds.
 
-```sh
-top -l 2 -n 0 -s 1 | awk '/CPU usage/ {idle=$7} END {gsub(/%/,"",idle); printf "%.0f\n",100-idle}'
-vm_stat | awk '/Pages active/ {a=$3} /Pages wired/ {w=$4} /Pages occupied by compressor/ {c=$5} END {gsub("\\.","",a);gsub("\\.","",w);gsub("\\.","",c); used=(a+w+c)*4096; cmd="sysctl -n hw.memsize"; cmd | getline total; close(cmd); printf "%.0f %.0f\n",used,total}'
-df -k / | awk 'NR==2{printf "%.0f %.0f\n",$3*1024,$2*1024}'
-boot=$(sysctl -n kern.boottime | sed -E 's/.*sec = ([0-9]+).*/\1/'); now=$(date +%s); echo $((now-boot))
-netstat -ibn | awk 'NR>1 && $1!="lo0" {rx+=$7; tx+=$10} END {print rx+0,tx+0}'
-iostat -Id disk0 1 2 | awk 'NF>=3 && $1 ~ /^disk/ {r+=$2; w+=$3} END {printf "%.0f %.0f\n",r*1024,w*1024}'
-sleep 1
-netstat -ibn | awk 'NR>1 && $1!="lo0" {rx+=$7; tx+=$10} END {print rx+0,tx+0}'
-iostat -Id disk0 1 2 | awk 'NF>=3 && $1 ~ /^disk/ {r+=$2; w+=$3} END {printf "%.0f %.0f\n",r*1024,w*1024}'
-```
+## Windows (referencia, no implementado)
+
+El siguiente script usa ocho lineas y requiere adaptar el parser.
 
 ### Windows PowerShell
 
@@ -87,11 +86,3 @@ Start-Sleep -Seconds 1
 $rx=(Get-NetAdapterStatistics | Measure-Object -Property ReceivedBytes -Sum).Sum; $tx=(Get-NetAdapterStatistics | Measure-Object -Property SentBytes -Sum).Sum; "{0} {1}" -f $rx,$tx
 $disk=Get-Counter '\PhysicalDisk(_Total)\Disk Read Bytes/sec','\PhysicalDisk(_Total)\Disk Write Bytes/sec'; "{0} {1}" -f [math]::Round($disk.CounterSamples[0].CookedValue),[math]::Round($disk.CounterSamples[1].CookedValue)
 ```
-
-## Notas de implementacion
-
-- Preferir comandos que existan por defecto en cada OS.
-- Mantener una salida de ocho lineas para reutilizar el parser actual cuando sea posible.
-- En Linux, los valores de `/proc/diskstats` son sectores; el backend actual multiplica por `512` para obtener bytes/s.
-- En macOS, `iostat` puede requerir ajustar el identificador de disco (`disk0`) si se quiere cubrir todos los discos fisicos.
-- En Windows, PowerShell por SSH puede requerir ejecutar el comando bajo `powershell -NoProfile -Command`.
