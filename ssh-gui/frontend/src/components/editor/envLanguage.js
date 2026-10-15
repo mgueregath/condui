@@ -2,6 +2,9 @@ export function registerEnvLanguage(monaco) {
   if (monaco.languages.getLanguages().some(({ id }) => id === "dotenv")) return;
 
   monaco.languages.register({ id: "dotenv" });
+  monaco.languages.setLanguageConfiguration("dotenv", {
+    comments: { lineComment: "#" },
+  });
   monaco.languages.setMonarchTokensProvider("dotenv", {
     tokenizer: {
       root: [
