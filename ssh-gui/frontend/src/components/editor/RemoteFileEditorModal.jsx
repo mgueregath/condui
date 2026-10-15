@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
+import { registerEnvLanguage } from "./envLanguage";
 import RemoteMarkdownPreview from "./RemoteMarkdownPreview";
 import "./RemoteFileEditor.css";
 import { createPortal } from "react-dom";
@@ -9,7 +10,9 @@ const getExtension = (path = "") => {
   return path.split(".").pop()?.toLowerCase();
 };
 
-const getLanguage = (path) => {
+const getLanguage = (path = "") => {
+  const fileName = path.split(/[\\/]/).pop().toLowerCase();
+  if (fileName.startsWith(".env.") || fileName === ".env") return "dotenv";
   const ext = getExtension(path);
   const map = {
     js: "javascript",
@@ -29,7 +32,7 @@ const getLanguage = (path) => {
     markdown: "markdown",
     sql: "sql",
     xml: "xml",
-    env: "plaintext",
+    env: "dotenv",
     log: "plaintext",
     txt: "plaintext",
   };
@@ -155,6 +158,7 @@ export default function RemoteFileEditorModal({
               height="100%"
               theme="vs-dark"
               language={language}
+              beforeMount={registerEnvLanguage}
               value={content}
               options={{
                 minimap: { enabled: false },
