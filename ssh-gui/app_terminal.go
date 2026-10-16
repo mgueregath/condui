@@ -43,6 +43,14 @@ func remoteHomePath(remoteOS osinfo.OSType, username string) string {
 	}
 }
 
+// resolveRemoteHome uses the SFTP login directory, including custom user homes.
+func resolveRemoteHome(client *sftp.Client, remoteOS osinfo.OSType, username string) string {
+	if home, err := client.Getwd(); err == nil && home != "" {
+		return home
+	}
+	return remoteHomePath(remoteOS, username)
+}
+
 // buildHostKeyCallback returns an SSH HostKeyCallback that implements TOFU
 // verification for the given host:port, prompting the user on first connection.
 func (a *App) buildHostKeyCallback(ctx context.Context, host string, port int) ssh.HostKeyCallback {
@@ -642,7 +650,7 @@ func (a *App) ConnectSSH(connectionID string) (SSHConnectResult, error) {
 
 	return SSHConnectResult{
 		SessionID: sessionID,
-		HomePath:  remoteHomePath(remoteOS, username),
+		HomePath:  resolveRemoteHome(sftpClient, remoteOS, username),
 	}, nil
 }
 
@@ -806,7 +814,7 @@ func (a *App) ConnectSSHVia(connectionID, jumpHostID string) (SSHConnectResult, 
 
 	return SSHConnectResult{
 		SessionID: sessionID,
-		HomePath:  remoteHomePath(remoteOS, username),
+		HomePath:  resolveRemoteHome(sftpClient, remoteOS, username),
 	}, nil
 }
 
