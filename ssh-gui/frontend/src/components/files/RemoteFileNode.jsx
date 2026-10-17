@@ -1,5 +1,29 @@
-import { FaFolder, FaFile } from "react-icons/fa";
+import {
+  FaFolder, FaFile, FaFileAudio, FaFileCode, FaFileCsv, FaFileExcel,
+  FaFileImage, FaFileLines, FaFilePdf, FaFilePowerpoint, FaFileVideo,
+  FaFileWord, FaFileZipper,
+} from "react-icons/fa6";
 import { useTranslation } from "react-i18next";
+
+const fileIcons = Object.fromEntries([
+  [FaFileImage, "jpg jpeg png gif webp svg ico bmp tiff tif avif heic"],
+  [FaFileAudio, "mp3 wav ogg flac aac m4a wma opus aiff"],
+  [FaFileVideo, "mp4 mkv avi mov webm m4v wmv mpeg mpg"],
+  [FaFileZipper, "zip rar 7z tar gz bz2 xz tgz zst"],
+  [FaFilePdf, "pdf"],
+  [FaFileWord, "doc docx odt rtf"],
+  [FaFileExcel, "xls xlsx ods"],
+  [FaFilePowerpoint, "ppt pptx odp"],
+  [FaFileCsv, "csv tsv"],
+  [FaFileLines, "txt md markdown log rst"],
+  [FaFileCode, "js jsx ts tsx mjs cjs html htm css scss sass less json jsonc xml yaml yml toml ini conf cfg env py go rs java c h cpp hpp cs php rb sh bash zsh fish ps1 bat cmd sql vue svelte dockerfile"],
+].flatMap(([Icon, extensions]) => extensions.split(" ").map((extension) => [extension, Icon])));
+
+function getFileIcon(name) {
+  const normalizedName = name.toLowerCase();
+  if (["dockerfile", "makefile", "jenkinsfile"].includes(normalizedName)) return FaFileCode;
+  return fileIcons[normalizedName.split(".").pop()] || FaFile;
+}
 
 function fmtSize(bytes, isDir, folderLabel) {
   if (isDir) return folderLabel;
@@ -21,6 +45,7 @@ function fmtDate(iso) {
 export default function RemoteFileNode({ item, onOpen, onOpenFile, onContextMenu }) {
   const { t, i18n } = useTranslation();
   const isDir = item.isDirectory;
+  const Icon = isDir ? FaFolder : getFileIcon(item.name);
 
   return (
     <div
@@ -35,7 +60,7 @@ export default function RemoteFileNode({ item, onOpen, onOpenFile, onContextMenu
       }}
     >
       <div className={"file-node-icon" + (isDir ? " dir" : "")}>
-        {isDir ? <FaFolder /> : <FaFile />}
+        <Icon />
       </div>
       <div className="file-node-info">
         <span className="file-node-name">{item.name}</span>
