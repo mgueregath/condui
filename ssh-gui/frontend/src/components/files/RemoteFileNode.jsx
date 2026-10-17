@@ -24,7 +24,7 @@ export default function RemoteFileNode({ item, onOpen, onOpenFile, onContextMenu
 
   return (
     <div
-      className="file-node"
+      className={"file-node" + (item.name.startsWith(".") ? " is-hidden" : "")}
       onDoubleClick={() => {
         if (isDir) onOpen(item);
         else onOpenFile(item);

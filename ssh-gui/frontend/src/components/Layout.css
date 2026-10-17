@@ -812,9 +812,9 @@ body,
   color: var(--text-secondary);
 }
 .files-sort-btn.active {
-  background: rgba(var(--accent-rgb, 99, 102, 241), 0.12);
-  border-color: rgba(var(--accent-rgb, 99, 102, 241), 0.3);
-  color: var(--accent, #818cf8);
+  background: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--accent);
 }
 .sort-arrow {
   font-size: 9px;
@@ -841,10 +841,10 @@ body,
 .file-node-icon {
   flex-shrink: 0;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 .file-node-icon.dir {
-  color: #3b82f6;
+  color: var(--accent);
 }
 .file-node-icon svg {
   display: block;
@@ -869,13 +869,18 @@ body,
   align-items: center;
   gap: 4px;
   font-size: 9.5px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-family: var(--font-mono, monospace);
   -webkit-user-select: none;
   user-select: none;
 }
 .file-node-meta-sep {
   opacity: 0.5;
+}
+.file-node.is-hidden .file-node-icon,
+.file-node.is-hidden .file-node-name,
+.file-node.is-hidden .file-node-meta {
+  color: var(--text-muted);
 }
 .file-icon {
   font-size: 13px;
