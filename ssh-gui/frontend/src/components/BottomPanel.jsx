@@ -44,6 +44,8 @@ import { GrRefresh, GrFormRefresh } from "react-icons/gr";
 import { TbNetwork, TbBackground } from "react-icons/tb";
 import { TiFlashOutline } from "react-icons/ti";
 import { useTranslation } from "react-i18next";
+import ResponseMessage from "./common/ResponseMessage";
+import useResponseAction from "../hooks/useResponseAction";
 import AlertModal from "./common/AlertModal";
 import SudoPasswordModal from "./common/SudoPasswordModal";
 import Modal from "./common/Modal";
@@ -257,6 +259,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
   const [vboxError, setVboxError] = useState(null);
   const [vboxActionLoading, setVboxActionLoading] = useState(null);
   const [dockerStats, setDockerStats] = useState({}); // map containerID to stats
+  const dockerOpen = useResponseAction();
   const [alertModal, setAlertModal] = useState(null);
   const showAlert = (message, title = t("app.notice")) =>
     setAlertModal({ title, message });
@@ -788,7 +791,8 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
           {activeTab === "docker" && (
             <button
               className="bottom-action-btn"
-              onClick={() => Call.ByName("main.App.OpenDockerExplorerWindow", sessionId).catch((error) => window.alert(String(error)))}
+              disabled={dockerOpen.busy}
+              onClick={() => dockerOpen.run(() => Call.ByName("main.App.OpenDockerExplorerWindow", sessionId), t("panel.response.opening"), t("panel.response.openFailed"))}
             >
               <FaDocker /> {t("panel.dockerExplorer")}
             </button>
@@ -832,6 +836,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
         }}
       >
         {/* PESTAÑA: LOGS */}
+        {activeTab === "docker" && <ResponseMessage {...dockerOpen.response} />}
         {activeTab === "logs" && (
           <div
             className="logs-tab-content"

@@ -440,6 +440,24 @@ func (a *App) TestConnectionParams(host string, port int, username, authType, pa
 		}
 	}
 
+	if strings.HasPrefix(passphrase, storedConnectionPasswordPrefix) {
+		connectionID := strings.TrimPrefix(passphrase, storedConnectionPasswordPrefix)
+		connection, err := a.database.GetConnectionByID(connectionID)
+		if err != nil {
+			return fmt.Errorf("connection not found: %w", err)
+		}
+		passphrase = ""
+		if connection.Passphrase != nil {
+			if isSyncEncrypted(*connection.Passphrase) {
+				return fmt.Errorf("connection passphrase is pending vault unlock")
+			}
+			passphrase, err = decryptConnectionPassword(*connection.Passphrase, key)
+			if err != nil {
+				return fmt.Errorf("vault error: %w", err)
+			}
+		}
+	}
+
 	targetConfig, err := a.buildSSHConfig(context.Background(), username, authType, privateKeyPath, host, port, password, passphrase)
 	if err != nil {
 		return err

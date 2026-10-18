@@ -1,5 +1,10 @@
 {
   "common": {
+    "response": {
+      "details": "Detalles técnicos",
+      "progress": "Progreso",
+      "saving": "Guardando..."
+    },
     "cancel": "Cancelar",
     "close": "Cerrar",
     "confirm": "Confirmar",
@@ -122,6 +127,9 @@
     "incorrectPassword": "Contraseña incorrecta"
   },
   "account": {
+    "response": {
+      "syncFailed": "No se pudo sincronizar. Inténtalo de nuevo."
+    },
     "account": "Cuenta",
     "lastSync": "Última sincronización: {{date}}",
     "neverSynced": "Nunca se ha sincronizado",
@@ -183,6 +191,10 @@
     "cancelFailed": "No se pudo cancelar la invitación"
   },
   "connection": {
+    "response": {
+      "saveFailed": "No se pudo guardar la conexión. Revisa los datos e inténtalo de nuevo.",
+      "folderFailed": "No se pudo guardar la carpeta. Inténtalo de nuevo."
+    },
     "editTitle": "Editar conexión",
     "newTitle": "Nueva conexión",
     "description": "Configura los datos de tu conexión SSH",
@@ -249,6 +261,13 @@
     "type": "Tipo",
     "saveChangesConfirm": "¿Guardar los cambios?",
     "discardChanges": "Descartar cambios",
+    "removal": {
+      "failed": "No se pudo completar el borrado. Algunos elementos podrían haberse eliminado. Actualiza la lista antes de reintentar.",
+      "working": "Eliminando elementos...",
+      "counting": "Calculando elementos...",
+      "progress": "Eliminando elementos: {{percent}}%",
+      "label": "Progreso del borrado"
+    },
     "deleteDirectoryConfirm": "¿Eliminar {{name}} y todo su contenido?",
     "deleteConfirm": "¿Eliminar {{name}}?",
     "newName": "Nuevo nombre",
@@ -283,6 +302,10 @@
     "updated": "Última lectura: {{time}}"
   },
   "panel": {
+    "response": {
+      "opening": "Abriendo el explorador Docker...",
+      "openFailed": "No se pudo abrir el explorador Docker. Inténtalo de nuevo."
+    },
     "transferDirection": "Dirección",
     "transferDate": "Fecha",
     "transferFile": "Archivo",

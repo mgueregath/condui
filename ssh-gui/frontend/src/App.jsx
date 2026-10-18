@@ -52,6 +52,8 @@ import BottomPanel from "./components/BottomPanel";
 import ResourceBar from "./components/ResourceBar";
 import { useConnections } from "./hooks/useConnections";
 import Modal from "./components/common/Modal";
+import ResponseMessage from "./components/common/ResponseMessage";
+import { responseError } from "./components/common/responseError";
 import AlertModal from "./components/common/AlertModal";
 import ConnectionNode from "./components/connections/ConnectionNode";
 import FolderNode from "./components/connections/FolderNode";
@@ -114,7 +116,7 @@ function LeftSidebar({
   connections,
   pendingInvites,
   acceptingInviteId,
-  connectingId,
+  connectingIds,
   expandedFolders,
   onToggleFolder,
   onOpenConnection,
@@ -230,7 +232,7 @@ function LeftSidebar({
                       ...c,
                       online: tabs.filter((tab) => tab.connectionId === c.id).length,
                     }}
-                    connecting={connectingId === c.id}
+                    connecting={!!connectingIds[c.id]}
                     connections={connections}
                     folders={folders}
                     onOpen={onOpenConnection}
@@ -262,7 +264,7 @@ function LeftSidebar({
                       ...c,
                       online: tabs.filter((tab) => tab.connectionId === c.id).length,
                     }}
-                    connecting={connectingId === c.id}
+                    connecting={!!connectingIds[c.id]}
                     connections={connections}
                     folders={folders}
                     onOpen={onOpenConnection}
@@ -325,7 +327,16 @@ function App() {
   const [tabs, setTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
   const [fileTreePaths, setFileTreePaths] = useState({});
-  const [connectingId, setConnectingId] = useState(null);
+  const [connectingIds, setConnectingIds] = useState({});
+  const updateConnecting = (id, pending) => {
+    setConnectingIds((prev) => {
+      const next = { ...prev };
+      const count = (next[id] || 0) + (pending ? 1 : -1);
+      if (count > 0) next[id] = count;
+      else delete next[id];
+      return next;
+    });
+  };
   const [connectionChoice, setConnectionChoice] = useState(null);
   const [sshError, setSshError] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
@@ -516,7 +527,7 @@ function App() {
     const connection = connections.find((c) => c.id === tab.connectionId);
     if (!connection) return;
 
-    setConnectingId(tab.connectionId);
+    updateConnecting(tab.connectionId, true);
     try {
       const connectResult = parseConnectResult(await ConnectSSH(tab.connectionId));
       const newSessionId = connectResult.sessionId;
@@ -553,10 +564,12 @@ function App() {
         connection: tab.title,
       });
     } finally {
-      setConnectingId(null);
+      updateConnecting(tab.connectionId, false);
     }
   };
 
+  const [formBusy, setFormBusy] = useState(false);
+  const [accountBusy, setAccountBusy] = useState(false);
   const [folderModalOpen, setFolderModalOpen] = useState(false);
   const [connectionModalOpen, setConnectionModalOpen] = useState(false);
   const [assignFolderModalOpen, setAssignFolderModalOpen] = useState(false);
@@ -751,7 +764,7 @@ function App() {
       return;
     }
 
-    setConnectingId(c.id);
+    updateConnecting(c.id, true);
 
     try {
       const connectResult = parseConnectResult(await ConnectSSH(c.id));
@@ -781,7 +794,7 @@ function App() {
         });
       }
     } finally {
-      setConnectingId(null);
+      updateConnecting(c.id, false);
     }
   };
 
@@ -790,7 +803,7 @@ function App() {
   };
 
   const handleOpenLocalTerminal = async () => {
-    setConnectingId("__local");
+    updateConnecting("__local", true);
 
     try {
       const connectResult = parseConnectResult(await StartLocalTerminal());
@@ -815,12 +828,12 @@ function App() {
         connection: t("app.localTerminal"),
       });
     } finally {
-      setConnectingId(null);
+      updateConnecting("__local", false);
     }
   };
 
   const handleConnectVia = async (connection, jumpHost) => {
-    setConnectingId(connection.id);
+    updateConnecting(connection.id, true);
     try {
       const connectResult = parseConnectResult(await ConnectSSHVia(connection.id, jumpHost.id));
       const sessionId = connectResult.sessionId;
@@ -847,7 +860,7 @@ function App() {
         });
       }
     } finally {
-      setConnectingId(null);
+      updateConnecting(connection.id, false);
     }
   };
 
@@ -1148,7 +1161,7 @@ function App() {
             setDeleteFolderError("");
             setDeleteFolderTarget(f);
           }}
-          connectingId={connectingId}
+          connectingIds={connectingIds}
           activeSessionId={activeTab}
           onShareConnection={(c) => setShareTarget(c)}
           onUnlockPendingConnection={() => setUnlockPendingTarget(connections.filter((c) => c.passwordPending))}
@@ -1168,7 +1181,7 @@ function App() {
             onClose={handleCloseTab}
             onReconnect={handleReconnect}
             onOpenLocalTerminal={handleOpenLocalTerminal}
-            connectingId={connectingId}
+            connectingIds={connectingIds}
           />
           <div
             className="card-inner"
@@ -1285,12 +1298,12 @@ function App() {
                         <div className="terminal-reconnect-spacer">
                           <button
                             className="terminal-reconnect-btn"
-                            disabled={connectingId === activeTabData?.connectionId}
+                            disabled={!!connectingIds[activeTabData?.connectionId]}
                             onClick={() => handleReconnect(activeTabData)}
                           >
                             <FaRedoAlt />
                              &nbsp;
-                            {connectingId === activeTabData?.connectionId
+                            {!!connectingIds[activeTabData?.connectionId]
                               ? t("app.connecting")
                               : t("app.reconnect")}
                              
@@ -1344,10 +1357,10 @@ function App() {
                   className="terminal-reconnect-btn"
                   style={{ marginTop: "16px" }}
                   onClick={handleOpenLocalTerminal}
-                  disabled={connectingId === "__local"}
+                  disabled={!!connectingIds["__local"]}
                 >
                   <FaTerminal /> &nbsp;
-                  {connectingId === "__local"
+                  {!!connectingIds["__local"]
                     ? t("app.connecting")
                     : t("app.openLocalTerminal")}
                 </button>
@@ -1361,25 +1374,23 @@ function App() {
       <Modal
         open={folderModalOpen}
         onClose={() => {
+          if (formBusy) return;
           setFolderModalOpen(false);
           setEditingFolder(null);
         }}
       >
         <FolderModal
+          onBusyChange={setFormBusy}
           initialName={editingFolder?.name || ""}
           onSave={async (name) => {
-            try {
-              if (editingFolder) {
-                await UpdateFolder(editingFolder.id, name);
-              } else {
-                await CreateFolder(name);
-              }
-              await reload();
-              setFolderModalOpen(false);
-              setEditingFolder(null);
-            } catch (err) {
-              console.error(err);
+            if (editingFolder) {
+              await UpdateFolder(editingFolder.id, name);
+            } else {
+              await CreateFolder(name);
             }
+            await reload();
+            setFolderModalOpen(false);
+            setEditingFolder(null);
           }}
         />
       </Modal>
@@ -1387,11 +1398,13 @@ function App() {
       <Modal
         open={connectionModalOpen}
         onClose={() => {
+          if (formBusy) return;
           setConnectionModalOpen(false);
           setEditingConnection(null);
         }}
       >
         <ConnectionModal
+          onBusyChange={setFormBusy}
           folders={folders}
           connections={connections}
           accountStatus={accountStatus}
@@ -1401,21 +1414,17 @@ function App() {
             setEditingConnection(null);
           }}
           onSave={async (connection) => {
-            try {
-              if (editingConnection) {
-                await UpdateConnection({
-                  ...connection,
-                  id: editingConnection.id,
-                });
-              } else {
-                await CreateConnection(connection);
-              }
-              await reload();
-              setConnectionModalOpen(false);
-              setEditingConnection(null);
-            } catch (err) {
-              console.error(err);
+            if (editingConnection) {
+              await UpdateConnection({
+                ...connection,
+                id: editingConnection.id,
+              });
+            } else {
+              await CreateConnection(connection);
             }
+            await reload();
+            setConnectionModalOpen(false);
+            setEditingConnection(null);
           }}
         />
       </Modal>
@@ -1423,22 +1432,20 @@ function App() {
       <Modal
         open={assignFolderModalOpen}
         onClose={() => {
+          if (formBusy) return;
           setAssignFolderModalOpen(false);
           setAssigningConnection(null);
         }}
       >
         <AssignFolderModal
+          onBusyChange={setFormBusy}
           connection={assigningConnection}
           folders={folders}
           onSave={async (updated) => {
-            try {
-              await UpdateConnection(updated);
-              await reload();
-              setAssignFolderModalOpen(false);
-              setAssigningConnection(null);
-            } catch (err) {
-              console.error(err);
-            }
+            await UpdateConnection(updated);
+            await reload();
+            setAssignFolderModalOpen(false);
+            setAssigningConnection(null);
           }}
         />
       </Modal>
@@ -1559,11 +1566,7 @@ function App() {
           </div>
 
           <div className="modal-body">
-            <div className="ssh-error-box">
-              <div className="ssh-error-title">{sshError?.connection}</div>
-
-              <pre>{sshError?.message}</pre>
-            </div>
+            <ResponseMessage {...responseError(sshError?.message, t("app.unableEstablishSsh"))} />
           </div>
 
           <div className="modal-footer">
@@ -1580,8 +1583,8 @@ function App() {
         onClose={() => setAlertModal(null)}
       />
       {/* Account modal */}
-      <Modal className="settings-modal-shell" open={accountModalOpen} onClose={() => { setAccountModalOpen(false); refreshAccountStatus(); }}>
-        <AccountModal onClose={() => { setAccountModalOpen(false); refreshAccountStatus(); }} />
+      <Modal className="settings-modal-shell" open={accountModalOpen} onClose={() => { if (!accountBusy) { setAccountModalOpen(false); refreshAccountStatus(); } }}>
+        <AccountModal onBusyChange={setAccountBusy} onClose={() => { if (!accountBusy) { setAccountModalOpen(false); refreshAccountStatus(); } }} />
       </Modal>
 
       {/* Share modal */}

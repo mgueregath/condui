@@ -11,9 +11,13 @@ import {
   OpenSqliteExplorerWindow,
 } from "../../../bindings/ssh-gui/app";
 
+import { Events } from "@wailsio/runtime";
+
 import RemoteFileNode from "./RemoteFileNode";
 import FileContextMenu from "./FileContextMenu";
 import RemoteFileEditorModal from "../editor/RemoteFileEditorModal";
+import ResponseMessage from "../common/ResponseMessage";
+import { responseError } from "../common/responseError";
 import AlertModal from "../common/AlertModal";
 import Modal from "../common/Modal";
 import { useTranslation } from "react-i18next";
@@ -54,6 +58,10 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
     setAlertModal({ title, message });
 
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteResponse, setDeleteResponse] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deletePercent, setDeletePercent] = useState(null);
+
   const [textPrompt, setTextPrompt] = useState(null);
   const [unsavedConfirm, setUnsavedConfirm] = useState(false);
 
@@ -120,14 +128,31 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
   };
 
   const deleteFile = (item) => {
+    setDeleteResponse(null);
     setDeleteTarget(item);
   };
 
   const confirmDeleteFile = async () => {
-    if (!deleteTarget) return;
-    await DeleteRemoteFile(sessionId, deleteTarget.path);
-    setDeleteTarget(null);
-    refresh();
+    if (!deleteTarget || deleting) return;
+    setDeleteResponse(null);
+    setDeleting(true);
+    setDeletePercent(null);
+    const unsubscribe = Events.On("file-delete-progress", ({ data }) => {
+      if (data.sessionId === sessionId && data.path === deleteTarget.path) {
+        setDeletePercent(data.percent);
+      }
+    });
+    try {
+      await DeleteRemoteFile(sessionId, deleteTarget.path);
+      setDeletePercent(100);
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteResponse(responseError(err, t("files.removal.failed")));
+    } finally {
+      unsubscribe();
+      setDeleting(false);
+      refresh();
+    }
   };
 
   const renameFile = (item) => {
@@ -305,23 +330,27 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
         onClose={() => setAlertModal(null)}
       />
 
-      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
+      <Modal open={!!deleteTarget} onClose={() => { if (!deleting) setDeleteTarget(null); }}>
         <div>
           <div className="modal-header">
             <h2>{t("files.delete")}</h2>
           </div>
           <div className="modal-body">
-            <div className="ssh-error-box" style={{ borderColor: "var(--red)" }}>
-              <p style={{ margin: 0 }}>
-                {t(deleteTarget?.isDirectory ? "files.deleteDirectoryConfirm" : "files.deleteConfirm", { name: deleteTarget?.name })}
-              </p>
-            </div>
+            <ResponseMessage severity="warning" message={t(deleteTarget?.isDirectory ? "files.deleteDirectoryConfirm" : "files.deleteConfirm", { name: deleteTarget?.name })} />
+            <ResponseMessage {...deleteResponse} />
           </div>
+          {deleting && (
+            <div className="modal-body" aria-busy="true">
+              <ResponseMessage severity="pending" message={t(deletePercent === null ? "files.removal.counting" : "files.removal.working")} />
+              <progress aria-label={t("files.removal.label")} max={100} value={deletePercent ?? undefined} style={{ width: "100%", accentColor: "var(--accent)" }} />
+              {deletePercent !== null && <span>{t("files.removal.progress", { percent: deletePercent })}</span>}
+            </div>
+          )}
           <div className="modal-footer">
-            <button className="btn-secondary" onClick={() => setDeleteTarget(null)}>
+            <button className="btn-secondary" disabled={deleting} onClick={() => setDeleteTarget(null)}>
               {t("common.cancel")}
             </button>
-            <button className="btn-primary" onClick={confirmDeleteFile}>
+            <button className="btn-primary" disabled={deleting} onClick={confirmDeleteFile}>
               {t("common.delete")}
             </button>
           </div>

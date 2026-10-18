@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import ResponseMessage from "./ResponseMessage";
 import Modal from "./Modal";
 
 export default function AlertModal({ open, title, message, variant = "info", onClose }) {
@@ -11,12 +12,7 @@ export default function AlertModal({ open, title, message, variant = "info", onC
           <h2>{title}</h2>
         </div>
         <div className="modal-body">
-          <div
-            className="ssh-error-box"
-            style={variant === "error" ? { borderColor: "var(--red)" } : undefined}
-          >
-            <p style={{ margin: 0 }}>{message}</p>
-          </div>
+          <ResponseMessage severity={variant} message={message} />
         </div>
         <div className="modal-footer">
           <button className="btn-primary" onClick={onClose}>

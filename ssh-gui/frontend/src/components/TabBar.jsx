@@ -8,7 +8,7 @@ export default function TabBar({
   onClose,
   onReconnect,
   onOpenLocalTerminal,
-  connectingId,
+  connectingIds,
 }) {
   const { t } = useTranslation();
   return (
@@ -46,7 +46,7 @@ export default function TabBar({
             <button
               className="tab-reconnect"
               title={t("tabs.reconnect")}
-              disabled={connectingId === tab.connectionId}
+              disabled={!!connectingIds[tab.connectionId]}
               onClick={(e) => {
                 e.stopPropagation();
                 onReconnect(tab);
@@ -73,7 +73,7 @@ export default function TabBar({
           className="tab-add"
           title={t("app.openLocalTerminal")}
           onClick={onOpenLocalTerminal}
-          disabled={connectingId === "__local"}
+          disabled={!!connectingIds["__local"]}
         >
           <FaTerminal />
         </button>

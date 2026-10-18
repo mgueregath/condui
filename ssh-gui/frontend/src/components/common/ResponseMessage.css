@@ -1,0 +1,28 @@
+.response-message {
+  --response-color: var(--accent);
+  background: var(--bg-elevated);
+  border: 1px solid var(--response-color);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--response-color);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.response-message[data-severity="error"] { --response-color: var(--red); }
+.response-message[data-severity="success"] { --response-color: var(--green); }
+.response-message[data-severity="warning"] { --response-color: var(--yellow); }
+.response-message p { margin: 0; }
+.response-message progress { width: 100%; margin-top: 8px; accent-color: var(--accent); }
+.response-message details { margin-top: 8px; color: var(--text-primary); }
+.response-message summary { cursor: pointer; }
+.response-message pre {
+  background: var(--terminal-bg);
+  color: var(--terminal-text);
+  padding: 10px;
+  border-radius: 6px;
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: var(--font-mono, monospace);
+}
+

@@ -2,13 +2,17 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FaArrowRight } from "react-icons/fa";
 import { AccountLogin, AccountLoginWithPin, AccountLogout, AccountRegister, AccountRequestPin, CheckForUpdates, GetAccountStatus, GetAppVersion, GetTierLimits, SyncNow } from "../../../bindings/ssh-gui/app";
+import ResponseMessage from "../common/ResponseMessage";
+import useResponseAction from "../../hooks/useResponseAction";
 import LanguageSwitcher from "../common/LanguageSwitcher";
 import SettingsSidebar from "./SettingsSidebar";
 
 const SERVER_URL = import.meta.env.VITE_CONDUI_SERVER_URL || "";
 
-export default function AccountModal({ onClose }) {
+export default function AccountModal({ onClose, onBusyChange }) {
   const { t, i18n } = useTranslation();
+  const sync = useResponseAction(onBusyChange);
+  const [syncDone, setSyncDone] = useState(false);
   const [status, setStatus] = useState(null);
   const [section, setSection] = useState("account");
   const [tab, setTab] = useState("login");
@@ -76,12 +80,11 @@ export default function AccountModal({ onClose }) {
     catch (err) { setError(typeof err === "string" ? err : err?.message || t("account.pinLoginFailed")); }
     finally { setPinLoading(false); }
   };
-  const handleSync = async () => {
-    setMessage(""); setLoading(true);
-    try { await SyncNow(); setMessage(t("account.synced")); await refreshStatus(); }
-    catch (err) { setMessage(t("account.syncFailed", { error: typeof err === "string" ? err : err?.message })); }
-    finally { setLoading(false); }
-  };
+  const handleSync = () => sync.run(async () => {
+    await SyncNow();
+    await refreshStatus();
+    setSyncDone(true);
+  }, t("account.syncing"), t("account.response.syncFailed"));
   const handleUpdates = async () => {
     setUpdateMsg(""); setCheckingUpdate(true);
     try { await CheckForUpdates(); }
@@ -120,13 +123,13 @@ export default function AccountModal({ onClose }) {
 
   const pages = {
     account: <><Header title={status.loggedIn ? t("account.account") : t("account.signInTitle")} text={status.loggedIn ? t("settings.accountDescription") : t("account.signInDescription")} />{status.loggedIn ? <><div className="account-info-card settings-account-card"><div className="account-avatar">{status.email?.[0]?.toUpperCase() || "?"}</div><div className="account-info-details"><div className="account-email">{status.email}</div><span className={`tier-badge tier-${status.tier}`}>{status.tier === "pro" ? t("common.pro") : t("common.free")}</span></div></div><div className="settings-group"><Row title={t("settings.plan")} text={status.limits ? formatLimits(status.limits) : t("account.freePlanDescription")}>{status.tier === "free" && <a className="settings-inline-link" href="https://condui.app/upgrade" target="_blank" rel="noreferrer">{t("account.upgrade")} <FaArrowRight /></a>}</Row></div></> : authForm}</>,
-    sync: <><Header title={t("settings.sections.sync")} text={t("settings.syncDescription")} /><div className="settings-group"><Row title={t("settings.syncStatus")} text={status.loggedIn ? (status.lastSync ? t("account.lastSync", { date: new Date(status.lastSync).toLocaleString(i18n.language) }) : t("account.neverSynced")) : t("settings.signInRequired")}><button className="btn-secondary btn-sm" onClick={handleSync} disabled={loading || !status.loggedIn}>{loading ? t("account.syncing") : t("account.syncNow")}</button></Row></div>{message && <div className="vault-success">{message}</div>}</>,
+    sync: <><Header title={t("settings.sections.sync")} text={t("settings.syncDescription")} /><div className="settings-group"><Row title={t("settings.syncStatus")} text={status.loggedIn ? (status.lastSync ? t("account.lastSync", { date: new Date(status.lastSync).toLocaleString(i18n.language) }) : t("account.neverSynced")) : t("settings.signInRequired")}><button className="btn-secondary btn-sm" onClick={() => { setSyncDone(false); handleSync(); }} disabled={sync.busy || !status.loggedIn}>{sync.busy ? t("account.syncing") : t("account.syncNow")}</button></Row></div><ResponseMessage {...(sync.response || (syncDone ? { severity: "success", message: t("account.synced") } : {}))} /></>,
     appearance: <><Header title={t("settings.sections.appearance")} text={t("settings.appearanceDescription")} /><div className="settings-group"><Row title={t("settings.language")} text={t("settings.languageDescription")}><LanguageSwitcher /></Row></div></>,
     security: <><Header title={t("settings.sections.security")} text={t("settings.securityDescription")} /><div className="settings-empty-state"><strong>{t("settings.securityManaged")}</strong><span>{t("settings.securityManagedDescription")}</span></div></>,
     updates: <><Header title={t("settings.sections.updates")} text={t("settings.updatesDescription")} /><div className="settings-group"><Row title={t("settings.appVersion")} text={appVersion ? t("account.version", { version: appVersion }) : t("common.loading")}><button className="btn-secondary btn-sm" onClick={handleUpdates} disabled={checkingUpdate}>{checkingUpdate ? t("account.checkingForUpdates") : t("account.checkForUpdates")}</button></Row></div>{updateMsg && <div className="vault-error">{updateMsg}</div>}</>,
   };
 
-  return <div className="settings-modal"><SettingsSidebar activeSection={section} onSelect={setSection} t={t} /><section className="settings-content"><div className="settings-content-body">{pages[section]}</div><footer className="settings-footer">{status.loggedIn && section === "account" && <button className="btn-secondary settings-logout" onClick={() => runAccountAction(AccountLogout, "account.logoutFailed")} disabled={loading}>{t("account.logout")}</button>}<button className="btn-primary" onClick={onClose}>{t("common.done")}</button></footer></section></div>;
+  return <div className="settings-modal"><SettingsSidebar activeSection={section} onSelect={(next) => { if (!sync.busy) setSection(next); }} t={t} /><section className="settings-content"><div className="settings-content-body">{pages[section]}</div><footer className="settings-footer">{status.loggedIn && section === "account" && <button className="btn-secondary settings-logout" onClick={() => runAccountAction(AccountLogout, "account.logoutFailed")} disabled={loading}>{t("account.logout")}</button>}<button className="btn-primary" disabled={sync.busy} onClick={onClose}>{t("common.done")}</button></footer></section></div>;
 }
 
 function Header({ title, text }) { return <header className="settings-section-header"><h1>{title}</h1><p>{text}</p></header>; }

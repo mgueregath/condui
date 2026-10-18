@@ -27,6 +27,7 @@
   --card-radius: 10px;
 
   --terminal-bg: #0d0b18;
+  --terminal-text: #c4bde0;
   --terminal-titlebar: #130f24;
   --terminal-border: #0d0b18;
 
@@ -1906,15 +1907,15 @@ select.modern-input {
 }
 
 .test-conn-btn.success {
-  background: #ecfdf5;
-  border-color: #6ee7b7;
-  color: #059669;
+  background: var(--bg-elevated);
+  border-color: var(--green);
+  color: var(--green);
 }
 
 .test-conn-btn.failure {
-  background: #fff1f2;
-  border-color: #fca5a5;
-  color: #dc2626;
+  background: var(--bg-elevated);
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .test-conn-error {

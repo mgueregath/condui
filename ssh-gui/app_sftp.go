@@ -140,10 +140,23 @@ func (a *App) DeleteRemoteFile(
 		return fmt.Errorf("session not found")
 	}
 
-	return sftpservice.DeleteFile(
-		session.SFTP,
-		path,
-	)
+	lastPercent := -1
+	return sftpservice.DeleteFileWithProgress(session.SFTP, path, func(completed, total int) {
+		percent := completed * 100 / total
+		// Only the successful return confirms completion, even if the tree changes.
+		if percent > 99 {
+			percent = 99
+		}
+		if percent == lastPercent {
+			return
+		}
+		lastPercent = percent
+		application.Get().Event.Emit("file-delete-progress", map[string]any{
+			"sessionId": sessionID,
+			"path": path,
+			"percent": percent,
+		})
+	})
 }
 
 func (a *App) RenameRemoteFile(
