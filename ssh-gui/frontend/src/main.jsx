@@ -1,7 +1,9 @@
 import React, { lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
+import "./platform";
 import "./style.css";
 import "./components/Layout.css";
+import "./mobile.css";
 import "./i18n";
 import "bootstrap/dist/css/bootstrap.min.css";
 

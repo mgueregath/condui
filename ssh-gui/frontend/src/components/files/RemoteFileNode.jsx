@@ -1,3 +1,4 @@
+import { isPhone } from "../../platform";
 import { FaFolder, FaFile } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
 
@@ -21,14 +22,16 @@ function fmtDate(iso) {
 export default function RemoteFileNode({ item, onOpen, onOpenFile, onContextMenu }) {
   const { t, i18n } = useTranslation();
   const isDir = item.isDirectory;
+  const openItem = () => {
+    if (isDir) onOpen(item);
+    else onOpenFile(item);
+  };
 
   return (
     <div
       className="file-node"
-      onDoubleClick={() => {
-        if (isDir) onOpen(item);
-        else onOpenFile(item);
-      }}
+      onDoubleClick={openItem}
+      onClick={isPhone() ? openItem : undefined}
       onContextMenu={(e) => {
         e.preventDefault();
         onContextMenu?.(item, e.clientX, e.clientY);

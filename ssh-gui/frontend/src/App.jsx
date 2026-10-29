@@ -5,7 +5,7 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import conduiLogo from "./assets/images/condui-transparent.png";
-import { FaCheck, FaCopy, FaEraser, FaExclamationTriangle, FaFolder, FaInbox, FaPaste, FaTimes, FaUser, FaTerminal, FaPlus } from "react-icons/fa";
+import { FaChevronLeft, FaCheck, FaCopy, FaEraser, FaExclamationTriangle, FaFolder, FaInbox, FaPaste, FaTimes, FaUser, FaTerminal, FaPlus } from "react-icons/fa";
 
 import { Events } from "@wailsio/runtime";
 import RemoteFileTree from "./components/files/RemoteFileTree";
@@ -41,6 +41,9 @@ import AccountModal from "./components/account/AccountModal";
 import ShareModal from "./components/account/ShareModal";
 import UnlockPendingConnectionModal from "./components/connections/UnlockPendingConnectionModal";
 
+import { isPhone, useIsPhone } from "./platform";
+import MobileNav from "./components/MobileNav";
+import MobileResources from "./components/MobileResources";
 import { BsThreeDots } from "react-icons/bs";
 import { GrRefresh } from "react-icons/gr";
 import { MdUploadFile } from "react-icons/md";
@@ -324,9 +327,15 @@ function App() {
 
   const [tabs, setTabs] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
+  // Phone layout only (see mobile.css): one full-screen view at a time, picked
+  // from the bottom nav: connections | terminal | resources | files | panel tab id.
+  const phone = useIsPhone();
+  const [mobileView, setMobileView] = useState("terminal");
   const [fileTreePaths, setFileTreePaths] = useState({});
   const [connectingId, setConnectingId] = useState(null);
   const [connectionChoice, setConnectionChoice] = useState(null);
+  // Phones: leaving a connection means closing it; ask first.
+  const [disconnectTarget, setDisconnectTarget] = useState(null);
   const [sshError, setSshError] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
   const showAlert = (message, title = t("app.notice")) =>
@@ -729,6 +738,11 @@ function App() {
   const activeTabData = tabs.find((t) => t.id === activeTab);
   const isLocalActive = activeTabData?.type === "local";
 
+  // Opening/switching a session returns to the terminal on phones.
+  useEffect(() => {
+    setMobileView("terminal");
+  }, [activeTab, tabs.length]);
+
   const parseConnectResult = (result) => {
     if (typeof result === "string") {
       return { sessionId: result, homePath: "/" };
@@ -739,8 +753,43 @@ function App() {
     };
   };
 
+  // Phones keep a single live session: once a new one is up, the previous
+  // ones are closed. (Desktop and tablets are unaffected.)
+  const closeOtherSessionsOnPhone = async (keepId) => {
+    if (!isPhone()) return;
+    for (const old of tabs.filter((t) => t.id !== keepId)) {
+      try {
+        await CloseSession(old.id);
+      } catch (err) {
+        console.error("Failed to close SSH session", err);
+      }
+      const entry = terminalsRef.current.get(old.id);
+      if (entry) {
+        entry.term.dispose();
+        entry.container.remove();
+        terminalsRef.current.delete(old.id);
+      }
+      if (attachedSessionRef.current === old.id) {
+        attachedSessionRef.current = null;
+        termRef.current = null;
+      }
+      setFileTreePaths((prev) => {
+        const next = { ...prev };
+        delete next[old.id];
+        return next;
+      });
+    }
+  };
+  const addTab = (prev, tab) => (isPhone() ? [tab] : [...prev, tab]);
+
   const handleOpenConnection = async (c, forceNew = false) => {
     const existing = tabs.find((t) => t.connectionId === c.id);
+
+    // On phones, tapping the connection that is already open just returns to it.
+    if (existing && isPhone()) {
+      setActiveTab(existing.id);
+      return;
+    }
 
     if (existing && !forceNew) {
       setConnectionChoice({
@@ -757,16 +806,14 @@ function App() {
       const connectResult = parseConnectResult(await ConnectSSH(c.id));
       const sessionId = connectResult.sessionId;
 
-      setTabs((prev) => [
-        ...prev,
-        {
-          id: sessionId,
-          connectionId: c.id,
-          title: c.name,
-          color: c.color,
-          homePath: connectResult.homePath,
-        },
-      ]);
+      await closeOtherSessionsOnPhone(sessionId);
+      setTabs((prev) => addTab(prev, {
+        id: sessionId,
+        connectionId: c.id,
+        title: c.name,
+        color: c.color,
+        homePath: connectResult.homePath,
+      }));
 
       setActiveTab(sessionId);
     } catch (err) {
@@ -796,16 +843,14 @@ function App() {
       const connectResult = parseConnectResult(await StartLocalTerminal());
       const sessionId = connectResult.sessionId;
 
-      setTabs((prev) => [
-        ...prev,
-        {
-          id: sessionId,
-          title: t("app.localTerminal"),
-          type: "local",
-          color: "var(--green)",
-          homePath: connectResult.homePath,
-        },
-      ]);
+      await closeOtherSessionsOnPhone(sessionId);
+      setTabs((prev) => addTab(prev, {
+        id: sessionId,
+        title: t("app.localTerminal"),
+        type: "local",
+        color: "var(--green)",
+        homePath: connectResult.homePath,
+      }));
 
       setActiveTab(sessionId);
     } catch (err) {
@@ -824,16 +869,14 @@ function App() {
     try {
       const connectResult = parseConnectResult(await ConnectSSHVia(connection.id, jumpHost.id));
       const sessionId = connectResult.sessionId;
-      setTabs((prev) => [
-        ...prev,
-        {
-          id: sessionId,
-          connectionId: connection.id,
-          title: `${connection.name} via ${jumpHost.name}`,
-          color: connection.color,
-          homePath: connectResult.homePath,
-        },
-      ]);
+      await closeOtherSessionsOnPhone(sessionId);
+      setTabs((prev) => addTab(prev, {
+        id: sessionId,
+        connectionId: connection.id,
+        title: `${connection.name} via ${jumpHost.name}`,
+        color: connection.color,
+        homePath: connectResult.homePath,
+      }));
       setActiveTab(sessionId);
     } catch (err) {
       const message =
@@ -1024,12 +1067,23 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${tabs.length > 0 ? " has-tabs" : ""}${phone ? ` mobile-view-${mobileView}` : ""}`}>
       {/* Contenedor oculto donde "viven" los terminales de pestañas no
           activas: preserva su instancia de xterm (scroll, cursor, pantalla
           alternativa) en vez de destruirla al cambiar de pestaña. */}
       <div ref={holdingRef} style={{ position: "absolute", width: 0, height: 0, overflow: "hidden", visibility: "hidden" }} />
       <div className="topbar">
+        {phone && tabs.length > 0 && activeTabData && (
+          <button
+            type="button"
+            className="topbar-back-btn"
+            aria-label={t("mobile.disconnect")}
+            onClick={() => setDisconnectTarget(activeTabData)}
+          >
+            <FaChevronLeft />
+            <span style={{ color: activeTabData.color || undefined }}>{activeTabData.title}</span>
+          </button>
+        )}
         <div className="topbar-logo">
           <span className="topbar-logo-wordmark">
             condu<span className="i">i</span>
@@ -1316,7 +1370,10 @@ function App() {
               </div>
             </div>
             {!isLocalActive && (
-              <BottomPanel sessionId={activeTab} connectionId={activeTabData?.connectionId} accountStatus={accountStatus} features={features} onUpgrade={() => setAccountModalOpen(true)} />
+              <BottomPanel sessionId={activeTab} connectionId={activeTabData?.connectionId} accountStatus={accountStatus} features={features} onUpgrade={() => setAccountModalOpen(true)} mobileTab={phone ? mobileView : undefined} />
+            )}
+            {phone && mobileView === "resources" && (
+              <MobileResources sessionId={activeTab} disconnected={activeTabData?.disconnected} />
             )}
           </div>
 
@@ -1356,6 +1413,16 @@ function App() {
           )}
         </div>
       </div>
+
+      {phone && tabs.length > 0 && (
+        <MobileNav
+          view={mobileView}
+          onChange={setMobileView}
+          isPro={accountStatus?.tier === "pro"}
+          onUpgrade={() => setAccountModalOpen(true)}
+          hideFiles={isLocalActive}
+        />
+      )}
 
       {/* MODALS */}
       <Modal
@@ -1683,6 +1750,30 @@ function App() {
               }}
             >
               {t("app.openNew")}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!disconnectTarget} onClose={() => setDisconnectTarget(null)}>
+        <div>
+          <div className="modal-header">
+            <h2>{t("mobile.disconnectTitle", { name: disconnectTarget?.title })}</h2>
+            <p>{t("mobile.disconnectBody")}</p>
+          </div>
+          <div className="modal-footer">
+            <button className="btn-secondary" onClick={() => setDisconnectTarget(null)}>
+              {t("common.cancel")}
+            </button>
+            <button
+              className="btn-primary"
+              onClick={async () => {
+                const tab = disconnectTarget;
+                setDisconnectTarget(null);
+                if (tab) await handleCloseTab(tab.id);
+              }}
+            >
+              {t("mobile.disconnect")}
             </button>
           </div>
         </div>

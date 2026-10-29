@@ -19,7 +19,7 @@ import {
   GetDockerStats,
   SetSudoPassword,
 } from "../../bindings/ssh-gui/app";
-import { FaArrowDown, FaArrowRight, FaArrowUp, FaLock, FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch, FaPlus, FaRedoAlt, FaDesktop, FaSave, FaPause } from "react-icons/fa";
+import { FaChevronDown, FaChevronUp, FaCompress, FaExpand, FaArrowDown, FaArrowRight, FaArrowUp, FaLock, FaTrash, FaDocker, FaEdit, FaPlay, FaStop, FaDatabase, FaSearch, FaPlus, FaRedoAlt, FaDesktop, FaSave, FaPause } from "react-icons/fa";
 import {
   SiPostgresql,
   SiTimescale,
@@ -44,6 +44,7 @@ import { GrRefresh, GrFormRefresh } from "react-icons/gr";
 import { TbNetwork, TbBackground } from "react-icons/tb";
 import { TiFlashOutline } from "react-icons/ti";
 import { useTranslation } from "react-i18next";
+import { isPhone, useIsPhone } from "../platform";
 import AlertModal from "./common/AlertModal";
 import SudoPasswordModal from "./common/SudoPasswordModal";
 import Modal from "./common/Modal";
@@ -235,11 +236,24 @@ function ActionBtn({ children, title, color, onClick, disabled, style = {} }) {
   );
 }
 
-export default function BottomPanel({ sessionId, connectionId, accountStatus, features, onUpgrade }) {
+export default function BottomPanel({ sessionId, connectionId, accountStatus, features, onUpgrade, mobileTab }) {
   const { t } = useTranslation();
   const isPro = accountStatus?.tier === "pro";
   const dbManagerEnabled = !!features?.dbManager;
   const [activeTab, setActiveTab] = useState("transfers");
+  // collapsed (default): only the tab strip | docked: fixed below the console |
+  // fullscreen: covers the console area.
+  const [panelMode, setPanelMode] = useState("collapsed");
+  // On phones the bottom nav drives this: a panel tab id opens it fullscreen,
+  // anything else (console, resources, files...) keeps it hidden.
+  const phone = useIsPhone();
+  const phoneShowsPanel = phone && TABS.some((tb) => tb.id === mobileTab);
+  const mode = phone ? (phoneShowsPanel ? "fullscreen" : "collapsed") : panelMode;
+  const collapsed = mode === "collapsed";
+  const fullscreen = mode === "fullscreen";
+  useEffect(() => {
+    if (phoneShowsPanel) setActiveTab(mobileTab);
+  }, [phoneShowsPanel, mobileTab]);
 
   // Estados de datos
   const [logs, setLogs] = useState([]);
@@ -305,7 +319,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
 
   // 2. Cargar datos dinámicos bajo demanda y Auto-refresh de Docker
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || collapsed) return;
 
     // Limpiar datos al cambiar de sesión activa
     setContainers([]);
@@ -344,7 +358,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
       const intervalId = setInterval(fetchVMs, 8000);
       return () => clearInterval(intervalId);
     }
-  }, [activeTab, sessionId, connectionId]);
+  }, [activeTab, sessionId, connectionId, collapsed]);
 
   // --- Operaciones de Tunnels ---
   // Persisted per connection (survive reconnects/restarts and sync across
@@ -686,14 +700,19 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
 
   return (
     <div
-      className="bottom-panel"
+      className={`bottom-panel is-${mode}`}
       style={{
         background: "var(--bg-elevated)",
         borderTop: "1px solid var(--border)",
         display: "flex",
         flexDirection: "column",
-        flex: 0.3,
-        minHeight: "270px",
+        ...(phone && collapsed
+          ? { display: "none" }
+          : collapsed
+          ? { flex: "0 0 auto", height: "auto", minHeight: 0 }
+          : fullscreen
+            ? { position: "absolute", inset: 0, zIndex: 30, flex: "1 1 auto", height: "auto", minHeight: 0 }
+            : { flex: 0.3, minHeight: "270px" }),
       }}
     >
       {/* CABECERA DE PESTAÑAS */}
@@ -706,6 +725,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
           flexShrink: 0,
         }}
       >
+        <div className="bottom-tab-list">
         {TABS.map((tab) => {
           const locked = tab.pro && !isPro;
           const isActive = activeTab === tab.id;
@@ -713,7 +733,11 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
             <div
               key={tab.id}
               className={isActive ? "bottom-tab active" : "bottom-tab"}
-              onClick={() => locked ? onUpgrade?.() : setActiveTab(tab.id)}
+              onClick={() => {
+                if (locked) return onUpgrade?.();
+                setActiveTab(tab.id);
+                if (collapsed) setPanelMode(isPhone() ? "fullscreen" : "docked");
+              }}
               title={locked ? t("panel.proOnly") : undefined}
               style={{
                 padding: "10px 16px",
@@ -758,6 +782,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
             </div>
           );
         })}
+        </div>
 
         <div className="bottom-tab-actions">
           {activeTab === "tunnels" && (
@@ -818,6 +843,30 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
               <FaRedoAlt /> {t("common.refresh")}
             </button>
           )}
+          {!fullscreen && !isPhone() && collapsed && (
+            <button className="bottom-action-btn panel-mode-btn" onClick={() => setPanelMode("docked")} title={t("panel.openDocked")}>
+              <FaChevronUp />
+            </button>
+          )}
+          {!fullscreen && (
+            <button
+              className="bottom-action-btn panel-mode-btn"
+              onClick={() => setPanelMode("fullscreen")}
+              title={t("panel.openFullscreen")}
+            >
+              <FaExpand />
+            </button>
+          )}
+          {fullscreen && !isPhone() && (
+            <button className="bottom-action-btn panel-mode-btn" onClick={() => setPanelMode("docked")} title={t("panel.exitFullscreen")}>
+              <FaCompress />
+            </button>
+          )}
+          {!collapsed && (
+            <button className="bottom-action-btn panel-mode-btn" onClick={() => setPanelMode("collapsed")} title={t("panel.collapse")}>
+              <FaChevronDown />
+            </button>
+          )}
         </div>
       </div>
 
@@ -825,7 +874,11 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
       <div
         className="bottom-content"
         style={{
-          height: "320px",
+          ...(collapsed
+            ? { display: "none" }
+            : fullscreen
+              ? { flex: 1, minHeight: 0 }
+              : { height: "320px" }),
           overflowY: "auto",
           background: "var(--bg-white)",
           position: "relative",

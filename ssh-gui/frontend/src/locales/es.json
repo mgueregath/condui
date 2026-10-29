@@ -379,7 +379,11 @@
     "sudoPasswordTitle": "Se requiere la contraseña de sudo",
     "sudoPasswordMessage": "Docker requiere permisos de sudo. Por favor, ingresa tu contraseña.",
     "sudoPasswordPlaceholder": "Contraseña de sudo",
-    "sudoPasswordError": "Contraseña incorrecta. Por favor, inténtalo de nuevo."
+    "sudoPasswordError": "Contraseña incorrecta. Por favor, inténtalo de nuevo.",
+    "openDocked": "Abrir fijo",
+    "openFullscreen": "Pantalla completa",
+    "exitFullscreen": "Salir de pantalla completa",
+    "collapse": "Colapsar"
   },
   "database": {
     "user": "Usuario",
@@ -406,5 +410,16 @@
     "data": "Datos: {{table}}",
     "structure": "Estructura",
     "sqlPlaceholder": "-- Escribe tu SQL aquí\n"
+  },
+  "mobile": {
+    "console": "Consola",
+    "resources": "Recursos",
+    "files": "Archivos",
+    "network": "Red",
+    "uptime": "Tiempo activo",
+    "diskIo": "E/S de disco",
+    "disconnect": "Desconectar",
+    "disconnectTitle": "¿Salir de {{name}}?",
+    "disconnectBody": "Se cerrará la conexión con este servidor y volverás al listado de conexiones."
   }
 }
