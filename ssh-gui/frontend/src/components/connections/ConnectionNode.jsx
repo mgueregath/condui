@@ -1,3 +1,4 @@
+import { isPhone } from "../../platform";
 import { useState } from "react";
 import { FaTrash, FaPlay, FaPlug, FaEdit, FaShareAlt, FaNetworkWired, FaLock, FaTimes } from "react-icons/fa";
 import { MdOpenInNew } from "react-icons/md";
@@ -126,6 +127,7 @@ export default function ConnectionNode({
     <div
       className={`drawer-conn-item${revoked ? " conn-revoked" : ""}`}
       onDoubleClick={connect}
+      onClick={isPhone() ? connect : undefined}
       onContextMenu={handleContextMenu}
       style={{ "--connection-color": connection.color }}
     >

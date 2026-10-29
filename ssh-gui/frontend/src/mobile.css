@@ -1,0 +1,362 @@
+/*
+ * Mobile (phone) layout.
+ *
+ * Everything below is scoped to `html.is-phone`, which platform.js only sets on
+ * Android devices with a small viewport. Desktop and tablets never match, so
+ * their layout is untouched. Tablets keep the desktop arrangement.
+ *
+ * Phone model: one pane at a time.
+ *   - No open sessions  -> connection list full screen
+ *   - Open sessions     -> a bottom nav switches between full-screen views:
+ *                          connections, console, resources, files and each
+ *                          bottom-panel tab (transfers, tunnels, ports, docker,
+ *                          virtualbox, databases). App.jsx keeps the current one
+ *                          as `mobile-view-<id>` on .app-shell.
+ */
+
+/* ---------- Shell & topbar ---------- */
+html.is-phone .app-shell {
+  width: 100%;
+  height: 100dvh;
+}
+html.is-phone .topbar {
+  height: 48px;
+  padding: 0 6px;
+  gap: 2px;
+}
+html.is-phone .topbar-logo {
+  margin-left: 4px; /* desktop reserves room for the macOS window buttons */
+  margin-right: 8px;
+}
+html.is-phone .topbar-logo-wordmark {
+  font-size: 19px;
+}
+html.is-phone .app-shell.has-tabs .topbar-logo {
+  display: none; /* the back button names the connection instead */
+}
+html.is-phone .topbar-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 62%;
+  height: 40px;
+  padding: 0 12px 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+html.is-phone .topbar-back-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html.is-phone .topbar-logo-tagline,
+html.is-phone .topbar-account-email {
+  display: none;
+}
+html.is-phone .topbar-account {
+  min-width: 0;
+}
+.topbar-back-btn {
+  display: none;
+}
+html.is-phone .topbar-update-badge span:not(.topbar-update-dot) {
+  display: none;
+}
+
+/* ---------- Panes ---------- */
+html.is-phone .main-content {
+  padding: 6px;
+  gap: 0;
+}
+
+/* Connection list: full width. With a session open it is not reachable at
+   all: leaving means closing the connection (topbar back button). */
+html.is-phone .sidebar-container {
+  width: 100%;
+  min-width: 0;
+}
+html.is-phone .app-shell.has-tabs .sidebar-container {
+  display: none;
+}
+
+/* Terminal card: only when there is something to show. */
+html.is-phone .app-shell:not(.has-tabs) .main-card {
+  display: none;
+}
+
+/* ---------- Session view ---------- */
+/* One connection at a time: no tab strip. */
+html.is-phone .tabbar {
+  display: none;
+}
+html.is-phone .card-inner {
+  position: relative; /* anchor for the file browser overlay */
+  padding: 4px;
+  gap: 4px;
+}
+html.is-phone .card-mid {
+  flex-direction: column;
+  gap: 0;
+}
+
+/* File browser: hidden until requested, then covers the session view. */
+html.is-phone .card-inner .files-panel {
+  display: none;
+}
+html.is-phone .app-shell.mobile-view-files .card-inner .files-panel {
+  display: flex;
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  width: 100%;
+  border-radius: 8px;
+}
+
+/* Bottom panel. On phones the bottom nav picks the tab and BottomPanel shows
+   itself fullscreen; its own tab strip and mode buttons are redundant. Only the
+   tool row (search, refresh, new tunnel...) remains. */
+html.is-phone .bottom-tab-list,
+html.is-phone .panel-mode-btn {
+  display: none;
+}
+html.is-phone .bottom-tabs {
+  height: auto;
+  min-height: 0;
+  padding: 0;
+}
+html.is-phone .bottom-tab-actions {
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-left: 0;
+  padding: 6px;
+}
+html.is-phone .bottom-tabs:not(:has(.bottom-tab-actions > :not(.panel-mode-btn))) {
+  display: none; /* e.g. transfers has no tools: no empty strip */
+}
+html.is-phone .bottom-panel.is-fullscreen .ports-search-wrap {
+  flex: 1 1 140px;
+}
+
+/* Panel lists (Docker, VirtualBox, databases...): rows are flex with desktop
+   percentage widths set inline, which stack on top of each other on a narrow
+   screen. Turn each row into a small card; column headers make no sense then. */
+html.is-phone .panel-list-header {
+  display: none;
+}
+html.is-phone .panel-list-row {
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+html.is-phone .panel-list-row > * {
+  flex: 1 1 100% !important;
+  min-width: 0;
+}
+html.is-phone .panel-list-row > :last-child {
+  flex: 0 0 auto !important;
+  margin-left: auto;
+}
+
+/* Table panels (ports, tunnels): tighter rows so the ports table fits. */
+html.is-phone .panel-table tr {
+  gap: 8px;
+  padding: 8px;
+}
+html.is-phone .panel-table-ports {
+  --panel-columns: 50px 52px minmax(0, 1.5fr) minmax(0, 1fr);
+}
+html.is-phone .panel-table th,
+html.is-phone .panel-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html.is-phone .panel-table thead tr {
+  font-size: 9px;
+  letter-spacing: 0;
+}
+
+/* No local shell on Android. */
+html.is-android .tab-add {
+  display: none;
+}
+
+/* The terminal's CPU/RAM bar is redundant: the Resources view has it all. */
+html.is-phone .resource-bar {
+  display: none;
+}
+
+/* Touch has no hover: a tapped row would keep its action buttons open and
+   crowd the name. Edit/share/delete stay available via long-press. */
+html.is-phone .drawer-conn-item:hover .conn-actions:not(.connecting) {
+  display: none;
+}
+
+/* ---------- Touch targets ---------- */
+html.is-phone .sidebar-icon-btn,
+html.is-phone .topbar-icon-btn {
+  min-width: 40px;
+  min-height: 40px;
+}
+html.is-phone .drawer-conn-item,
+html.is-phone .file-node {
+  min-height: 52px;
+}
+
+/* ---------- Vault & modals ---------- */
+html.is-phone .vault-card {
+  width: calc(100% - 32px);
+  max-width: 360px;
+  padding: 28px 20px;
+}
+html.is-phone .modern-modal {
+  width: calc(100% - 16px);
+  max-width: none;
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+}
+html.is-phone .modal-header {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 16px;
+}
+html.is-phone .modal-header p {
+  margin-left: 0;
+}
+html.is-phone .modal-body {
+  padding: 14px 16px;
+}
+html.is-phone .modal-footer {
+  padding: 12px 16px;
+}
+
+/* ---------- Bottom navigation ---------- */
+.mobile-nav {
+  display: flex;
+  flex-shrink: 0;
+  overflow-x: auto;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+  scrollbar-width: none;
+  z-index: 40;
+}
+.mobile-nav::-webkit-scrollbar {
+  display: none;
+}
+.mobile-nav-item {
+  flex: 0 0 auto;
+  min-width: 72px;
+  padding: 8px 10px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  border-top: 2px solid transparent;
+}
+.mobile-nav-item.active {
+  color: var(--accent);
+  border-top-color: var(--accent);
+}
+.mobile-nav-item.locked {
+  opacity: 0.6;
+}
+.mobile-nav-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.mobile-nav-label {
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mobile-nav-lock {
+  margin-left: 3px;
+  font-size: 8px;
+}
+
+/* ---------- Resources view ---------- */
+.mobile-resources {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-elevated);
+  border-radius: 8px;
+}
+.mobile-res-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.mobile-res-card header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mobile-res-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.mobile-res-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.mobile-res-bar {
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 3px;
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+.mobile-res-bar > div {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease, background 0.5s ease;
+}
+.mobile-res-details {
+  margin-top: 10px;
+  font-size: 12px;
+}
+.mobile-res-details > strong {
+  display: none; /* the card header already names the section */
+}
+.mobile-res-details .resource-detail-note {
+  color: var(--text-muted);
+}
+.mobile-res-details .resource-partition {
+  border-top-color: var(--border-subtle);
+}
+
+/* ---------- Android: no page-level scroll / bounce ---------- */
+html.is-android body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+html.is-android,
+html.is-android body,
+html.is-android * {
+  overscroll-behavior: none; /* no stretch/glow at the edge of any scroller either */
+}

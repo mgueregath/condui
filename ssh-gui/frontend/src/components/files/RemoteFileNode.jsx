@@ -3,6 +3,7 @@ import {
   FaFileImage, FaFileLines, FaFilePdf, FaFilePowerpoint, FaFileVideo,
   FaFileWord, FaFileZipper,
 } from "react-icons/fa6";
+import { isPhone } from "../../platform";
 import { useTranslation } from "react-i18next";
 
 const fileIcons = Object.fromEntries([
@@ -46,14 +47,16 @@ export default function RemoteFileNode({ item, onOpen, onOpenFile, onContextMenu
   const { t, i18n } = useTranslation();
   const isDir = item.isDirectory;
   const Icon = isDir ? FaFolder : getFileIcon(item.name);
+  const openItem = () => {
+    if (isDir) onOpen(item);
+    else onOpenFile(item);
+  };
 
   return (
     <div
       className={"file-node" + (item.name.startsWith(".") ? " is-hidden" : "")}
-      onDoubleClick={() => {
-        if (isDir) onOpen(item);
-        else onOpenFile(item);
-      }}
+      onDoubleClick={openItem}
+      onClick={isPhone() ? openItem : undefined}
       onContextMenu={(e) => {
         e.preventDefault();
         onContextMenu?.(item, e.clientX, e.clientY);
