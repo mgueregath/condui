@@ -2,11 +2,24 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/main_container"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/wails_background">
 
     <WebView
         android:id="@+id/webview"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:background="@color/wails_background" />
+
+    <!-- Loading overlay, removed once the page has rendered -->
+    <ImageView
+        android:id="@+id/splash"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/wails_background"
+        android:scaleType="centerInside"
+        android:padding="96dp"
+        android:src="@drawable/splash_logo"
+        android:contentDescription="@null" />
 
 </FrameLayout>
