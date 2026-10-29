@@ -136,3 +136,5 @@ temp/
 **/.task/checksum
 **/frontend/bindings
 **/frontend/.bindings*
+# Android APKs (build output)
+*.apk
