@@ -840,12 +840,17 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
                         fetchContainers
               }
             >
-              <FaRedoAlt /> {t("common.refresh")}
+              <FaRedoAlt />
             </button>
           )}
           {!fullscreen && !isPhone() && collapsed && (
             <button className="bottom-action-btn panel-mode-btn" onClick={() => setPanelMode("docked")} title={t("panel.openDocked")}>
               <FaChevronUp />
+            </button>
+          )}
+          {!collapsed && (
+            <button className="bottom-action-btn panel-mode-btn" onClick={() => setPanelMode("collapsed")} title={t("panel.collapse")}>
+              <FaChevronDown />
             </button>
           )}
           {!fullscreen && (
@@ -860,11 +865,6 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
           {fullscreen && !isPhone() && (
             <button className="bottom-action-btn panel-mode-btn" onClick={() => setPanelMode("docked")} title={t("panel.exitFullscreen")}>
               <FaCompress />
-            </button>
-          )}
-          {!collapsed && (
-            <button className="bottom-action-btn panel-mode-btn" onClick={() => setPanelMode("collapsed")} title={t("panel.collapse")}>
-              <FaChevronDown />
             </button>
           )}
         </div>
