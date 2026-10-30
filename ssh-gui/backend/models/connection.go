@@ -7,6 +7,7 @@ type Connection struct {
 	Protocol   string     `json:"protocol,omitempty"`
 	SSHEnabled *bool      `json:"sshEnabled,omitempty"`
 	VNC        *VNCConfig `json:"vnc,omitempty"`
+	RDP        *RDPConfig `json:"rdp,omitempty"`
 
 	FolderID *string `json:"folderId,omitempty"`
 
@@ -69,7 +70,7 @@ func (c Connection) ConnectionProtocol() string {
 }
 
 func (c Connection) ValidateProtocol() error {
-	if protocol := c.ConnectionProtocol(); protocol != "ssh" && protocol != "vnc" {
+	if protocol := c.ConnectionProtocol(); protocol != "ssh" && protocol != "vnc" && protocol != "rdp" {
 		return fmt.Errorf("unsupported connection protocol")
 	}
 	return nil

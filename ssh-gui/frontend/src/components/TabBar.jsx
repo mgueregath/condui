@@ -37,7 +37,7 @@ export default function TabBar({
           }
           onClick={() => onSelect(tab.id)}
         >
-          {tab.type !== "db" && <ProtocolIcon protocol={tab.type === "vnc" ? "vnc" : "ssh"} />}
+          {tab.type !== "db" && <ProtocolIcon protocol={tab.type === "vnc" || tab.type === "rdp" ? tab.type : "ssh"} />}
           {tab.disconnected && <span className="tab-disconnect-dot" />}
           {tab.type === "db" && (
             <span style={{ fontSize: "10px", opacity: 0.7, marginRight: "3px" }}>⬡</span>

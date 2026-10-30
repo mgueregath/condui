@@ -9,6 +9,10 @@ func (d *Database) UpdateConnection(
 		return err
 	}
 
+	rdpData, err := encodeRDP(connection.RDP)
+	if err != nil {
+		return err
+	}
 	vncData, err := encodeVNC(connection.VNC)
 	if err != nil {
 		return err
@@ -18,6 +22,7 @@ func (d *Database) UpdateConnection(
 		UPDATE connections
 		SET
 			ssh_enabled=?,
+			rdp_config=?,
 			vnc_config=?,
 			protocol=?,
 			folder_id=?,
@@ -34,6 +39,7 @@ func (d *Database) UpdateConnection(
 		WHERE id=?
 		`,
 		connection.HasSSH(),
+		rdpData,
 		vncData,
 		connection.ConnectionProtocol(),
 		connection.FolderID,

@@ -194,7 +194,8 @@
     "type": {
       "label": "Tipo de conexión",
       "ssh": "SSH",
-      "vnc": "VNC"
+      "vnc": "VNC",
+      "rdp": "RDP"
     },
     "vnc": {
       "user": "Para macOS, ingresa el usuario y la contraseña de la cuenta (Apple Remote Desktop). Deja el usuario vacío para VNC clásico.",
@@ -271,7 +272,7 @@
       "source": "Origen",
       "own": "Dato propio",
       "fromSSH": "Usar SSH",
-      "noPass": "La contraseña SSH no está disponible. Configura una contraseña propia para VNC; no se reutilizan claves privadas ni sus frases de contraseña.",
+      "noPass": "La contraseña SSH no está disponible. Configura una contraseña propia para {{protocol}}; no se reutilizan claves privadas ni sus frases de contraseña.",
       "saved": "Valor guardado (sin cambios)",
       "inherited": "Contraseña SSH guardada",
       "test": "Probar {{protocol}}",
@@ -281,7 +282,30 @@
       "sshRequired": "Ingresa el usuario SSH y, si usas una clave privada, la ruta del archivo de clave.",
       "required": "Ingresa un nombre y habilita al menos un acceso a la conexión.",
       "unavailable": "Este acceso a la conexión está deshabilitado.",
-      "open": "Abrir {{protocol}}"
+      "open": "Abrir {{protocol}}",
+      "rdp": "Escritorio RDP"
+    },
+    "rdp": {
+      "domain": "Dominio (opcional)",
+      "fingerprint": "Huella SHA-256 del certificado (opcional)",
+      "trust": "El certificado del servidor se verifica. Para uno autofirmado, ingresa su huella SHA-256 confirmada por un medio de confianza.",
+      "user": "Ingresa el usuario y el dominio, si corresponde. También puedes usar DOMINIO\\usuario.",
+      "description": "Conecta al escritorio remoto mediante el modo de seguridad RDP seleccionado.",
+      "connecting": "Conectando al escritorio RDP...",
+      "screen": "Escritorio RDP. Haz clic para usar el teclado y el ratón.",
+      "error": "No se pudo establecer la conexión RDP.",
+      "required": "Ingresa el usuario RDP o reutiliza un usuario SSH.",
+      "invalidFingerprint": "La huella del certificado debe contener 64 dígitos hexadecimales, con o sin dos puntos.",
+      "security": "Seguridad",
+      "tls": "TLS con NLA (predeterminado)",
+      "standard": "RDP estándar sin TLS",
+      "noTLS": "Usa la seguridad estándar de RDP, sin TLS ni NLA. El servidor debe admitir este modo.",
+      "verification": "Certificado del servidor",
+      "verify": "Verificar certificado (predeterminado)",
+      "skip": "No verificar certificado",
+      "untrusted": "Mantiene TLS y NLA, pero no verifica la identidad del servidor. No requiere huella SHA-256.",
+      "resolution": "Resolución",
+      "resolutionHelp": "Se aplica al abrir o reconectar la sesión."
     }
   },
   "files": {

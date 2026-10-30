@@ -6,6 +6,10 @@ func (d *Database) UpsertConnection(connection *models.Connection) error {
 	if err := connection.ValidateProtocol(); err != nil {
 		return err
 	}
+	rdpData, err := encodeRDP(connection.RDP)
+	if err != nil {
+		return err
+	}
 	vncData, err := encodeVNC(connection.VNC)
 	if err != nil {
 		return err
@@ -14,6 +18,7 @@ func (d *Database) UpsertConnection(connection *models.Connection) error {
 		`
 		INSERT INTO connections(
 			ssh_enabled,
+			rdp_config,
 			vnc_config,
 			protocol,
 			id,
@@ -31,9 +36,10 @@ func (d *Database) UpsertConnection(connection *models.Connection) error {
 			source_share_id,
 			share_revoked
 		)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			ssh_enabled=excluded.ssh_enabled,
+			rdp_config=COALESCE(excluded.rdp_config,connections.rdp_config),
 			vnc_config=COALESCE(excluded.vnc_config,connections.vnc_config),
 			protocol=excluded.protocol,
 			folder_id=excluded.folder_id,
@@ -51,6 +57,7 @@ func (d *Database) UpsertConnection(connection *models.Connection) error {
 			share_revoked=excluded.share_revoked
 		`,
 		connection.HasSSH(),
+		rdpData,
 		vncData,
 		connection.ConnectionProtocol(),
 		connection.ID,

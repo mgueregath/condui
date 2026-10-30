@@ -1,10 +1,11 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"ssh-gui/backend/models"
-	"strings"
 )
 
 func (a *App) validateConnection(c *models.Connection) error {
@@ -14,7 +15,7 @@ func (a *App) validateConnection(c *models.Connection) error {
 	if strings.TrimSpace(c.Name) == "" || strings.TrimSpace(c.Host) == "" {
 		return fmt.Errorf("name and host are required")
 	}
-	if !c.HasSSH() && !c.HasVNC() {
+	if !c.HasSSH() && !c.HasVNC() && !c.HasRDP() {
 		return fmt.Errorf("enable at least one connection access")
 	}
 	if c.HasSSH() {
@@ -41,7 +42,11 @@ func (a *App) validateConnection(c *models.Connection) error {
 			}
 		}
 	} else {
-		c.Protocol = "vnc"
+		if c.HasVNC() {
+			c.Protocol = "vnc"
+		} else {
+			c.Protocol = "rdp"
+		}
 	}
 	if c.HasVNC() {
 		if c.VNC.Port < 1 || c.VNC.Port > 65535 {
@@ -52,6 +57,35 @@ func (a *App) validateConnection(c *models.Connection) error {
 		}
 		if c.VNC.Reuse.Pass && c.AuthType != "password" {
 			return fmt.Errorf("VNC cannot reuse an SSH private key or passphrase")
+		}
+	}
+	if c.HasRDP() {
+		if _, _, err := c.RDP.DesktopSize(); err != nil {
+			return err
+		}
+		fingerprint := strings.ReplaceAll(strings.TrimSpace(c.RDP.CertificateFingerprint), ":", "")
+		if !c.RDP.DisableTLS && !c.RDP.AllowUntrusted && fingerprint != "" {
+			decoded, err := hex.DecodeString(fingerprint)
+			if err != nil || len(decoded) != 32 {
+				return fmt.Errorf("invalid RDP certificate fingerprint")
+			}
+		}
+
+		if c.RDP.Port < 1 || c.RDP.Port > 65535 {
+			return fmt.Errorf("invalid RDP port")
+		}
+		if (c.RDP.Reuse.User || c.RDP.Reuse.Pass) && !c.HasSSH() {
+			return fmt.Errorf("RDP cannot reuse disabled SSH credentials")
+		}
+		if c.RDP.Reuse.Pass && c.AuthType != "password" {
+			return fmt.Errorf("RDP cannot reuse private keys or passphrases")
+		}
+		user := c.RDP.Username
+		if c.RDP.Reuse.User {
+			user = c.Username
+		}
+		if strings.TrimSpace(user) == "" {
+			return fmt.Errorf("RDP username is required")
 		}
 	}
 	return nil

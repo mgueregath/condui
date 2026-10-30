@@ -2,74 +2,82 @@ import "./ConnectionModal.css";
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TestConnectionParams } from "../../../bindings/ssh-gui/app";
+import { testRDP } from "../../services/rdp";
 import { testVNC } from "../../services/vnc";
 import useResponseAction from "../../hooks/useResponseAction";
 import ResponseMessage from "../common/ResponseMessage";
 import ProtocolIcon from "./ProtocolIcon";
 import { Input, Select } from "./ConnectionFields";
 import SSHFields from "./SSHFields";
-import VNCFields from "./VNCFields";
+import DesktopFields from "./DesktopFields";
 import ConnectionTest from "./ConnectionTest";
-import { connectionForm } from "./connectionForm";
+import { connectionForm, protocols, defaultProtocol, hasAccess } from "./connectionForm";
 
 export default function ConnectionModal({ initialValue, folders, connections = [], accountStatus, onSave, onCancel, onBusyChange }) {
   const { t } = useTranslation();
   const id = useId();
   const [form, setForm] = useState(() => connectionForm(initialValue));
-  const [context, setContext] = useState(() => initialValue?.sshEnabled === false ? "vnc" : "ssh");
+  const [context, setContext] = useState(() => initialValue ? defaultProtocol(initialValue) : "ssh");
   const [success, setSuccess] = useState({});
   const saveAction = useResponseAction();
   const sshAction = useResponseAction();
   const vncAction = useResponseAction();
-  const busy = saveAction.busy || sshAction.busy || vncAction.busy;
+  const rdpAction = useResponseAction();
+  const actions = { ssh: sshAction, vnc: vncAction, rdp: rdpAction };
+  const busy = saveAction.busy || Object.values(actions).some(action => action.busy);
   useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
   const invalidate = (protocol) => {
     setSuccess(previous => ({ ...previous, [protocol]: false }));
-    (protocol === "ssh" ? sshAction : vncAction).setResponse(null);
+    actions[protocol].setResponse(null);
   };
   const set = (key, value) => {
     setForm(previous => {
       const next = { ...previous, [key]: value };
-      if (key === "sshEnabled" && !value) next.vnc = { ...previous.vnc, reuse: { user: false, pass: false } };
-      if (key === "authType" && value === "private_key") next.vnc = { ...previous.vnc, reuse: { ...previous.vnc.reuse, pass: false } };
+      for (const protocol of ["vnc", "rdp"]) {
+        if (key === "sshEnabled" && !value) next[protocol] = { ...previous[protocol], reuse: { user: false, pass: false } };
+        if (key === "authType" && value === "private_key") next[protocol] = { ...previous[protocol], reuse: { ...previous[protocol].reuse, pass: false } };
+      }
       return next;
     });
     saveAction.setResponse(null);
     if (["host", "port", "username", "authType", "password", "privateKeyPath", "passphrase", "jumpHostId", "sshEnabled"].includes(key)) invalidate("ssh");
-    if (key === "host" || key === "sshEnabled" || key === "authType" || (key === "username" && form.vnc.reuse.user) || (key === "password" && form.vnc.reuse.pass)) invalidate("vnc");
+    for (const protocol of ["vnc", "rdp"]) if (key === "host" || key === "sshEnabled" || key === "authType" || (key === "username" && form[protocol].reuse.user) || (key === "password" && form[protocol].reuse.pass)) invalidate(protocol);
   };
-  const setVNC = (key, value) => {
-    setForm(previous => ({ ...previous, vnc: { ...previous.vnc, [key]: value } }));
-    invalidate("vnc"); saveAction.setResponse(null);
+  const setDesktop = (protocol, key, value) => {
+    setForm(previous => ({ ...previous, [protocol]: { ...previous[protocol], [key]: value } }));
+    invalidate(protocol); saveAction.setResponse(null);
   };
   const validate = (protocol) => {
-    const port = protocol === "ssh" ? form.port : form.vnc.port;
+    const port = protocol === "ssh" ? form.port : form[protocol].port;
     if (!form.host.trim() || !Number.isInteger(Number(port)) || Number(port) < 1 || Number(port) > 65535) throw new Error(t("connection.access.invalid"));
+    if (protocol === "rdp" && !(form.rdp.reuse.user ? form.username : form.rdp.username).trim()) throw new Error(t("connection.rdp.required"));
+    if (protocol === "rdp" && !form.rdp.disableTLS && !form.rdp.allowUntrusted && form.rdp.certificateFingerprint && !/^[a-f0-9]{64}$/i.test(form.rdp.certificateFingerprint.replaceAll(":", "").trim())) throw new Error(t("connection.rdp.invalidFingerprint"));
     if (protocol === "ssh" && (!form.username.trim() || (form.authType === "private_key" && !form.privateKeyPath?.trim()))) throw new Error(t("connection.access.sshRequired"));
   };
   const test = protocol => {
-    const action = protocol === "ssh" ? sshAction : vncAction;
+    const action = actions[protocol];
     return action.run(async () => {
       validate(protocol);
       setSuccess(previous => ({ ...previous, [protocol]: false }));
-      if (protocol === "vnc") await testVNC(form);
+      if (protocol === "rdp") await testRDP(form);
+      else if (protocol === "vnc") await testVNC(form);
       else await TestConnectionParams(form.host, Number(form.port), form.username, form.authType,
         form.authType === "password" ? form.password ?? (form.id ? `__stored_connection_password__:${form.id}` : "") : "",
         form.privateKeyPath || "", form.authType === "private_key" ? form.passphrase ?? (form.id ? `__stored_connection_password__:${form.id}` : "") : "", form.jumpHostId || "");
       setSuccess(previous => ({ ...previous, [protocol]: true }));
-    }, t("connection.testing"), t("connection.access.failed", { protocol: protocol.toUpperCase() }), [form.password, form.passphrase, form.vnc.password]);
+    }, t("connection.testing"), t("connection.access.failed", { protocol: protocol.toUpperCase() }), [form.password, form.passphrase, form.vnc.password, form.rdp.password]);
   };
   const save = () => saveAction.run(async () => {
-    if (!form.name.trim() || (!form.sshEnabled && !form.vnc.enabled)) throw new Error(t("connection.access.required"));
-    if (form.sshEnabled) validate("ssh");
-    if (form.vnc.enabled) validate("vnc");
-    await onSave({ ...form, protocol: form.sshEnabled ? "ssh" : "vnc" });
-  }, t("common.response.saving"), t("connection.response.saveFailed"), [form.password, form.passphrase, form.vnc.password]);
+    if (!form.name.trim() || !protocols.some(protocol => hasAccess(form, protocol))) throw new Error(t("connection.access.required"));
+    for (const protocol of protocols) if (hasAccess(form, protocol)) validate(protocol);
+    await onSave({ ...form, protocol: defaultProtocol(form) });
+  }, t("common.response.saving"), t("connection.response.saveFailed"), [form.password, form.passphrase, form.vnc.password, form.rdp.password]);
   const chooseTab = event => {
     if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
-    const next = event.key === "Home" ? "ssh" : event.key === "End" ? "vnc" : context === "ssh" ? "vnc" : "ssh";
+    const direction = event.key === "ArrowUp" ? -1 : 1;
+    const next = event.key === "Home" ? protocols[0] : event.key === "End" ? protocols.at(-1) : protocols[(protocols.indexOf(context) + direction + protocols.length) % protocols.length];
     setContext(next); document.getElementById(`${id}-${next}-tab`)?.focus();
   };
   return <div className="connection-editor">
@@ -88,26 +96,26 @@ export default function ConnectionModal({ initialValue, folders, connections = [
     </div>
     <div className="connection-layout">
       <div className="connection-tabs" role="tablist" aria-label={t("connection.access.label")} aria-orientation="vertical">
-        {["ssh", "vnc"].map(protocol => <button key={protocol} type="button" role="tab" id={`${id}-${protocol}-tab`}
+        {protocols.map(protocol => <button key={protocol} type="button" role="tab" id={`${id}-${protocol}-tab`}
           aria-controls={`${id}-${protocol}-panel`} aria-selected={context === protocol} tabIndex={context === protocol ? 0 : -1}
           onClick={() => setContext(protocol)} onKeyDown={chooseTab}>
           <ProtocolIcon protocol={protocol} /><span>{t(`connection.type.${protocol}`)}</span>
-          <small>{t((protocol === "ssh" ? form.sshEnabled : form.vnc.enabled) ? "connection.access.enabled" : "connection.access.disabled")}</small>
+          <small>{t(hasAccess(form, protocol) ? "connection.access.enabled" : "connection.access.disabled")}</small>
         </button>)}
       </div>
       <div className="connection-panels">
-        {["ssh", "vnc"].map(protocol => {
-          const enabled = protocol === "ssh" ? form.sshEnabled : form.vnc.enabled;
-          const action = protocol === "ssh" ? sshAction : vncAction;
+        {protocols.map(protocol => {
+          const enabled = hasAccess(form, protocol);
+          const action = actions[protocol];
           return <section key={protocol} role="tabpanel" id={`${id}-${protocol}-panel`} aria-labelledby={`${id}-${protocol}-tab`} hidden={context !== protocol}>
             <div className="connection-enable"><h3>{t(`connection.access.${protocol}`)}</h3>
               <label><input type="checkbox" checked={enabled} disabled={busy}
-                onChange={e => protocol === "ssh" ? set("sshEnabled", e.target.checked) : setVNC("enabled", e.target.checked)} />
+                onChange={e => protocol === "ssh" ? set("sshEnabled", e.target.checked) : setDesktop(protocol, "enabled", e.target.checked)} />
                 {t("connection.access.enable", { protocol: protocol.toUpperCase() })}</label>
             </div>
             <fieldset className="response-fields" disabled={!enabled || busy}>
               {protocol === "ssh" ? <SSHFields form={form} set={set} connections={connections} isPro={accountStatus?.tier === "pro"} stored={!!initialValue} /> :
-                <VNCFields form={form} set={setVNC} stored={!!initialValue?.vnc} />}
+                <DesktopFields form={form} protocol={protocol} set={(key, value) => setDesktop(protocol, key, value)} stored={!!initialValue?.[protocol]} />}
             </fieldset>
             <ConnectionTest protocol={protocol} action={action} success={success[protocol]} disabled={!enabled || saveAction.busy} onTest={() => test(protocol)} />
           </section>;

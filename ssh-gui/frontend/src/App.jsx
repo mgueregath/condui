@@ -36,7 +36,9 @@ import {
   UploadDroppedFile,
 } from "../bindings/ssh-gui/app";
 
-import { hasSSH, hasVNC, defaultProtocol, connectionKey } from "./components/connections/connectionForm";
+import { hasAccess, protocols, isDesktop, defaultProtocol, connectionKey } from "./components/connections/connectionForm";
+import RDPView from "./components/rdp/RDPView";
+import { connectRDP, closeRDP } from "./services/rdp";
 import VNCView from "./components/vnc/VNCView";
 import { connectVNC, closeVNC } from "./services/vnc";
 import VaultUnlock from "./components/account/VaultUnlock";
@@ -240,8 +242,8 @@ function LeftSidebar({
                       ...c,
                       online: tabs.filter((tab) => tab.connectionId === c.id).length,
                     }}
-                    connecting={!!(connectingIds[connectionKey(c.id, "ssh")] || connectingIds[connectionKey(c.id, "vnc")])}
-                    connectingProtocols={{ ssh: !!connectingIds[connectionKey(c.id, "ssh")], vnc: !!connectingIds[connectionKey(c.id, "vnc")] }}
+                    connecting={protocols.some(protocol => !!connectingIds[connectionKey(c.id, protocol)])}
+                    connectingProtocols={Object.fromEntries(protocols.map(protocol => [protocol, !!connectingIds[connectionKey(c.id, protocol)]]))}
                     connections={connections}
                     folders={folders}
                     onOpen={onOpenConnection}
@@ -273,8 +275,8 @@ function LeftSidebar({
                       ...c,
                       online: tabs.filter((tab) => tab.connectionId === c.id).length,
                     }}
-                    connecting={!!(connectingIds[connectionKey(c.id, "ssh")] || connectingIds[connectionKey(c.id, "vnc")])}
-                    connectingProtocols={{ ssh: !!connectingIds[connectionKey(c.id, "ssh")], vnc: !!connectingIds[connectionKey(c.id, "vnc")] }}
+                    connecting={protocols.some(protocol => !!connectingIds[connectionKey(c.id, protocol)])}
+                    connectingProtocols={Object.fromEntries(protocols.map(protocol => [protocol, !!connectingIds[connectionKey(c.id, protocol)]]))}
                     connections={connections}
                     folders={folders}
                     onOpen={onOpenConnection}
@@ -543,7 +545,7 @@ function App() {
   const handleReconnect = async (tab) => {
     const connection = connections.find((c) => c.id === tab.connectionId);
     if (!connection) return;
-    const protocol = tab.type === "vnc" ? "vnc" : "ssh";
+    const protocol = tab.type || "ssh";
     updateConnecting(connectionKey(tab.connectionId, protocol), true);
     try {
       const session = await connectSession(connection, protocol);
@@ -719,7 +721,7 @@ function App() {
       if (prevEntry) holdingRef.current.appendChild(prevEntry.container);
     }
 
-    if (!activeTab || tabs.find(tab => tab.id === activeTab)?.type === "vnc") {
+    if (!activeTab || isDesktop(tabs.find(tab => tab.id === activeTab)?.type)) {
       termRef.current = null;
       attachedSessionRef.current = null;
       return;
@@ -761,7 +763,7 @@ function App() {
 
   const activeTabData = tabs.find((t) => t.id === activeTab);
   const isLocalActive = activeTabData?.type === "local";
-  const isVNCActive = activeTabData?.type === "vnc";
+  const isDesktopActive = isDesktop(activeTabData?.type);
 
   // Opening/switching a session returns to the terminal on phones.
   useEffect(() => {
@@ -808,7 +810,11 @@ function App() {
   const addTab = (prev, tab) => (isPhone() ? [tab] : [...prev, tab]);
 
   const connectSession = async (connection, protocol = defaultProtocol(connection)) => {
-    if (!(protocol === "ssh" ? hasSSH(connection) : hasVNC(connection))) throw new Error(t("connection.access.unavailable"));
+    if (!hasAccess(connection, protocol)) throw new Error(t("connection.access.unavailable"));
+    if (protocol === "rdp") {
+      const result = await connectRDP(connection.id);
+      return { id: result.sessionId, type: "rdp" };
+    }
     if (protocol === "vnc") {
       const result = await connectVNC(connection.id);
       return { id: result.sessionId, type: "vnc", url: result.url, token: result.token };
@@ -870,7 +876,7 @@ function App() {
 
   const handleCancelConnect = (c, protocol) => {
     if (protocol) CancelConnect(connectionKey(c.id, protocol));
-    else { CancelConnect(connectionKey(c.id, "ssh")); CancelConnect(connectionKey(c.id, "vnc")); }
+    else protocols.forEach(protocol => CancelConnect(connectionKey(c.id, protocol)));
   };
 
   const handleOpenLocalTerminal = async () => {
@@ -939,7 +945,7 @@ function App() {
 
   const uploadFile = async () => {
     // Si no hay una sesión SSH activa, detenemos la operación
-    if (!activeTab || tabs.find(tab => tab.id === activeTab)?.type === "vnc") {
+    if (!activeTab || isDesktop(tabs.find(tab => tab.id === activeTab)?.type)) {
       showAlert(t("app.selectActiveSession"));
       return;
     }
@@ -969,7 +975,7 @@ function App() {
         const payload = event.data || {};
         const targetAttrs = payload.details?.Attributes || payload.details?.attributes || {};
         if (targetAttrs["data-remote-file-drop-target"] !== "true") return;
-        if (!activeTab || isLocalActive || isVNCActive) {
+        if (!activeTab || isLocalActive || isDesktopActive) {
           showAlert(t("app.selectActiveSession"));
           return;
         }
@@ -993,7 +999,7 @@ function App() {
     );
 
     return () => unsubscribe();
-  }, [activeTab, isLocalActive, isVNCActive, t]);
+  }, [activeTab, isLocalActive, isDesktopActive, t]);
 
   const handleAcceptInvite = async (invite) => {
     setAcceptingInviteId(invite.id);
@@ -1071,7 +1077,8 @@ function App() {
 
   const handleCloseTab = async (tabId) => {
     try {
-      if (tabs.find(tab => tab.id === tabId)?.type === "vnc") await closeVNC(tabId);
+      if (tabs.find(tab => tab.id === tabId)?.type === "rdp") await closeRDP(tabId);
+      else if (tabs.find(tab => tab.id === tabId)?.type === "vnc") await closeVNC(tabId);
       else await CloseSession(tabId);
     } catch (err) {
       console.error("Failed to close session", err);
@@ -1271,7 +1278,7 @@ function App() {
             style={{ display: tabs.length > 0 ? "flex" : "none" }}
           >
             <div className="card-mid">
-              {!isLocalActive && !isVNCActive && (
+              {!isLocalActive && !isDesktopActive && (
               <div
                 className="files-panel"
                 data-file-drop-target
@@ -1339,7 +1346,7 @@ function App() {
                 <div className="terminal-container">
                   <div
                     ref={terminalRef}
-                    style={{ display: isVNCActive ? "none" : "block" }}
+                    style={{ display: isDesktopActive ? "none" : "block" }}
                     onContextMenu={(event) => {
                       event.preventDefault();
                       setTerminalContextMenu({ x: event.clientX, y: event.clientY });
@@ -1348,7 +1355,10 @@ function App() {
                   {tabs.filter(tab => tab.type === "vnc").map(tab => (
                     <VNCView key={tab.id} session={tab} active={tab.id === activeTab} setTabs={setTabs} />
                   ))}
-                  {terminalContextMenu && !isVNCActive && (
+                  {tabs.filter(tab => tab.type === "rdp").map(tab => (
+                    <RDPView key={tab.id} session={tab} active={tab.id === activeTab} setTabs={setTabs} />
+                  ))}
+                  {terminalContextMenu && !isDesktopActive && (
                     <ContextMenu
                       x={terminalContextMenu.x}
                       y={terminalContextMenu.y}
@@ -1407,7 +1417,7 @@ function App() {
                     </div>
                   )}
                 </div>
-                {!isLocalActive && !isVNCActive && (
+                {!isLocalActive && !isDesktopActive && (
                   <ResourceBar
                     sessionId={activeTab}
                     disconnected={activeTabData?.disconnected}
@@ -1415,7 +1425,7 @@ function App() {
                 )}
               </div>
             </div>
-            {!isLocalActive && !isVNCActive && (
+            {!isLocalActive && !isDesktopActive && (
               <BottomPanel sessionId={activeTab} connectionId={activeTabData?.connectionId} accountStatus={accountStatus} features={features} onUpgrade={() => setAccountModalOpen(true)} mobileTab={phone ? mobileView : undefined} />
             )}
             {phone && mobileView === "resources" && (
@@ -1663,11 +1673,11 @@ function App() {
           <div className="modal-header">
             <h2>{connectionError?.title || t("app.connectionFailed")}</h2>
 
-            <p>{t(connectionError?.protocol === "vnc" ? "connection.vnc.error" : "app.unableEstablishSsh")}</p>
+            <p>{t(isDesktop(connectionError?.protocol) ? `connection.${connectionError.protocol}.error` : "app.unableEstablishSsh")}</p>
           </div>
 
           <div className="modal-body">
-            <ResponseMessage {...responseError(connectionError?.message, t(connectionError?.protocol === "vnc" ? "connection.vnc.error" : "app.unableEstablishSsh"))} />
+            <ResponseMessage {...responseError(connectionError?.message, t(isDesktop(connectionError?.protocol) ? `connection.${connectionError.protocol}.error` : "app.unableEstablishSsh"))} />
           </div>
 
           <div className="modal-footer">

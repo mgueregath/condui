@@ -194,7 +194,8 @@
     "type": {
       "label": "Connection type",
       "ssh": "SSH",
-      "vnc": "VNC"
+      "vnc": "VNC",
+      "rdp": "RDP"
     },
     "vnc": {
       "user": "For macOS, enter the account username and password (Apple Remote Desktop). Leave username empty for classic VNC.",
@@ -271,7 +272,7 @@
       "source": "Source",
       "own": "Own value",
       "fromSSH": "Use SSH",
-      "noPass": "An SSH password is unavailable. Set a separate VNC password; private keys and their passphrases are not reused.",
+      "noPass": "An SSH password is unavailable. Set a separate {{protocol}} password; private keys and their passphrases are not reused.",
       "saved": "Stored value (unchanged)",
       "inherited": "Stored SSH password",
       "test": "Test {{protocol}}",
@@ -281,7 +282,30 @@
       "sshRequired": "Enter an SSH username and, for private key authentication, a key file path.",
       "required": "Enter a name and enable at least one connection access.",
       "unavailable": "This connection access is disabled.",
-      "open": "Open {{protocol}}"
+      "open": "Open {{protocol}}",
+      "rdp": "RDP desktop"
+    },
+    "rdp": {
+      "domain": "Domain (optional)",
+      "fingerprint": "Certificate SHA-256 fingerprint (optional)",
+      "trust": "The server certificate is verified. For a self-signed certificate, enter its SHA-256 fingerprint confirmed through a trusted channel.",
+      "user": "Enter the user and domain, if applicable. You can also use DOMAIN\\user.",
+      "description": "Connects to the remote desktop using the selected RDP security mode.",
+      "connecting": "Connecting to RDP desktop...",
+      "screen": "RDP desktop. Click to use the keyboard and mouse.",
+      "error": "Unable to establish the RDP connection.",
+      "required": "Enter an RDP username or reuse an SSH username.",
+      "invalidFingerprint": "The certificate fingerprint must contain 64 hexadecimal digits, with or without colons.",
+      "security": "Security",
+      "tls": "TLS with NLA (default)",
+      "standard": "Standard RDP without TLS",
+      "noTLS": "Uses Standard RDP Security without TLS or NLA. The server must accept this mode.",
+      "verification": "Server certificate",
+      "verify": "Verify certificate (default)",
+      "skip": "Do not verify certificate",
+      "untrusted": "Keeps TLS and NLA, but does not verify the server identity. No SHA-256 fingerprint is required.",
+      "resolution": "Resolution",
+      "resolutionHelp": "Applies when opening or reconnecting the session."
     }
   },
   "files": {

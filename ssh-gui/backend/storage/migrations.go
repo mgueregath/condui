@@ -84,6 +84,7 @@ func (d *Database) Migrate() error {
 
 	// ALTER TABLE migrations — idempotent via duplicate-column error suppression
 	alterations := []string{
+		`ALTER TABLE connections ADD COLUMN rdp_config TEXT`,
 		`ALTER TABLE connections ADD COLUMN ssh_enabled INTEGER NOT NULL DEFAULT 1`,
 		`ALTER TABLE connections ADD COLUMN vnc_config TEXT`,
 		`ALTER TABLE connections ADD COLUMN protocol TEXT NOT NULL DEFAULT 'ssh'`,

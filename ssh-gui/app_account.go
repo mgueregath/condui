@@ -338,9 +338,10 @@ func (a *App) ShareConnection(connectionID, recipientEmail string, readOnly bool
 	}
 
 	if !conn.HasSSH() {
-		return fmt.Errorf("VNC sharing is not supported")
+		return fmt.Errorf("Only SSH access can be shared")
 	}
 	shareable := *conn
+	shareable.RDP = nil
 	shareable.VNC = nil
 	shareable.SSHEnabled = nil
 	if includePassword && conn.Password != nil && *conn.Password != "" {
@@ -415,8 +416,9 @@ func (a *App) AcceptShare(shareID, encryptedKey, blobID string) error {
 	}
 
 	if !conn.HasSSH() {
-		return fmt.Errorf("VNC sharing is not supported")
+		return fmt.Errorf("Only SSH access can be shared")
 	}
+	conn.RDP = nil
 	conn.VNC = nil
 	conn.SSHEnabled = nil
 	conn.ID = ""        // will be assigned by CreateConnection
@@ -590,6 +592,7 @@ func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.
 	order := make([]string, 0, len(local)+len(remote))
 
 	for _, conn := range remote {
+		conn.RDP = nil
 		conn.VNC = nil
 		conn.SSHEnabled = nil
 		if !conn.HasSSH() {
@@ -650,17 +653,31 @@ func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.
 				if err != nil {
 					return nil, err
 				}
-				if stored.HasVNC() {
+				if stored.HasVNC() || stored.HasRDP() {
 					enabled := false
 					stored.SSHEnabled = &enabled
-					stored.Protocol = "vnc"
-					if stored.VNC.Reuse.User {
+					if stored.HasVNC() {
+						stored.Protocol = "vnc"
+					} else {
+						stored.Protocol = "rdp"
+					}
+					if stored.VNC != nil && stored.VNC.Reuse.User {
 						stored.VNC.Username = stored.Username
 						stored.VNC.Reuse.User = false
 					}
-					if stored.VNC.Reuse.Pass {
+					if stored.VNC != nil && stored.VNC.Reuse.Pass {
 						stored.VNC.Password = stored.Password
 						stored.VNC.Reuse.Pass = false
+					}
+					if stored.RDP != nil {
+						if stored.RDP.Reuse.User {
+							stored.RDP.Username = stored.Username
+							stored.RDP.Reuse.User = false
+						}
+						if stored.RDP.Reuse.Pass {
+							stored.RDP.Password = stored.Password
+							stored.RDP.Reuse.Pass = false
+						}
 					}
 					if err := a.database.UpdateConnection(stored); err != nil {
 						return nil, err
@@ -989,6 +1006,7 @@ func sshConnections(connections []models.Connection) []models.Connection {
 	result := make([]models.Connection, 0, len(connections))
 	for _, c := range connections {
 		if c.HasSSH() {
+			c.RDP = nil
 			c.VNC = nil
 			c.SSHEnabled = nil
 			result = append(result, c)

@@ -22,6 +22,7 @@ import (
 type App struct {
 	sessionManager *sessions.SessionManager
 	vncSessions    sync.Map
+	rdpSessions    sync.Map
 
 	database *storage.Database
 
@@ -112,6 +113,7 @@ func (a *App) ServiceStartup(ctx context.Context, options application.ServiceOpt
 	go func() {
 		<-ctx.Done()
 		a.vncSessions.Range(func(key, value any) bool { _ = a.CloseVNC(key.(string)); return true })
+		a.rdpSessions.Range(func(key, value any) bool { _ = a.CloseRDP(key.(string)); return true })
 	}()
 	a.startTokenRefreshLoop(ctx)
 	a.startUpdateCheckLoop(ctx)
