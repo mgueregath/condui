@@ -4,6 +4,7 @@ go 1.25.7
 
 require (
 	github.com/UserExistsError/conpty v0.1.4
+	github.com/bouncyball-git/gopher-rdp v1.0.8
 	github.com/coder/websocket v1.8.14
 	github.com/creack/pty v1.1.24
 	github.com/google/uuid v1.6.0
@@ -154,3 +155,6 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
+
+// gopher-rdp v1.0.8 core with verified TLS, mandatory NLA and cancellable dial.
+replace github.com/bouncyball-git/gopher-rdp => ./third_party/gopher-rdp

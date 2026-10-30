@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FaTrash, FaEdit, FaShareAlt, FaNetworkWired, FaLock, FaTimes } from "react-icons/fa";
 import { MdOpenInNew } from "react-icons/md";
-import { hasSSH, hasVNC } from "./connectionForm";
+import { hasSSH, protocols as accessProtocols, hasAccess, defaultProtocol } from "./connectionForm";
 import ProtocolIcon from "./ProtocolIcon";
 import ContextMenu from "./ContextMenu";
 import { useTranslation } from "react-i18next";
@@ -59,8 +59,8 @@ export default function ConnectionNode({
   const { t } = useTranslation();
   const [ctx, setCtx] = useState(null);
 
-  const isVNC = !hasSSH(connection);
-  const protocols = [hasSSH(connection) && "ssh", hasVNC(connection) && "vnc"].filter(Boolean);
+  const sshEnabled = hasSSH(connection);
+  const protocols = accessProtocols.filter(protocol => hasAccess(connection, protocol));
   const revoked = !!connection.shareRevoked;
 
   const connect = (e) => {
@@ -74,7 +74,7 @@ export default function ConnectionNode({
     setCtx({ x: e.clientX, y: e.clientY });
   };
 
-  const viaSubmenu = onConnectVia && !isVNC ? buildViaSubmenu(connection, connections, folders, onConnectVia) : null;
+  const viaSubmenu = onConnectVia && sshEnabled ? buildViaSubmenu(connection, connections, folders, onConnectVia) : null;
 
   const menuItems = [
     ...protocols.map(protocol => ({ icon: <ProtocolIcon protocol={protocol} />, label: t("connection.access.open", { protocol: protocol.toUpperCase() }), disabled: revoked || connectingProtocols[protocol], onClick: () => onOpen(connection, false, protocol) })),
@@ -95,7 +95,7 @@ export default function ConnectionNode({
       label: t("common.edit"),
       onClick: () => onEdit(connection),
     },
-    ...(onShare && !isVNC ? [{
+    ...(onShare && sshEnabled ? [{
       icon: <FaShareAlt />,
       label: t("connection.share"),
       onClick: () => onShare(connection),
@@ -160,7 +160,7 @@ export default function ConnectionNode({
           )}
         </div>
         <div className="conn-host">
-          {isVNC ? `${connection.host}:${connection.vnc?.port || 5900}` : `${connection.username}@${connection.host}`}
+          {!sshEnabled ? `${connection.host}:${connection[defaultProtocol(connection)]?.port}` : `${connection.username}@${connection.host}`}
         </div>
       </div>
 
@@ -186,7 +186,7 @@ export default function ConnectionNode({
           <FaEdit />
         </button>
 
-        {onShare && !isVNC && (
+        {onShare && sshEnabled && (
           <button
             className="conn-action-btn"
             title={t("connection.share")}

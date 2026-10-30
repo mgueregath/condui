@@ -16,6 +16,10 @@ func (d *Database) CreateConnection(
 	connection.ID =
 		uuid.NewString()
 
+	rdpData, err := encodeRDP(connection.RDP)
+	if err != nil {
+		return err
+	}
 	vncData, err := encodeVNC(connection.VNC)
 	if err != nil {
 		return err
@@ -24,6 +28,7 @@ func (d *Database) CreateConnection(
 		`
 		INSERT INTO connections(
 			ssh_enabled,
+			rdp_config,
 			vnc_config,
 			protocol,
 			id,
@@ -42,6 +47,7 @@ func (d *Database) CreateConnection(
 			share_revoked
 		)
 		VALUES(
+ ?,
 			?,
  ?,
 			?,
@@ -62,6 +68,7 @@ func (d *Database) CreateConnection(
 		)
 		`,
 		connection.HasSSH(),
+		rdpData,
 		vncData,
 		connection.ConnectionProtocol(),
 		connection.ID,

@@ -16,6 +16,7 @@ func (d *Database) GetConnections() (
 			`
 			SELECT
 			ssh_enabled,
+			rdp_config,
 			vnc_config,
 			protocol,
 				id,
@@ -50,9 +51,11 @@ func (d *Database) GetConnections() (
 
 		var connection models.Connection
 		var vncData sql.NullString
+		var rdpData sql.NullString
 
 		err := rows.Scan(
 			&connection.SSHEnabled,
+			&rdpData,
 			&vncData,
 			&connection.Protocol,
 			&connection.ID,
@@ -75,6 +78,9 @@ func (d *Database) GetConnections() (
 			return nil, err
 		}
 
+		if err := decodeRDP(rdpData, &connection); err != nil {
+			return nil, err
+		}
 		if err := decodeVNC(vncData, &connection); err != nil {
 			return nil, err
 		}

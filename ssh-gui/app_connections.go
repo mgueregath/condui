@@ -82,6 +82,9 @@ func (a *App) CreateConnection(
 		}
 	}
 
+	if err := a.encryptRDP(&connection, nil); err != nil {
+		return err
+	}
 	if err := a.encryptVNC(&connection, nil); err != nil {
 		return err
 	}
@@ -137,6 +140,9 @@ func (a *App) UpdateConnection(
 		}
 	}
 
+	if err := a.encryptRDP(&connection, stored); err != nil {
+		return err
+	}
 	if err := a.encryptVNC(&connection, stored); err != nil {
 		return err
 	}

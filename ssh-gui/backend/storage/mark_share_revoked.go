@@ -11,7 +11,8 @@ func (d *Database) MarkConnectionShareRevoked(connectionID string) error {
 			share_revoked=1,
 			password=NULL,
 			passphrase=NULL,
- vnc_config=NULL
+ vnc_config=NULL,
+ rdp_config=NULL
 		WHERE id=?
 		`,
 		connectionID,

@@ -10,6 +10,9 @@ func redactConnection(c *models.Connection) {
 	if c.Password != nil && isSyncEncrypted(*c.Password) {
 		c.PasswordPending = true
 	}
+	if c.RDP != nil {
+		c.RDP.Password = nil
+	}
 	c.Password = nil
 	c.Passphrase = nil
 	if c.VNC != nil {
