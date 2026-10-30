@@ -42,13 +42,8 @@ func (a *App) GetConnections() (
 		return nil, err
 	}
 
-	// Redact passwords; flag connections whose password is pending cross-device decryption.
 	for i := range connections {
-		if connections[i].Password != nil && isSyncEncrypted(*connections[i].Password) {
-			connections[i].PasswordPending = true
-		}
-		connections[i].Password = nil
-		connections[i].Passphrase = nil
+		redactConnection(&connections[i])
 	}
 
 	return connections, nil
@@ -58,6 +53,9 @@ func (a *App) GetConnections() (
 func (a *App) CreateConnection(
 	connection models.Connection,
 ) error {
+	if err := a.validateConnection(&connection); err != nil {
+		return err
+	}
 
 	if connection.Password != nil && *connection.Password != "" {
 		key := a.getMasterKey()
@@ -84,6 +82,9 @@ func (a *App) CreateConnection(
 		}
 	}
 
+	if err := a.encryptVNC(&connection, nil); err != nil {
+		return err
+	}
 	err := a.database.CreateConnection(&connection)
 	if err != nil {
 		return err
@@ -99,15 +100,17 @@ func (a *App) UpdateConnection(
 	connection models.Connection,
 ) error {
 
-	var existing *models.Connection
+	stored, err := a.database.GetConnectionByID(connection.ID)
+	if err != nil {
+		return err
+	}
+	if err := a.validateConnection(&connection); err != nil {
+		return err
+	}
+	existing := stored
 
 	// If password is nil (redacted from frontend), preserve the stored password
 	if connection.Password == nil {
-		var err error
-		existing, err = a.database.GetConnectionByID(connection.ID)
-		if err != nil {
-			return err
-		}
 		connection.Password = existing.Password
 	} else if *connection.Password != "" {
 		key := a.getMasterKey()
@@ -122,13 +125,6 @@ func (a *App) UpdateConnection(
 
 	// Same redact/encrypt treatment for the private-key passphrase.
 	if connection.Passphrase == nil {
-		if existing == nil {
-			var err error
-			existing, err = a.database.GetConnectionByID(connection.ID)
-			if err != nil {
-				return err
-			}
-		}
 		connection.Passphrase = existing.Passphrase
 	} else if *connection.Passphrase != "" {
 		key := a.getMasterKey()
@@ -141,7 +137,13 @@ func (a *App) UpdateConnection(
 		}
 	}
 
-	err := a.database.UpdateConnection(&connection)
+	if err := a.encryptVNC(&connection, stored); err != nil {
+		return err
+	}
+	if err := a.validateConnection(&connection); err != nil {
+		return err
+	}
+	err = a.database.UpdateConnection(&connection)
 	if err != nil {
 		return err
 	}
@@ -205,12 +207,7 @@ func (a *App) GetConnectionByID(
 		return nil, err
 	}
 
-	// Redact secrets from frontend response; flag if pending cross-device decryption.
-	if conn.Password != nil && isSyncEncrypted(*conn.Password) {
-		conn.PasswordPending = true
-	}
-	conn.Password = nil
-	conn.Passphrase = nil
+	redactConnection(conn)
 	return conn, nil
 }
 

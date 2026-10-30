@@ -36,6 +36,9 @@ import {
   UploadDroppedFile,
 } from "../bindings/ssh-gui/app";
 
+import { hasSSH, hasVNC, defaultProtocol, connectionKey } from "./components/connections/connectionForm";
+import VNCView from "./components/vnc/VNCView";
+import { connectVNC, closeVNC } from "./services/vnc";
 import VaultUnlock from "./components/account/VaultUnlock";
 import AccountModal from "./components/account/AccountModal";
 import ShareModal from "./components/account/ShareModal";
@@ -232,7 +235,8 @@ function LeftSidebar({
                       ...c,
                       online: tabs.filter((tab) => tab.connectionId === c.id).length,
                     }}
-                    connecting={!!connectingIds[c.id]}
+                    connecting={!!(connectingIds[connectionKey(c.id, "ssh")] || connectingIds[connectionKey(c.id, "vnc")])}
+                    connectingProtocols={{ ssh: !!connectingIds[connectionKey(c.id, "ssh")], vnc: !!connectingIds[connectionKey(c.id, "vnc")] }}
                     connections={connections}
                     folders={folders}
                     onOpen={onOpenConnection}
@@ -264,7 +268,8 @@ function LeftSidebar({
                       ...c,
                       online: tabs.filter((tab) => tab.connectionId === c.id).length,
                     }}
-                    connecting={!!connectingIds[c.id]}
+                    connecting={!!(connectingIds[connectionKey(c.id, "ssh")] || connectingIds[connectionKey(c.id, "vnc")])}
+                    connectingProtocols={{ ssh: !!connectingIds[connectionKey(c.id, "ssh")], vnc: !!connectingIds[connectionKey(c.id, "vnc")] }}
                     connections={connections}
                     folders={folders}
                     onOpen={onOpenConnection}
@@ -338,7 +343,7 @@ function App() {
     });
   };
   const [connectionChoice, setConnectionChoice] = useState(null);
-  const [sshError, setSshError] = useState(null);
+  const [connectionError, setConnectionError] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
   const showAlert = (message, title = t("app.notice")) =>
     setAlertModal({ title, message });
@@ -526,45 +531,48 @@ function App() {
   const handleReconnect = async (tab) => {
     const connection = connections.find((c) => c.id === tab.connectionId);
     if (!connection) return;
-
-    updateConnecting(tab.connectionId, true);
+    const protocol = tab.type === "vnc" ? "vnc" : "ssh";
+    updateConnecting(connectionKey(tab.connectionId, protocol), true);
     try {
-      const connectResult = parseConnectResult(await ConnectSSH(tab.connectionId));
-      const newSessionId = connectResult.sessionId;
-      setFileTreePaths((prev) => {
-        const next = { ...prev };
-        if (prev[tab.id]) {
-          next[newSessionId] = prev[tab.id];
-        }
-        delete next[tab.id];
-        return next;
-      });
-      const entry = terminalsRef.current.get(tab.id);
-      if (entry) {
-        terminalsRef.current.delete(tab.id);
-        entry.sessionId = newSessionId;
-        terminalsRef.current.set(newSessionId, entry);
-        if (attachedSessionRef.current === tab.id) {
-          attachedSessionRef.current = newSessionId;
+      const session = await connectSession(connection, protocol);
+      const newSessionId = session.id;
+      if (session.type === "ssh") {
+        setFileTreePaths((prev) => {
+          const next = { ...prev };
+          if (prev[tab.id]) {
+            next[newSessionId] = prev[tab.id];
+          }
+          delete next[tab.id];
+          return next;
+        });
+        const entry = terminalsRef.current.get(tab.id);
+        if (entry) {
+          terminalsRef.current.delete(tab.id);
+          entry.sessionId = newSessionId;
+          terminalsRef.current.set(newSessionId, entry);
+          if (attachedSessionRef.current === tab.id) {
+            attachedSessionRef.current = newSessionId;
+          }
         }
       }
       setTabs((prev) =>
         prev.map((t) =>
           t.id === tab.id
-            ? { ...t, id: newSessionId, homePath: connectResult.homePath, disconnected: false }
+            ? { ...t, ...session, disconnected: false }
             : t,
         ),
       );
       setActiveTab(newSessionId);
     } catch (err) {
-      setSshError({
+      setConnectionError({
+        protocol,
         title: t("app.reconnectionFailed"),
         message:
           typeof err === "string" ? err : err?.message || t("app.unableToConnect"),
         connection: tab.title,
       });
     } finally {
-      updateConnecting(tab.connectionId, false);
+      updateConnecting(connectionKey(tab.connectionId, protocol), false);
     }
   };
 
@@ -699,7 +707,7 @@ function App() {
       if (prevEntry) holdingRef.current.appendChild(prevEntry.container);
     }
 
-    if (!activeTab) {
+    if (!activeTab || tabs.find(tab => tab.id === activeTab)?.type === "vnc") {
       termRef.current = null;
       attachedSessionRef.current = null;
       return;
@@ -741,6 +749,7 @@ function App() {
 
   const activeTabData = tabs.find((t) => t.id === activeTab);
   const isLocalActive = activeTabData?.type === "local";
+  const isVNCActive = activeTabData?.type === "vnc";
 
   const parseConnectResult = (result) => {
     if (typeof result === "string") {
@@ -752,54 +761,65 @@ function App() {
     };
   };
 
-  const handleOpenConnection = async (c, forceNew = false) => {
-    const existing = tabs.find((t) => t.connectionId === c.id);
+  const connectSession = async (connection, protocol = defaultProtocol(connection)) => {
+    if (!(protocol === "ssh" ? hasSSH(connection) : hasVNC(connection))) throw new Error(t("connection.access.unavailable"));
+    if (protocol === "vnc") {
+      const result = await connectVNC(connection.id);
+      return { id: result.sessionId, type: "vnc", url: result.url, token: result.token };
+    }
+    const result = parseConnectResult(await ConnectSSH(connection.id));
+    return { id: result.sessionId, type: "ssh", homePath: result.homePath };
+  };
+
+  const handleOpenConnection = async (c, forceNew = false, protocol = defaultProtocol(c)) => {
+    const existing = tabs.find((t) => t.connectionId === c.id && (t.type || "ssh") === protocol);
 
     if (existing && !forceNew) {
       setConnectionChoice({
         connection: c,
+        protocol,
         session: existing,
       });
 
       return;
     }
 
-    updateConnecting(c.id, true);
+    updateConnecting(connectionKey(c.id, protocol), true);
 
     try {
-      const connectResult = parseConnectResult(await ConnectSSH(c.id));
-      const sessionId = connectResult.sessionId;
+      const session = await connectSession(c, protocol);
 
       setTabs((prev) => [
         ...prev,
         {
-          id: sessionId,
+          ...session,
           connectionId: c.id,
           title: c.name,
           color: c.color,
-          homePath: connectResult.homePath,
         },
       ]);
 
-      setActiveTab(sessionId);
+      setActiveTab(session.id);
     } catch (err) {
       const message =
         typeof err === "string" ? err : err?.message || t("app.unableToConnect");
 
       if (!/cancel/i.test(message)) {
-        setSshError({
+        setConnectionError({
           title: t("app.connectionFailed"),
           message,
           connection: c.name,
+          protocol,
         });
       }
     } finally {
-      updateConnecting(c.id, false);
+      updateConnecting(connectionKey(c.id, protocol), false);
     }
   };
 
-  const handleCancelConnect = (c) => {
-    CancelConnect(c.id);
+  const handleCancelConnect = (c, protocol) => {
+    if (protocol) CancelConnect(connectionKey(c.id, protocol));
+    else { CancelConnect(connectionKey(c.id, "ssh")); CancelConnect(connectionKey(c.id, "vnc")); }
   };
 
   const handleOpenLocalTerminal = async () => {
@@ -822,7 +842,7 @@ function App() {
 
       setActiveTab(sessionId);
     } catch (err) {
-      setSshError({
+      setConnectionError({
         title: t("app.localTerminalFailed"),
         message: typeof err === "string" ? err : err?.message || t("app.unableToConnect"),
         connection: t("app.localTerminal"),
@@ -833,7 +853,7 @@ function App() {
   };
 
   const handleConnectVia = async (connection, jumpHost) => {
-    updateConnecting(connection.id, true);
+    updateConnecting(connectionKey(connection.id, "ssh"), true);
     try {
       const connectResult = parseConnectResult(await ConnectSSHVia(connection.id, jumpHost.id));
       const sessionId = connectResult.sessionId;
@@ -841,6 +861,7 @@ function App() {
         ...prev,
         {
           id: sessionId,
+          type: "ssh",
           connectionId: connection.id,
           title: `${connection.name} via ${jumpHost.name}`,
           color: connection.color,
@@ -853,14 +874,14 @@ function App() {
         typeof err === "string" ? err : err?.message || t("app.unableToConnect");
 
       if (!/cancel/i.test(message)) {
-        setSshError({
+        setConnectionError({
           title: t("app.connectionFailed"),
           message,
           connection: `${connection.name} via ${jumpHost.name}`,
         });
       }
     } finally {
-      updateConnecting(connection.id, false);
+      updateConnecting(connectionKey(connection.id, "ssh"), false);
     }
   };
 
@@ -871,7 +892,7 @@ function App() {
 
   const uploadFile = async () => {
     // Si no hay una sesión SSH activa, detenemos la operación
-    if (!activeTab) {
+    if (!activeTab || tabs.find(tab => tab.id === activeTab)?.type === "vnc") {
       showAlert(t("app.selectActiveSession"));
       return;
     }
@@ -901,7 +922,7 @@ function App() {
         const payload = event.data || {};
         const targetAttrs = payload.details?.Attributes || payload.details?.attributes || {};
         if (targetAttrs["data-remote-file-drop-target"] !== "true") return;
-        if (!activeTab || isLocalActive) {
+        if (!activeTab || isLocalActive || isVNCActive) {
           showAlert(t("app.selectActiveSession"));
           return;
         }
@@ -925,7 +946,7 @@ function App() {
     );
 
     return () => unsubscribe();
-  }, [activeTab, isLocalActive, t]);
+  }, [activeTab, isLocalActive, isVNCActive, t]);
 
   const handleAcceptInvite = async (invite) => {
     setAcceptingInviteId(invite.id);
@@ -1003,9 +1024,10 @@ function App() {
 
   const handleCloseTab = async (tabId) => {
     try {
-      await CloseSession(tabId);
+      if (tabs.find(tab => tab.id === tabId)?.type === "vnc") await closeVNC(tabId);
+      else await CloseSession(tabId);
     } catch (err) {
-      console.error("Failed to close SSH session", err);
+      console.error("Failed to close session", err);
     }
 
     const entry = terminalsRef.current.get(tabId);
@@ -1188,7 +1210,7 @@ function App() {
             style={{ display: tabs.length > 0 ? "flex" : "none" }}
           >
             <div className="card-mid">
-              {!isLocalActive && (
+              {!isLocalActive && !isVNCActive && (
               <div
                 className="files-panel"
                 data-file-drop-target
@@ -1256,12 +1278,16 @@ function App() {
                 <div className="terminal-container">
                   <div
                     ref={terminalRef}
+                    style={{ display: isVNCActive ? "none" : "block" }}
                     onContextMenu={(event) => {
                       event.preventDefault();
                       setTerminalContextMenu({ x: event.clientX, y: event.clientY });
                     }}
                   />
-                  {terminalContextMenu && (
+                  {tabs.filter(tab => tab.type === "vnc").map(tab => (
+                    <VNCView key={tab.id} session={tab} active={tab.id === activeTab} setTabs={setTabs} />
+                  ))}
+                  {terminalContextMenu && !isVNCActive && (
                     <ContextMenu
                       x={terminalContextMenu.x}
                       y={terminalContextMenu.y}
@@ -1298,12 +1324,12 @@ function App() {
                         <div className="terminal-reconnect-spacer">
                           <button
                             className="terminal-reconnect-btn"
-                            disabled={!!connectingIds[activeTabData?.connectionId]}
+                            disabled={!!connectingIds[connectionKey(activeTabData?.connectionId, activeTabData?.type || "ssh")]}
                             onClick={() => handleReconnect(activeTabData)}
                           >
                             <FaRedoAlt />
                              &nbsp;
-                            {!!connectingIds[activeTabData?.connectionId]
+                            {!!connectingIds[connectionKey(activeTabData?.connectionId, activeTabData?.type || "ssh")]
                               ? t("app.connecting")
                               : t("app.reconnect")}
                              
@@ -1320,7 +1346,7 @@ function App() {
                     </div>
                   )}
                 </div>
-                {!isLocalActive && (
+                {!isLocalActive && !isVNCActive && (
                   <ResourceBar
                     sessionId={activeTab}
                     disconnected={activeTabData?.disconnected}
@@ -1328,7 +1354,7 @@ function App() {
                 )}
               </div>
             </div>
-            {!isLocalActive && (
+            {!isLocalActive && !isVNCActive && (
               <BottomPanel sessionId={activeTab} connectionId={activeTabData?.connectionId} accountStatus={accountStatus} features={features} onUpgrade={() => setAccountModalOpen(true)} />
             )}
           </div>
@@ -1396,6 +1422,7 @@ function App() {
       </Modal>
 
       <Modal
+        className="connection-dialog"
         open={connectionModalOpen}
         onClose={() => {
           if (formBusy) return;
@@ -1557,20 +1584,20 @@ function App() {
           </div>
         </div>
       </Modal>
-      <Modal open={!!sshError} onClose={() => setSshError(null)}>
+      <Modal open={!!connectionError} onClose={() => setConnectionError(null)}>
         <div>
           <div className="modal-header">
-            <h2>{t("app.connectionFailed")}</h2>
+            <h2>{connectionError?.title || t("app.connectionFailed")}</h2>
 
-            <p>{t("app.unableEstablishSsh")}</p>
+            <p>{t(connectionError?.protocol === "vnc" ? "connection.vnc.error" : "app.unableEstablishSsh")}</p>
           </div>
 
           <div className="modal-body">
-            <ResponseMessage {...responseError(sshError?.message, t("app.unableEstablishSsh"))} />
+            <ResponseMessage {...responseError(connectionError?.message, t(connectionError?.protocol === "vnc" ? "connection.vnc.error" : "app.unableEstablishSsh"))} />
           </div>
 
           <div className="modal-footer">
-            <button className="btn-primary" onClick={() => setSshError(null)}>
+            <button className="btn-primary" onClick={() => setConnectionError(null)}>
               OK
             </button>
           </div>
@@ -1682,7 +1709,7 @@ function App() {
 
                 setConnectionChoice(null);
 
-                handleOpenConnection(c, true);
+                handleOpenConnection(c, true, connectionChoice.protocol);
               }}
             >
               {t("app.openNew")}

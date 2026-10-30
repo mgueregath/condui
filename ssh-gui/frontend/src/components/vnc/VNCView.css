@@ -1,0 +1,18 @@
+.terminal-container > .vnc-view {
+  position: absolute;
+  inset: 4px;
+  display: flex;
+  flex-direction: column;
+  background: var(--terminal-bg);
+}
+.vnc-status {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.vnc-screen {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}

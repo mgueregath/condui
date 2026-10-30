@@ -1,3 +1,5 @@
+import { connectionKey } from "./connections/connectionForm";
+import ProtocolIcon from "./connections/ProtocolIcon";
 import { useTranslation } from "react-i18next";
 import { FaTerminal, FaRedoAlt, FaTimes } from "react-icons/fa";
 
@@ -35,6 +37,7 @@ export default function TabBar({
           }
           onClick={() => onSelect(tab.id)}
         >
+          {tab.type !== "db" && <ProtocolIcon protocol={tab.type === "vnc" ? "vnc" : "ssh"} />}
           {tab.disconnected && <span className="tab-disconnect-dot" />}
           {tab.type === "db" && (
             <span style={{ fontSize: "10px", opacity: 0.7, marginRight: "3px" }}>⬡</span>
@@ -46,7 +49,7 @@ export default function TabBar({
             <button
               className="tab-reconnect"
               title={t("tabs.reconnect")}
-              disabled={!!connectingIds[tab.connectionId]}
+              disabled={!!connectingIds[connectionKey(tab.connectionId, tab.type || "ssh")]}
               onClick={(e) => {
                 e.stopPropagation();
                 onReconnect(tab);

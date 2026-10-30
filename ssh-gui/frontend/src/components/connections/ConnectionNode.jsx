@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { FaTrash, FaPlay, FaPlug, FaEdit, FaShareAlt, FaNetworkWired, FaLock, FaTimes } from "react-icons/fa";
+import { FaTrash, FaEdit, FaShareAlt, FaNetworkWired, FaLock, FaTimes } from "react-icons/fa";
 import { MdOpenInNew } from "react-icons/md";
+import { hasSSH, hasVNC } from "./connectionForm";
+import ProtocolIcon from "./ProtocolIcon";
 import ContextMenu from "./ContextMenu";
 import { useTranslation } from "react-i18next";
 
 function buildViaSubmenu(connection, connections, folders, onConnectVia) {
-  const others = connections.filter(c => c.id !== connection.id);
+  const others = connections.filter(c => c.id !== connection.id && hasSSH(c));
   if (others.length === 0) return null;
 
   const items = [];
@@ -43,6 +45,7 @@ function buildViaSubmenu(connection, connections, folders, onConnectVia) {
 export default function ConnectionNode({
   connection,
   connecting = false,
+  connectingProtocols = {},
   connections = [],
   folders = [],
   onOpen,
@@ -56,16 +59,13 @@ export default function ConnectionNode({
   const { t } = useTranslation();
   const [ctx, setCtx] = useState(null);
 
+  const isVNC = !hasSSH(connection);
+  const protocols = [hasSSH(connection) && "ssh", hasVNC(connection) && "vnc"].filter(Boolean);
   const revoked = !!connection.shareRevoked;
 
   const connect = (e) => {
     e?.stopPropagation();
     if (!connecting && !revoked) onOpen(connection);
-  };
-
-  const cancelConnect = (e) => {
-    e?.stopPropagation();
-    onCancelConnect?.(connection);
   };
 
   const handleContextMenu = (e) => {
@@ -74,15 +74,10 @@ export default function ConnectionNode({
     setCtx({ x: e.clientX, y: e.clientY });
   };
 
-  const viaSubmenu = onConnectVia ? buildViaSubmenu(connection, connections, folders, onConnectVia) : null;
+  const viaSubmenu = onConnectVia && !isVNC ? buildViaSubmenu(connection, connections, folders, onConnectVia) : null;
 
   const menuItems = [
-    {
-      icon: <FaPlug />,
-      label: t("connection.connect"),
-      disabled: revoked,
-      onClick: () => !connecting && !revoked && onOpen(connection),
-    },
+    ...protocols.map(protocol => ({ icon: <ProtocolIcon protocol={protocol} />, label: t("connection.access.open", { protocol: protocol.toUpperCase() }), disabled: revoked || connectingProtocols[protocol], onClick: () => onOpen(connection, false, protocol) })),
     {
       icon: <MdOpenInNew />,
       label: t("connection.newSession"),
@@ -100,7 +95,7 @@ export default function ConnectionNode({
       label: t("common.edit"),
       onClick: () => onEdit(connection),
     },
-    ...(onShare ? [{
+    ...(onShare && !isVNC ? [{
       icon: <FaShareAlt />,
       label: t("connection.share"),
       onClick: () => onShare(connection),
@@ -141,7 +136,7 @@ export default function ConnectionNode({
 
       <div className="conn-info">
         <div className="conn-name" style={{ color: connection.color }}>
-          {connection.name}
+          {protocols.map(protocol => <ProtocolIcon key={protocol} protocol={protocol} />)} {connection.name}
           {connection.passwordPending && (
             <button
               type="button"
@@ -165,19 +160,22 @@ export default function ConnectionNode({
           )}
         </div>
         <div className="conn-host">
-          {connection.username}@{connection.host}
+          {isVNC ? `${connection.host}:${connection.vnc?.port || 5900}` : `${connection.username}@${connection.host}`}
         </div>
       </div>
 
       <div className={`conn-actions ${connecting ? "connecting" : ""}`}>
-        <button
-          className={`conn-action-btn ${connecting ? "cancel" : ""}`}
-          title={revoked ? t("connection.shareRevoked") : connecting ? t("connection.cancelConnect") : t("connection.connect")}
-          disabled={revoked && !connecting}
-          onClick={connecting ? cancelConnect : connect}
-        >
-          {connecting ? <FaTimes /> : <FaPlug />}
-        </button>
+        {protocols.map(protocol => (
+          <button key={protocol} type="button" className={`conn-action-btn${connectingProtocols[protocol] ? " cancel" : ""}`}
+            title={connectingProtocols[protocol] ? t("connection.cancelConnect") : t("connection.access.open", { protocol: protocol.toUpperCase() })}
+            disabled={revoked} onClick={event => {
+              event.stopPropagation();
+              if (connectingProtocols[protocol]) onCancelConnect?.(connection, protocol);
+              else onOpen(connection, false, protocol);
+            }}>
+            {connectingProtocols[protocol] ? <FaTimes /> : <ProtocolIcon protocol={protocol} />}
+          </button>
+        ))}
 
         <button
           className="conn-action-btn"
@@ -188,7 +186,7 @@ export default function ConnectionNode({
           <FaEdit />
         </button>
 
-        {onShare && (
+        {onShare && !isVNC && (
           <button
             className="conn-action-btn"
             title={t("connection.share")}

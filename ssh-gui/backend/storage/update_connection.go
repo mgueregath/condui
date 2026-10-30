@@ -5,11 +5,21 @@ import "ssh-gui/backend/models"
 func (d *Database) UpdateConnection(
 	connection *models.Connection,
 ) error {
+	if err := connection.ValidateProtocol(); err != nil {
+		return err
+	}
 
-	_, err := d.DB.Exec(
+	vncData, err := encodeVNC(connection.VNC)
+	if err != nil {
+		return err
+	}
+	_, err = d.DB.Exec(
 		`
 		UPDATE connections
 		SET
+			ssh_enabled=?,
+			vnc_config=?,
+			protocol=?,
 			folder_id=?,
 			name=?,
 			host=?,
@@ -23,6 +33,9 @@ func (d *Database) UpdateConnection(
 			jump_host_id=?
 		WHERE id=?
 		`,
+		connection.HasSSH(),
+		vncData,
+		connection.ConnectionProtocol(),
 		connection.FolderID,
 		connection.Name,
 		connection.Host,
