@@ -3,9 +3,19 @@ package storage
 import "ssh-gui/backend/models"
 
 func (d *Database) UpsertConnection(connection *models.Connection) error {
-	_, err := d.DB.Exec(
+	if err := connection.ValidateProtocol(); err != nil {
+		return err
+	}
+	vncData, err := encodeVNC(connection.VNC)
+	if err != nil {
+		return err
+	}
+	_, err = d.DB.Exec(
 		`
 		INSERT INTO connections(
+			ssh_enabled,
+			vnc_config,
+			protocol,
 			id,
 			folder_id,
 			name,
@@ -21,8 +31,11 @@ func (d *Database) UpsertConnection(connection *models.Connection) error {
 			source_share_id,
 			share_revoked
 		)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
+			ssh_enabled=excluded.ssh_enabled,
+			vnc_config=COALESCE(excluded.vnc_config,connections.vnc_config),
+			protocol=excluded.protocol,
 			folder_id=excluded.folder_id,
 			name=excluded.name,
 			host=excluded.host,
@@ -37,6 +50,9 @@ func (d *Database) UpsertConnection(connection *models.Connection) error {
 			source_share_id=excluded.source_share_id,
 			share_revoked=excluded.share_revoked
 		`,
+		connection.HasSSH(),
+		vncData,
+		connection.ConnectionProtocol(),
 		connection.ID,
 		connection.FolderID,
 		connection.Name,

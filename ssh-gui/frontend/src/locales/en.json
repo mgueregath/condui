@@ -191,13 +191,26 @@
     "cancelFailed": "Unable to cancel share"
   },
   "connection": {
+    "type": {
+      "label": "Connection type",
+      "ssh": "SSH",
+      "vnc": "VNC"
+    },
+    "vnc": {
+      "user": "For macOS, enter the account username and password (Apple Remote Desktop). Leave username empty for classic VNC.",
+      "description": "Remote desktop. Use a trusted network or VPN: the connection to the VNC server is not encrypted.",
+      "connecting": "Connecting to desktop...",
+      "connected": "Desktop connected",
+      "disconnected": "Desktop disconnected",
+      "error": "VNC desktop connection failed."
+    },
     "response": {
       "saveFailed": "Could not save the connection. Check the fields and try again.",
       "folderFailed": "Could not save the folder. Try again."
     },
     "editTitle": "Edit Connection",
     "newTitle": "New Connection",
-    "description": "Configure your SSH connection details",
+    "description": "Configure your connection access",
     "name": "Connection Name",
     "namePlaceholder": "My Server",
     "host": "Host",
@@ -246,7 +259,30 @@
     "saveFolder": "Save Folder",
     "renameFolder": "Rename folder",
     "deleteFolder": "Delete folder",
-    "deleteFolderConfirm": "Delete folder “{{name}}”?"
+    "deleteFolderConfirm": "Delete folder “{{name}}”?",
+    "access": {
+      "label": "Connection access",
+      "host": "Host / IP",
+      "ssh": "Remote terminal",
+      "vnc": "Remote desktop",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "enable": "Enable {{protocol}}",
+      "source": "Source",
+      "own": "Own value",
+      "fromSSH": "Use SSH",
+      "noPass": "An SSH password is unavailable. Set a separate VNC password; private keys and their passphrases are not reused.",
+      "saved": "Stored value (unchanged)",
+      "inherited": "Stored SSH password",
+      "test": "Test {{protocol}}",
+      "connected": "{{protocol}} connection successful",
+      "failed": "Unable to establish the {{protocol}} connection.",
+      "invalid": "Enter a host and an integer port between 1 and 65535.",
+      "sshRequired": "Enter an SSH username and, for private key authentication, a key file path.",
+      "required": "Enter a name and enable at least one connection access.",
+      "unavailable": "This connection access is disabled.",
+      "open": "Open {{protocol}}"
+    }
   },
   "files": {
     "savingChanges": "Saving changes...",

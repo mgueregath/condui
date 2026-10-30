@@ -221,6 +221,9 @@ func (a *App) createSSHClientWithJump(ctx context.Context, connectionID, overrid
 		return nil, err
 	}
 
+	if !connection.HasSSH() {
+		return nil, fmt.Errorf("connection must use SSH")
+	}
 	if connection.ShareRevoked {
 		return nil, fmt.Errorf("access to this shared connection was revoked by its owner")
 	}
@@ -286,6 +289,9 @@ func (a *App) createSSHClientWithJump(ctx context.Context, connectionID, overrid
 			)
 		}
 
+		if !jump.HasSSH() {
+			return nil, fmt.Errorf("jump host must use SSH")
+		}
 		jumpPassword := ""
 
 		if jump.Password != nil {
@@ -470,6 +476,9 @@ func (a *App) TestConnectionParams(host string, port int, username, authType, pa
 		if err != nil {
 			return fmt.Errorf("jump host not found: %w", err)
 		}
+		if !jump.HasSSH() {
+			return fmt.Errorf("jump host must use SSH")
+		}
 		jumpPassword := ""
 		if jump.Password != nil {
 			jumpPassword, err = decryptConnectionPassword(*jump.Password, key)
@@ -523,8 +532,8 @@ func (a *App) ConnectSSH(connectionID string) (SSHConnectResult, error) {
 	emptyResult := SSHConnectResult{}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	a.registerConnectAttempt(connectionID, cancel)
-	defer a.clearConnectAttempt(connectionID)
+	a.registerConnectAttempt(connectionID+":ssh", cancel)
+	defer a.clearConnectAttempt(connectionID + ":ssh")
 	defer cancel()
 
 	client, err := a.createSSHClient(
@@ -736,8 +745,8 @@ func (a *App) ConnectSSHVia(connectionID, jumpHostID string) (SSHConnectResult, 
 	emptyResult := SSHConnectResult{}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	a.registerConnectAttempt(connectionID, cancel)
-	defer a.clearConnectAttempt(connectionID)
+	a.registerConnectAttempt(connectionID+":ssh", cancel)
+	defer a.clearConnectAttempt(connectionID + ":ssh")
 	defer cancel()
 
 	client, err := a.createSSHClientWithJump(ctx, connectionID, jumpHostID)

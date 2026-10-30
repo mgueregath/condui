@@ -1,6 +1,10 @@
 package storage
 
-import "ssh-gui/backend/models"
+import (
+	"database/sql"
+
+	"ssh-gui/backend/models"
+)
 
 func (d *Database) GetConnectionByID(
 	id string,
@@ -9,6 +13,9 @@ func (d *Database) GetConnectionByID(
 	row := d.DB.QueryRow(
 		`
 		SELECT
+			ssh_enabled,
+			vnc_config,
+			protocol,
 			id,
 			folder_id,
 			name,
@@ -30,8 +37,12 @@ func (d *Database) GetConnectionByID(
 	)
 
 	var connection models.Connection
+	var vncData sql.NullString
 
 	err := row.Scan(
+		&connection.SSHEnabled,
+		&vncData,
+		&connection.Protocol,
 		&connection.ID,
 		&connection.FolderID,
 		&connection.Name,
@@ -52,6 +63,9 @@ func (d *Database) GetConnectionByID(
 		return nil, err
 	}
 
+	if err := decodeVNC(vncData, &connection); err != nil {
+		return nil, err
+	}
 	connection.Tunnels, err = d.getTunnelsByConnectionID(connection.ID)
 	if err != nil {
 		return nil, err

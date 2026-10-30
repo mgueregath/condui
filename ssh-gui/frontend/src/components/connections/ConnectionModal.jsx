@@ -1,189 +1,123 @@
 import "./ConnectionModal.css";
-import { useState } from "react";
-import { FaLock, FaCheck, FaTimes } from "react-icons/fa";
-import { LuPlugZap } from "react-icons/lu";
-import { TestConnectionParams } from "../../../bindings/ssh-gui/app";
+import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-
-import ResponseMessage from "../common/ResponseMessage";
+import { TestConnectionParams } from "../../../bindings/ssh-gui/app";
+import { testVNC } from "../../services/vnc";
 import useResponseAction from "../../hooks/useResponseAction";
-
-function Field({ label, children }) {
-  return (
-    <div className="form-group">
-      <label className="form-label">{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function Input({ label, value, onChange, type = "text", placeholder }) {
-  return (
-    <Field label={label}>
-      <input
-        className="modern-input"
-        type={type}
-        value={value ?? ""}
-        placeholder={placeholder}
-        onChange={e => onChange(e.target.value)}
-      />
-    </Field>
-  );
-}
+import ResponseMessage from "../common/ResponseMessage";
+import ProtocolIcon from "./ProtocolIcon";
+import { Input, Select } from "./ConnectionFields";
+import SSHFields from "./SSHFields";
+import VNCFields from "./VNCFields";
+import ConnectionTest from "./ConnectionTest";
+import { connectionForm } from "./connectionForm";
 
 export default function ConnectionModal({ initialValue, folders, connections = [], accountStatus, onSave, onCancel, onBusyChange }) {
   const { t } = useTranslation();
-  const isPro = accountStatus?.tier === "pro";
-
-  const [form, setForm] = useState(initialValue || {
-    name: "", host: "", port: 22, username: "",
-    password: "", authType: "password",
-    privateKeyPath: "", passphrase: "", folderId: "", color: "#6b6490",
-    jumpHostId: "",
-  });
-
-  const action = useResponseAction(onBusyChange);
-  const [testState, setTestState] = useState(null); // null | 'testing' | { ok: boolean }
-
-  const set = (k, v) => {
-    setForm(p => ({ ...p, [k]: v }));
-    setTestState(null);
-    action.setResponse(null);
+  const id = useId();
+  const [form, setForm] = useState(() => connectionForm(initialValue));
+  const [context, setContext] = useState(() => initialValue?.sshEnabled === false ? "vnc" : "ssh");
+  const [success, setSuccess] = useState({});
+  const saveAction = useResponseAction();
+  const sshAction = useResponseAction();
+  const vncAction = useResponseAction();
+  const busy = saveAction.busy || sshAction.busy || vncAction.busy;
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
+  const invalidate = (protocol) => {
+    setSuccess(previous => ({ ...previous, [protocol]: false }));
+    (protocol === "ssh" ? sshAction : vncAction).setResponse(null);
   };
-
-  const handleTest = () => action.run(async () => {
-    setTestState("testing");
-    try {
-      await TestConnectionParams(
-        form.host, Number(form.port), form.username, form.authType,
-        form.authType === "password" ? form.password ?? (initialValue?.id ? `__stored_connection_password__:${initialValue.id}` : "") : "",
-        form.privateKeyPath || "",
-        form.authType === "private_key" ? form.passphrase ?? (initialValue?.id ? `__stored_connection_password__:${initialValue.id}` : "") : "",
-        form.jumpHostId || "",
-      );
-      setTestState({ ok: true });
-    } catch (error) {
-      setTestState({ ok: false });
-      throw error;
-    }
-  }, t("connection.testing"), t("app.connectionFailed"), [form.password, form.passphrase]);
-
-  const handleSave = () => action.run(() => { setTestState(null); return onSave(form); }, t("common.response.saving"), t("connection.response.saveFailed"), [form.password, form.passphrase]);
-
-  return (
-    <div>
-      <div className="modal-header">
-        <h2>{initialValue ? t("connection.editTitle") : t("connection.newTitle")}</h2>
-        <p>{t("connection.description")}</p>
-      </div>
-
-      <div className="modal-body">
-        <fieldset className="response-fields" disabled={action.busy}>
+  const set = (key, value) => {
+    setForm(previous => {
+      const next = { ...previous, [key]: value };
+      if (key === "sshEnabled" && !value) next.vnc = { ...previous.vnc, reuse: { user: false, pass: false } };
+      if (key === "authType" && value === "private_key") next.vnc = { ...previous.vnc, reuse: { ...previous.vnc.reuse, pass: false } };
+      return next;
+    });
+    saveAction.setResponse(null);
+    if (["host", "port", "username", "authType", "password", "privateKeyPath", "passphrase", "jumpHostId", "sshEnabled"].includes(key)) invalidate("ssh");
+    if (key === "host" || key === "sshEnabled" || key === "authType" || (key === "username" && form.vnc.reuse.user) || (key === "password" && form.vnc.reuse.pass)) invalidate("vnc");
+  };
+  const setVNC = (key, value) => {
+    setForm(previous => ({ ...previous, vnc: { ...previous.vnc, [key]: value } }));
+    invalidate("vnc"); saveAction.setResponse(null);
+  };
+  const validate = (protocol) => {
+    const port = protocol === "ssh" ? form.port : form.vnc.port;
+    if (!form.host.trim() || !Number.isInteger(Number(port)) || Number(port) < 1 || Number(port) > 65535) throw new Error(t("connection.access.invalid"));
+    if (protocol === "ssh" && (!form.username.trim() || (form.authType === "private_key" && !form.privateKeyPath?.trim()))) throw new Error(t("connection.access.sshRequired"));
+  };
+  const test = protocol => {
+    const action = protocol === "ssh" ? sshAction : vncAction;
+    return action.run(async () => {
+      validate(protocol);
+      setSuccess(previous => ({ ...previous, [protocol]: false }));
+      if (protocol === "vnc") await testVNC(form);
+      else await TestConnectionParams(form.host, Number(form.port), form.username, form.authType,
+        form.authType === "password" ? form.password ?? (form.id ? `__stored_connection_password__:${form.id}` : "") : "",
+        form.privateKeyPath || "", form.authType === "private_key" ? form.passphrase ?? (form.id ? `__stored_connection_password__:${form.id}` : "") : "", form.jumpHostId || "");
+      setSuccess(previous => ({ ...previous, [protocol]: true }));
+    }, t("connection.testing"), t("connection.access.failed", { protocol: protocol.toUpperCase() }), [form.password, form.passphrase, form.vnc.password]);
+  };
+  const save = () => saveAction.run(async () => {
+    if (!form.name.trim() || (!form.sshEnabled && !form.vnc.enabled)) throw new Error(t("connection.access.required"));
+    if (form.sshEnabled) validate("ssh");
+    if (form.vnc.enabled) validate("vnc");
+    await onSave({ ...form, protocol: form.sshEnabled ? "ssh" : "vnc" });
+  }, t("common.response.saving"), t("connection.response.saveFailed"), [form.password, form.passphrase, form.vnc.password]);
+  const chooseTab = event => {
+    if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === "Home" ? "ssh" : event.key === "End" ? "vnc" : context === "ssh" ? "vnc" : "ssh";
+    setContext(next); document.getElementById(`${id}-${next}-tab`)?.focus();
+  };
+  return <div className="connection-editor">
+    <div className="modal-header"><h2>{t(initialValue ? "connection.editTitle" : "connection.newTitle")}</h2></div>
+    <div className="connection-shared">
+      <fieldset className="response-fields" disabled={busy}>
+        <div className="connection-identity">
           <Input label={t("connection.name")} value={form.name} onChange={v => set("name", v)} placeholder={t("connection.namePlaceholder")} />
-
-          <div className="form-grid-2">
-            <Input label={t("connection.host")} value={form.host} onChange={v => set("host", v)} placeholder="192.168.1.100" />
-            <Input label={t("connection.port")} value={form.port} onChange={v => set("port", Number(v))} placeholder="22" />
-          </div>
-
-          <Input label={t("connection.username")} value={form.username} onChange={v => set("username", v)} placeholder="root" />
-
-          <div className="form-grid-2">
-            <Field label={t("connection.folder")}>
-              <select className="modern-input" value={form.folderId} onChange={e => set("folderId", e.target.value)}>
-                <option value="">{t("connection.noFolder")}</option>
-                {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
-            </Field>
-            <Field label={t("connection.authentication")}>
-              <select className="modern-input" value={form.authType} onChange={e => set("authType", e.target.value)}>
-                <option value="password">{t("connection.password")}</option>
-                <option value="private_key">{t("connection.privateKey")}</option>
-              </select>
-            </Field>
-          </div>
-
-          {form.authType === "password" && (
-            <Input label={t("connection.password")} type="password" value={form.password} onChange={v => set("password", v)} placeholder="••••••••" />
-          )}
-          {form.authType === "private_key" && (
-            <>
-              <Input label={t("connection.privateKeyPath")} value={form.privateKeyPath} onChange={v => set("privateKeyPath", v)} placeholder="~/.ssh/id_rsa" />
-              <Input label={t("connection.passphrase")} type="password" value={form.passphrase || ""} onChange={v => set("passphrase", v)} placeholder={t("connection.passphraseOptional")} />
-            </>
-          )}
-
-          <Field label={
-            <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              {t("connection.jumpHost")}
-              {!isPro && <span style={{ fontSize: 10, color: "var(--text-muted)" }}><FaLock /> Pro</span>}
-            </span>
-          }>
-            {isPro ? (
-              <select
-                className="modern-input"
-                value={form.jumpHostId || ""}
-                onChange={e => set("jumpHostId", e.target.value || null)}
-              >
-                <option value="">{t("connection.direct")}</option>
-                {connections
-                  .filter(c => c.id !== initialValue?.id)
-                  .map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.username}@{c.host}:{c.port})
-                    </option>
-                  ))}
-              </select>
-            ) : (
-              <div
-                style={{
-                  padding: "7px 10px", borderRadius: 6,
-                  background: "var(--bg-elevated)", border: "1px solid var(--border)",
-                  fontSize: 12, color: "var(--text-muted)",
-                  display: "flex", alignItems: "center", gap: 6,
-                }}
-              >
-                <FaLock style={{ fontSize: 10 }} />
-                {t("connection.jumpHostPro")}
-              </div>
-            )}
-          </Field>
-
-          <Field label={t("connection.color")}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <input
-                className="modern-input connection-color"
-                type="color" value={form.color}
-                onChange={e => set("color", e.target.value)}
-              />
-              <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{form.color}</span>
-            </div>
-          </Field>
-        </fieldset>
-        <ResponseMessage {...(action.response || (testState?.ok ? { severity: "success", message: t("connection.connected") } : {}))} />
-      </div>
-
-      <div className="modal-footer">
-        
-        <button
-            className={`btn-secondary test-conn-btn${testState === "testing" ? " testing" : testState?.ok === true ? " success" : testState?.ok === false ? " failure" : ""}`}
-            onClick={handleTest}
-            disabled={action.busy}
-          >
-            {testState === "testing" ? (
-              <><span className="conn-loader" />{t("connection.testing")}</>
-            ) : testState?.ok === true ? (
-              <><FaCheck />{t("connection.connected")}</>
-            ) : testState?.ok === false ? (
-              <><FaTimes />{t("connection.failed")}</>
-            ) : (
-              <><LuPlugZap />{t("connection.test")}</>
-            )}
-          </button>
-        <button className="btn-secondary" disabled={action.busy} onClick={() => onCancel()}>{t("common.cancel")}</button>
-        <button className="btn-primary" disabled={action.busy} onClick={handleSave}>{t("connection.save")}</button>
-      </div>
-
+          <Select label={t("connection.folder")} value={form.folderId} onChange={v => set("folderId", v || null)}>
+            <option value="">{t("connection.noFolder")}</option>{folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </Select>
+          <Input label={t("connection.color")} type="color" value={form.color || "#6b6490"} onChange={v => set("color", v)} />
+        </div>
+        <Input label={t("connection.access.host")} value={form.host} onChange={v => set("host", v)} placeholder="192.0.2.14" />
+      </fieldset>
     </div>
-  );
+    <div className="connection-layout">
+      <div className="connection-tabs" role="tablist" aria-label={t("connection.access.label")} aria-orientation="vertical">
+        {["ssh", "vnc"].map(protocol => <button key={protocol} type="button" role="tab" id={`${id}-${protocol}-tab`}
+          aria-controls={`${id}-${protocol}-panel`} aria-selected={context === protocol} tabIndex={context === protocol ? 0 : -1}
+          onClick={() => setContext(protocol)} onKeyDown={chooseTab}>
+          <ProtocolIcon protocol={protocol} /><span>{t(`connection.type.${protocol}`)}</span>
+          <small>{t((protocol === "ssh" ? form.sshEnabled : form.vnc.enabled) ? "connection.access.enabled" : "connection.access.disabled")}</small>
+        </button>)}
+      </div>
+      <div className="connection-panels">
+        {["ssh", "vnc"].map(protocol => {
+          const enabled = protocol === "ssh" ? form.sshEnabled : form.vnc.enabled;
+          const action = protocol === "ssh" ? sshAction : vncAction;
+          return <section key={protocol} role="tabpanel" id={`${id}-${protocol}-panel`} aria-labelledby={`${id}-${protocol}-tab`} hidden={context !== protocol}>
+            <div className="connection-enable"><h3>{t(`connection.access.${protocol}`)}</h3>
+              <label><input type="checkbox" checked={enabled} disabled={busy}
+                onChange={e => protocol === "ssh" ? set("sshEnabled", e.target.checked) : setVNC("enabled", e.target.checked)} />
+                {t("connection.access.enable", { protocol: protocol.toUpperCase() })}</label>
+            </div>
+            <fieldset className="response-fields" disabled={!enabled || busy}>
+              {protocol === "ssh" ? <SSHFields form={form} set={set} connections={connections} isPro={accountStatus?.tier === "pro"} stored={!!initialValue} /> :
+                <VNCFields form={form} set={setVNC} stored={!!initialValue?.vnc} />}
+            </fieldset>
+            <ConnectionTest protocol={protocol} action={action} success={success[protocol]} disabled={!enabled || saveAction.busy} onTest={() => test(protocol)} />
+          </section>;
+        })}
+      </div>
+    </div>
+    <ResponseMessage {...saveAction.response} />
+    <div className="modal-footer">
+      <button type="button" className="btn-secondary" disabled={busy} onClick={onCancel}>{t("common.cancel")}</button>
+      <button type="button" className="btn-primary" disabled={busy} onClick={save}>{t("connection.save")}</button>
+    </div>
+  </div>;
 }

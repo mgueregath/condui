@@ -9,13 +9,23 @@ import (
 func (d *Database) CreateConnection(
 	connection *models.Connection,
 ) error {
+	if err := connection.ValidateProtocol(); err != nil {
+		return err
+	}
 
 	connection.ID =
 		uuid.NewString()
 
-	_, err := d.DB.Exec(
+	vncData, err := encodeVNC(connection.VNC)
+	if err != nil {
+		return err
+	}
+	_, err = d.DB.Exec(
 		`
 		INSERT INTO connections(
+			ssh_enabled,
+			vnc_config,
+			protocol,
 			id,
 			folder_id,
 			name,
@@ -33,6 +43,9 @@ func (d *Database) CreateConnection(
 		)
 		VALUES(
 			?,
+ ?,
+			?,
+			?,
 			?,
 			?,
 			?,
@@ -48,6 +61,9 @@ func (d *Database) CreateConnection(
 			?
 		)
 		`,
+		connection.HasSSH(),
+		vncData,
+		connection.ConnectionProtocol(),
 		connection.ID,
 		connection.FolderID,
 		connection.Name,

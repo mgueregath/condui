@@ -237,7 +237,7 @@ func (a *App) SyncNow() error {
 	if syncKey == nil {
 		return fmt.Errorf("sync key not available: please log in and unlock the vault first")
 	}
-	connections = reencryptConnectionsForSync(connections, key, syncKey)
+	connections = reencryptConnectionsForSync(sshConnections(connections), key, syncKey)
 
 	// Pro tier syncs the same connection set across all devices. Free tier
 	// keeps the previous capped upload behavior, capped at whatever
@@ -337,7 +337,12 @@ func (a *App) ShareConnection(connectionID, recipientEmail string, readOnly bool
 		return err
 	}
 
+	if !conn.HasSSH() {
+		return fmt.Errorf("VNC sharing is not supported")
+	}
 	shareable := *conn
+	shareable.VNC = nil
+	shareable.SSHEnabled = nil
 	if includePassword && conn.Password != nil && *conn.Password != "" {
 		password, err := decryptConnectionPassword(*conn.Password, key)
 		if err != nil {
@@ -409,6 +414,11 @@ func (a *App) AcceptShare(shareID, encryptedKey, blobID string) error {
 		return fmt.Errorf("invalid shared connection data: %w", err)
 	}
 
+	if !conn.HasSSH() {
+		return fmt.Errorf("VNC sharing is not supported")
+	}
+	conn.VNC = nil
+	conn.SSHEnabled = nil
 	conn.ID = ""        // will be assigned by CreateConnection
 	conn.FolderID = nil // sender's folder doesn't exist locally; drop into root
 	conn.SourceShareID = &shareID
@@ -580,6 +590,15 @@ func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.
 	order := make([]string, 0, len(local)+len(remote))
 
 	for _, conn := range remote {
+		conn.VNC = nil
+		conn.SSHEnabled = nil
+		if !conn.HasSSH() {
+			continue
+		}
+		stored, err := a.database.GetConnectionByID(conn.ID)
+		if err == nil && !stored.HasSSH() {
+			continue
+		}
 		if conn.ID == "" {
 			continue
 		}
@@ -589,6 +608,9 @@ func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.
 		remoteByID[conn.ID] = conn
 	}
 	for _, conn := range local {
+		if !conn.HasSSH() {
+			continue
+		}
 		if conn.ID == "" {
 			continue
 		}
@@ -624,6 +646,27 @@ func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.
 			merged = append(merged, chosen)
 		case hasLocal:
 			if previousHash != "" && connectionHash(localConn) == previousHash {
+				stored, err := a.database.GetConnectionByID(id)
+				if err != nil {
+					return nil, err
+				}
+				if stored.HasVNC() {
+					enabled := false
+					stored.SSHEnabled = &enabled
+					stored.Protocol = "vnc"
+					if stored.VNC.Reuse.User {
+						stored.VNC.Username = stored.Username
+						stored.VNC.Reuse.User = false
+					}
+					if stored.VNC.Reuse.Pass {
+						stored.VNC.Password = stored.Password
+						stored.VNC.Reuse.Pass = false
+					}
+					if err := a.database.UpdateConnection(stored); err != nil {
+						return nil, err
+					}
+					continue
+				}
 				if err := a.database.DeleteConnection(id); err != nil {
 					return nil, err
 				}
@@ -940,4 +983,16 @@ func (a *App) processPendingPasswords() {
 
 func isMissingRemoteBlob(err error) bool {
 	return err != nil && (err.Error() == "blob not found" || err.Error() == "server error 404")
+}
+
+func sshConnections(connections []models.Connection) []models.Connection {
+	result := make([]models.Connection, 0, len(connections))
+	for _, c := range connections {
+		if c.HasSSH() {
+			c.VNC = nil
+			c.SSHEnabled = nil
+			result = append(result, c)
+		}
+	}
+	return result
 }

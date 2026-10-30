@@ -21,6 +21,7 @@ import (
 
 type App struct {
 	sessionManager *sessions.SessionManager
+	vncSessions    sync.Map
 
 	database *storage.Database
 
@@ -108,6 +109,10 @@ func NewApp() *App {
 
 func (a *App) ServiceStartup(ctx context.Context, options application.ServiceOptions) error {
 	go a.startDockerLogServer()
+	go func() {
+		<-ctx.Done()
+		a.vncSessions.Range(func(key, value any) bool { _ = a.CloseVNC(key.(string)); return true })
+	}()
 	a.startTokenRefreshLoop(ctx)
 	a.startUpdateCheckLoop(ctx)
 	return nil

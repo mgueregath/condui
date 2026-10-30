@@ -1,7 +1,12 @@
 package models
 
+import "fmt"
+
 type Connection struct {
-	ID string `json:"id"`
+	ID         string     `json:"id"`
+	Protocol   string     `json:"protocol,omitempty"`
+	SSHEnabled *bool      `json:"sshEnabled,omitempty"`
+	VNC        *VNCConfig `json:"vnc,omitempty"`
 
 	FolderID *string `json:"folderId,omitempty"`
 
@@ -53,4 +58,19 @@ type Connection struct {
 	// zero tunnels", which storage must apply as a real deletion. omitempty
 	// would make those indistinguishable on the wire.
 	Tunnels []TunnelInfo `json:"tunnels"`
+}
+
+// ConnectionProtocol defaults legacy records to SSH.
+func (c Connection) ConnectionProtocol() string {
+	if c.Protocol == "" {
+		return "ssh"
+	}
+	return c.Protocol
+}
+
+func (c Connection) ValidateProtocol() error {
+	if protocol := c.ConnectionProtocol(); protocol != "ssh" && protocol != "vnc" {
+		return fmt.Errorf("unsupported connection protocol")
+	}
+	return nil
 }

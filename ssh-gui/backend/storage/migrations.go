@@ -84,6 +84,9 @@ func (d *Database) Migrate() error {
 
 	// ALTER TABLE migrations — idempotent via duplicate-column error suppression
 	alterations := []string{
+		`ALTER TABLE connections ADD COLUMN ssh_enabled INTEGER NOT NULL DEFAULT 1`,
+		`ALTER TABLE connections ADD COLUMN vnc_config TEXT`,
+		`ALTER TABLE connections ADD COLUMN protocol TEXT NOT NULL DEFAULT 'ssh'`,
 		`ALTER TABLE account ADD COLUMN tier_expires_at DATETIME`,
 		`ALTER TABLE account ADD COLUMN sync_key TEXT`,
 		`ALTER TABLE connections ADD COLUMN jump_host_id TEXT REFERENCES connections(id)`,
@@ -99,5 +102,14 @@ func (d *Database) Migrate() error {
 		}
 	}
 
+	// Move legacy VNC credentials without decrypting or duplicating them.
+	_, err := d.DB.Exec(`UPDATE connections SET
+  ssh_enabled=0,
+  vnc_config=json_object('enabled',json('true'),'port',port,'username',username,'password',password,'reuse',json_object('user',json('false'),'pass',json('false'))),
+  port=22, username='', auth_type='password', password=NULL, private_key_path=NULL, passphrase=NULL, jump_host_id=NULL
+  WHERE protocol='vnc' AND vnc_config IS NULL`)
+	if err != nil {
+		return err
+	}
 	return nil
 }
