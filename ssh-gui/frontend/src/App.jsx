@@ -40,7 +40,7 @@ import { hasAccess, protocols, isDesktop, defaultProtocol, connectionKey } from 
 import RDPView from "./components/rdp/RDPView";
 import { connectRDP, closeRDP } from "./services/rdp";
 import VNCView from "./components/vnc/VNCView";
-import { connectVNC, closeVNC } from "./services/vnc";
+import { connectVNC, connectNoVNC, closeVNC } from "./services/vnc";
 import VaultUnlock from "./components/account/VaultUnlock";
 import AccountModal from "./components/account/AccountModal";
 import ShareModal from "./components/account/ShareModal";
@@ -815,9 +815,9 @@ function App() {
       const result = await connectRDP(connection.id);
       return { id: result.sessionId, type: "rdp" };
     }
-    if (protocol === "vnc") {
-      const result = await connectVNC(connection.id);
-      return { id: result.sessionId, type: "vnc", url: result.url, token: result.token };
+    if (protocol === "vnc" || protocol === "novnc") {
+      const result = await (protocol === "novnc" ? connectNoVNC : connectVNC)(connection.id);
+      return { id: result.sessionId, type: protocol, url: result.url, token: result.token };
     }
     const result = parseConnectResult(await ConnectSSH(connection.id));
     return { id: result.sessionId, type: "ssh", homePath: result.homePath };
@@ -1078,7 +1078,7 @@ function App() {
   const handleCloseTab = async (tabId) => {
     try {
       if (tabs.find(tab => tab.id === tabId)?.type === "rdp") await closeRDP(tabId);
-      else if (tabs.find(tab => tab.id === tabId)?.type === "vnc") await closeVNC(tabId);
+      else if (["vnc", "novnc"].includes(tabs.find(tab => tab.id === tabId)?.type)) await closeVNC(tabId);
       else await CloseSession(tabId);
     } catch (err) {
       console.error("Failed to close session", err);
@@ -1352,7 +1352,7 @@ function App() {
                       setTerminalContextMenu({ x: event.clientX, y: event.clientY });
                     }}
                   />
-                  {tabs.filter(tab => tab.type === "vnc").map(tab => (
+                  {tabs.filter(tab => ["vnc", "novnc"].includes(tab.type)).map(tab => (
                     <VNCView key={tab.id} session={tab} active={tab.id === activeTab} setTabs={setTabs} />
                   ))}
                   {tabs.filter(tab => tab.type === "rdp").map(tab => (

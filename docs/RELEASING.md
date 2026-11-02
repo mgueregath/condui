@@ -37,6 +37,12 @@ integrity check (`github.Config.ChecksumAsset`). The version compared against `t
 build time via `-ldflags -X main.currentVersion=...` (see the `VERSION` var in each
 `ssh-gui/build/{darwin,windows,linux}/Taskfile.yml`, sourced from `git describe --tags`).
 
+For older local build configurations, an omitted, empty, or whitespace-only `update_repo` defaults
+to `mgueregath/condui`. Surrounding whitespace is removed from explicit values. This prevents the
+startup failure `github.New: github: Repository ("owner/repo") is required` when a configuration
+predates the updater. Explicit nonempty repositories remain supported. Rebuild the binary to apply
+this fix, since the configuration is embedded at compile time.
+
 Users trigger a check from the Account modal ("Check for Updates…" — `ssh-gui/app_update.go`,
 `CheckForUpdates`), which opens the framework's built-in update window: it shows the release notes,
 downloads and verifies the matching asset, and swaps it in on **Restart & Apply**.

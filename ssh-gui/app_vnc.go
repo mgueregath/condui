@@ -68,6 +68,32 @@ func validVNCOrigin(origin string) bool {
 }
 
 func (a *App) ConnectVNC(connectionID, origin string) (VNCConnectResult, error) {
+	return a.connectVNC(connectionID, origin, false)
+}
+
+func (a *App) ConnectNoVNC(connectionID, origin string) (VNCConnectResult, error) {
+	return a.connectVNC(connectionID, origin, true)
+}
+
+func (a *App) TestNoVNCConfig(connection models.Connection) error {
+	if !connection.HasNoVNC() {
+		return fmt.Errorf("noVNC access is unavailable")
+	}
+	if connection.ID != "" {
+		stored, err := a.database.GetConnectionByID(connection.ID)
+		if err != nil {
+			return err
+		}
+		if stored.ShareRevoked {
+			return fmt.Errorf("shared connection access was revoked")
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
+	return vnc.TestWebSocket(ctx, connection.VNC.WebSocket.URL)
+}
+
+func (a *App) connectVNC(connectionID, origin string, useWebSocket bool) (VNCConnectResult, error) {
 	empty := VNCConnectResult{}
 	if !validVNCOrigin(origin) {
 		return empty, fmt.Errorf("invalid VNC viewer origin")
@@ -76,20 +102,35 @@ func (a *App) ConnectVNC(connectionID, origin string) (VNCConnectResult, error) 
 	if err != nil {
 		return empty, err
 	}
-	username, password, err := a.resolveVNC(*connection, connection)
-	if err != nil {
-		return empty, err
+	if connection.ShareRevoked {
+		return empty, fmt.Errorf("shared connection access was revoked")
+	}
+	protocol := "vnc"
+	if useWebSocket {
+		protocol = "novnc"
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	a.registerConnectAttempt(connectionID+":vnc", cancel)
-	defer a.clearConnectAttempt(connectionID + ":vnc")
+	a.registerConnectAttempt(connectionID+":"+protocol, cancel)
+	defer a.clearConnectAttempt(connectionID + ":" + protocol)
 	success := false
 	defer func() {
 		if !success {
 			cancel()
 		}
 	}()
-	remote, err := vnc.Dial(ctx, connection.Host, connection.VNC.Port, username, password)
+	var remote net.Conn
+	if useWebSocket {
+		if !connection.HasNoVNC() {
+			return empty, fmt.Errorf("noVNC access is unavailable")
+		}
+		remote, err = vnc.DialWebSocket(ctx, connection.VNC.WebSocket.URL)
+	} else {
+		username, password, resolveErr := a.resolveVNC(*connection, connection)
+		if resolveErr != nil {
+			return empty, resolveErr
+		}
+		remote, err = vnc.Dial(ctx, connection.Host, connection.VNC.Port, username, password)
+	}
 	if err != nil {
 		return empty, err
 	}

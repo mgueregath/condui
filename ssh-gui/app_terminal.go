@@ -897,6 +897,7 @@ func (a *App) closeSessionResources(
 		sessionID,
 		a.emitLog,
 	)
+	a.emitTunnelsChanged()
 
 	return a.sessionManager.Remove(
 		sessionID,

@@ -8,6 +8,8 @@ El backend autentica RFB antes de entregar el flujo al visor. La contrasena perm
 
 Ver [autenticacion macOS](macos.md) para el uso de usuario y contrasena mediante Apple Remote Desktop.
 
+Ver [noVNC por WebSocket y túneles en la conexión](novnc-y-tuneles.md) para el acceso WebSocket independiente y la gestión de túneles desde la modal.
+
 ## Limites
 
 - RFB 3.3, 3.7 y 3.8 con autenticacion VNC por contrasena. Los saludos 3.6 de UltraVNC se negocian como 3.3; 3.889 de Apple, 4.0 de Intel AMT y 4.1/5.0 de RealVNC se negocian como 3.8, siguiendo noVNC. El metodo sin autenticacion solo se admite con contrasena vacia.

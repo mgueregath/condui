@@ -194,8 +194,9 @@
     "type": {
       "label": "Tipo de conexión",
       "ssh": "SSH",
-      "vnc": "VNC",
-      "rdp": "RDP"
+      "vnc": "VNC (TCP)",
+      "rdp": "RDP",
+      "novnc": "noVNC"
     },
     "vnc": {
       "user": "Para macOS, ingresa el usuario y la contraseña de la cuenta (Apple Remote Desktop). Deja el usuario vacío para VNC clásico.",
@@ -265,7 +266,7 @@
       "label": "Accesos de la conexión",
       "host": "Host / IP",
       "ssh": "Terminal remota",
-      "vnc": "Escritorio remoto",
+      "vnc": "VNC directo (TCP)",
       "enabled": "Habilitado",
       "disabled": "Deshabilitado",
       "enable": "Habilitar {{protocol}}",
@@ -283,7 +284,8 @@
       "required": "Ingresa un nombre y habilita al menos un acceso a la conexión.",
       "unavailable": "Este acceso a la conexión está deshabilitado.",
       "open": "Abrir {{protocol}}",
-      "rdp": "Escritorio RDP"
+      "rdp": "Escritorio RDP",
+      "novnc": "noVNC (WebSocket)"
     },
     "rdp": {
       "domain": "Dominio (opcional)",
@@ -306,6 +308,19 @@
       "untrusted": "Mantiene TLS y NLA, pero no verifica la identidad del servidor. No requiere huella SHA-256.",
       "resolution": "Resolución",
       "resolutionHelp": "Se aplica al abrir o reconectar la sesión."
+    },
+    "novnc": {
+      "url": "URL noVNC (HTTP / WebSocket)",
+      "invalid": "Usa una URL http://, https://, ws:// o wss:// válida, sin credenciales ni fragmentos.",
+      "description": "Puedes pegar la URL HTTP del visor. Se intentará conectar por WebSocket usando el parámetro path, las rutas websockify habituales o la misma ruta. También puedes indicar una URL ws:// o wss:// exacta. Admite servidores sin credenciales.",
+      "error": "No se pudo establecer la conexión noVNC."
+    },
+    "tunnels": {
+      "immediate": "Los cambios en túneles se aplican inmediatamente y se reflejan en el panel inferior.",
+      "draft": "Los túneles se guardarán al crear la conexión.",
+      "ssh": "Puedes revisar y configurar túneles sin conectarte. Para activarlos, abre una sesión SSH y usa el panel Túneles.",
+      "invalid": "Indica un host y puertos enteros entre 1 y 65535.",
+      "duplicate": "Ya existe un túnel con ese puerto local."
     }
   },
   "files": {

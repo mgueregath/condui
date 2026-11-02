@@ -194,8 +194,9 @@
     "type": {
       "label": "Connection type",
       "ssh": "SSH",
-      "vnc": "VNC",
-      "rdp": "RDP"
+      "vnc": "VNC (TCP)",
+      "rdp": "RDP",
+      "novnc": "noVNC"
     },
     "vnc": {
       "user": "For macOS, enter the account username and password (Apple Remote Desktop). Leave username empty for classic VNC.",
@@ -265,7 +266,7 @@
       "label": "Connection access",
       "host": "Host / IP",
       "ssh": "Remote terminal",
-      "vnc": "Remote desktop",
+      "vnc": "Direct VNC (TCP)",
       "enabled": "Enabled",
       "disabled": "Disabled",
       "enable": "Enable {{protocol}}",
@@ -283,7 +284,8 @@
       "required": "Enter a name and enable at least one connection access.",
       "unavailable": "This connection access is disabled.",
       "open": "Open {{protocol}}",
-      "rdp": "RDP desktop"
+      "rdp": "RDP desktop",
+      "novnc": "noVNC (WebSocket)"
     },
     "rdp": {
       "domain": "Domain (optional)",
@@ -306,6 +308,19 @@
       "untrusted": "Keeps TLS and NLA, but does not verify the server identity. No SHA-256 fingerprint is required.",
       "resolution": "Resolution",
       "resolutionHelp": "Applies when opening or reconnecting the session."
+    },
+    "novnc": {
+      "url": "URL noVNC (HTTP / WebSocket)",
+      "invalid": "Use a valid http://, https://, ws:// or wss:// URL without credentials or fragments.",
+      "description": "Paste the HTTP viewer URL. WebSocket resolution uses its path parameter, common websockify paths or the original path. An exact ws:// or wss:// URL is also accepted. Supports servers without credentials.",
+      "error": "Unable to establish the noVNC connection."
+    },
+    "tunnels": {
+      "immediate": "Tunnel changes apply immediately and appear in the bottom panel.",
+      "draft": "Tunnels will be saved when the connection is created.",
+      "ssh": "View and configure tunnels without connecting. To activate them, open an SSH session and use the Tunnels panel.",
+      "invalid": "Enter a host and integer ports from 1 to 65535.",
+      "duplicate": "A tunnel already uses this local port."
     }
   },
   "files": {

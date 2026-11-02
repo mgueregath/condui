@@ -3,7 +3,6 @@ import "./PanelList.css";
 import { useState, useEffect, useMemo } from "react";
 import { Events, Call } from "@wailsio/runtime";
 import {
-  GetTunnels,
   ToggleTunnel,
   AddTunnel,
   DeleteTunnel,
@@ -52,6 +51,7 @@ import AlertModal from "./common/AlertModal";
 import SudoPasswordModal from "./common/SudoPasswordModal";
 import Modal from "./common/Modal";
 import TunnelModal from "./TunnelModal";
+import useTunnels from "../hooks/useTunnels";
 import { MdOutlineFlashAuto, MdOutlineRestartAlt } from "react-icons/md";
 
 const DB_TYPES = {
@@ -261,7 +261,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
   // Estados de datos
   const [logs, setLogs] = useState([]);
   const [transfers, setTransfers] = useState({});
-  const [tunnels, setTunnels] = useState([]);
+  const { tunnels, reload: fetchTunnels, error: tunnelLoadError } = useTunnels(connectionId);
   const [containers, setContainers] = useState([]);
   const [ports, setPorts] = useState([]);
   const [panelSearch, setPanelSearch] = useState("");
@@ -368,16 +368,6 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
   // Persisted per connection (survive reconnects/restarts and sync across
   // devices); only ToggleTunnel needs sessionId, since starting a listener
   // requires a live SSH client.
-  const fetchTunnels = async () => {
-    if (!connectionId) return;
-    try {
-      const res = await GetTunnels(connectionId);
-      setTunnels(res || []);
-    } catch (err) {
-      console.error("Error al obtener túneles:", err);
-    }
-  };
-
   const openCreateModal = () => {
     setEditingTunnelId(null);
     setFormLocalPort("");
@@ -973,6 +963,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
         {/* PESTAÑA: TUNNELS */}
         {activeTab === "tunnels" && (
           <div className="tunnels-tab-content" style={{ padding: "12px" }}>
+            {tunnelLoadError && <ResponseMessage severity="error" message={t("panel.tunnelError", { error: String(tunnelLoadError) })} />}
             {tunnels.length === 0 ? (
               <div
                 className="empty-state"

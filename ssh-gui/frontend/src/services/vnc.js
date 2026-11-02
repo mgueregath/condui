@@ -19,5 +19,7 @@ async function invoke(method, ...args) {
 
 // Keep hand-written bindings separate from Wails generated files.
 export const connectVNC = (id) => invoke("ConnectVNC", id, window.location.origin);
+export const connectNoVNC = (id) => invoke("ConnectNoVNC", id, window.location.origin);
+export const testNoVNC = (connection) => invoke("TestNoVNCConfig", connection);
 export const closeVNC = (id) => invoke("CloseVNC", id);
 export const testVNC = (connection) => invoke("TestVNCConfig", connection);

@@ -1,10 +1,10 @@
-export const protocols = ["ssh", "vnc", "rdp"];
+export const protocols = ["ssh", "vnc", "novnc", "rdp"];
 export const hasSSH = connection => connection.sshEnabled ?? (connection.protocol || "ssh") === "ssh";
 export const hasVNC = connection => !!connection.vnc?.enabled;
 export const hasRDP = connection => !!connection.rdp?.enabled;
-export const hasAccess = (connection, protocol) => protocol === "ssh" ? hasSSH(connection) : !!connection[protocol]?.enabled;
+export const hasAccess = (connection, protocol) => protocol === "ssh" ? hasSSH(connection) : protocol === "novnc" ? !!(connection.novnc ?? connection.vnc?.websocket)?.enabled : !!connection[protocol]?.enabled;
 export const defaultProtocol = connection => protocols.find(protocol => hasAccess(connection, protocol)) || "ssh";
-export const isDesktop = protocol => protocol === "vnc" || protocol === "rdp";
+export const isDesktop = protocol => protocol === "vnc" || protocol === "novnc" || protocol === "rdp";
 export const connectionKey = (id, protocol) => `${id}:${protocol}`;
 
 function desktopConfig(initial, protocol, port) {
@@ -17,6 +17,7 @@ export function connectionForm(initial) {
     password: initial ? undefined : "", privateKeyPath: "", passphrase: initial ? undefined : "", folderId: "", color: "#6b6490", jumpHostId: "",
     ...initial, sshEnabled: initial ? hasSSH(initial) : true,
     vnc: desktopConfig(initial, "vnc", 5900),
+    novnc: { enabled: false, url: "", ...initial?.vnc?.websocket },
     rdp: { resolution: "1920x1080", allowUntrusted: false, disableTLS: false, domain: "", certificateFingerprint: "", ...desktopConfig(initial, "rdp", 3389) },
   };
   for (const protocol of ["vnc", "rdp"]) {

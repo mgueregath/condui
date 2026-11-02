@@ -62,7 +62,7 @@ export default function VNCView({ session, active, setTabs }) {
   }, [id, url, token, setTabs]);
 
   return (
-    <section className="vnc-view" style={{ display: active ? "flex" : "none" }} aria-label={t("connection.type.vnc")}>
+    <section className="vnc-view" style={{ display: active ? "flex" : "none" }} aria-label={t(`connection.type.${session.type || "vnc"}`)}>
       {/* <div className="vnc-status" role="status">{t(`connection.vnc.${status}`)}</div> */}
       <div className="vnc-screen" ref={screen} />
     </section>

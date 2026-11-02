@@ -19,4 +19,5 @@ db_manager_enabled: false
 
 # GitHub repository ("owner/repo") the in-app updater checks for releases
 # via the GitHub Releases API (see main.go, pkg/updater/providers/github).
+# Defaults to mgueregath/condui when omitted, empty, or whitespace-only.
 update_repo: "mgueregath/condui"

@@ -23,6 +23,10 @@ func Dial(ctx context.Context, host string, port int, username, password string)
 	if err != nil {
 		return nil, fmt.Errorf("VNC server is unreachable")
 	}
+	return authenticateTransport(ctx, conn, username, password)
+}
+
+func authenticateTransport(ctx context.Context, conn net.Conn, username, password string) (net.Conn, error) {
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
 	defer stop()
 	conn.SetDeadline(time.Now().Add(15 * time.Second))
@@ -188,6 +192,10 @@ func Test(ctx context.Context, host string, port int, username, password string)
 		return err
 	}
 	defer conn.Close()
+	return testDesktop(ctx, conn)
+}
+
+func testDesktop(ctx context.Context, conn net.Conn) error {
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
 	defer stop()
 	conn.SetDeadline(time.Now().Add(10 * time.Second))

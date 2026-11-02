@@ -6,6 +6,7 @@ package buildconfig
 
 import (
 	_ "embed"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -25,5 +26,11 @@ var Values Config
 func init() {
 	if err := yaml.Unmarshal(raw, &Values); err != nil {
 		panic("buildconfig: invalid build.config.yaml embedded at build time: " + err.Error())
+	}
+	// Older local configurations predate the updater. Keep them usable without
+	// requiring a new key just to start the application.
+	Values.UpdateRepo = strings.TrimSpace(Values.UpdateRepo)
+	if Values.UpdateRepo == "" {
+		Values.UpdateRepo = "mgueregath/condui"
 	}
 }

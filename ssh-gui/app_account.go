@@ -653,11 +653,13 @@ func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.
 				if err != nil {
 					return nil, err
 				}
-				if stored.HasVNC() || stored.HasRDP() {
+				if stored.HasVNC() || stored.HasNoVNC() || stored.HasRDP() {
 					enabled := false
 					stored.SSHEnabled = &enabled
 					if stored.HasVNC() {
 						stored.Protocol = "vnc"
+					} else if stored.HasNoVNC() {
+						stored.Protocol = "novnc"
 					} else {
 						stored.Protocol = "rdp"
 					}

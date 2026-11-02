@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"ssh-gui/backend/models"
+	"ssh-gui/backend/vnc"
 )
 
 func (a *App) validateConnection(c *models.Connection) error {
@@ -15,7 +16,7 @@ func (a *App) validateConnection(c *models.Connection) error {
 	if strings.TrimSpace(c.Name) == "" || strings.TrimSpace(c.Host) == "" {
 		return fmt.Errorf("name and host are required")
 	}
-	if !c.HasSSH() && !c.HasVNC() && !c.HasRDP() {
+	if !c.HasSSH() && !c.HasVNC() && !c.HasNoVNC() && !c.HasRDP() {
 		return fmt.Errorf("enable at least one connection access")
 	}
 	if c.HasSSH() {
@@ -44,6 +45,8 @@ func (a *App) validateConnection(c *models.Connection) error {
 	} else {
 		if c.HasVNC() {
 			c.Protocol = "vnc"
+		} else if c.HasNoVNC() {
+			c.Protocol = "novnc"
 		} else {
 			c.Protocol = "rdp"
 		}
@@ -57,6 +60,11 @@ func (a *App) validateConnection(c *models.Connection) error {
 		}
 		if c.VNC.Reuse.Pass && c.AuthType != "password" {
 			return fmt.Errorf("VNC cannot reuse an SSH private key or passphrase")
+		}
+	}
+	if c.HasNoVNC() {
+		if err := vnc.ValidateNoVNCURL(c.VNC.WebSocket.URL); err != nil {
+			return err
 		}
 	}
 	if c.HasRDP() {

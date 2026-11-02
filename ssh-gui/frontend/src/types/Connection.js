@@ -3,4 +3,4 @@ export const AuthTypes = {
   PRIVATE_KEY: "privateKey",
 };
 
-export const Protocols = { SSH: "ssh", VNC: "vnc" };
+export const Protocols = { SSH: "ssh", VNC: "vnc", NOVNC: "novnc", RDP: "rdp" };

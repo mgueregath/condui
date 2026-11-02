@@ -18,6 +18,7 @@ func (a *App) CreateFolder(
 	}
 
 	a.triggerBackgroundSync()
+	a.emitTunnelsChanged()
 	return nil
 }
 
@@ -95,6 +96,7 @@ func (a *App) CreateConnection(
 
 	// Background sync if logged in
 	a.triggerBackgroundSync()
+	a.emitTunnelsChanged()
 	return nil
 }
 
@@ -155,6 +157,7 @@ func (a *App) UpdateConnection(
 	}
 
 	a.triggerBackgroundSync()
+	a.emitTunnelsChanged()
 	return nil
 }
 
@@ -168,6 +171,7 @@ func (a *App) DeleteConnection(
 	}
 
 	a.triggerBackgroundSync()
+	a.emitTunnelsChanged()
 	return nil
 }
 
@@ -185,6 +189,7 @@ func (a *App) UpdateFolder(
 	}
 
 	a.triggerBackgroundSync()
+	a.emitTunnelsChanged()
 	return nil
 }
 
@@ -200,6 +205,7 @@ func (a *App) DeleteFolder(
 	}
 
 	a.triggerBackgroundSync()
+	a.emitTunnelsChanged()
 	return nil
 }
 

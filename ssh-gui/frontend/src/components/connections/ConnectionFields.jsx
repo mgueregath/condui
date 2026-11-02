@@ -1,9 +1,12 @@
 import { useId } from "react";
 
-export function Input({ label, value, onChange, type = "text", placeholder, disabled, ...props }) {
+export function Input({ label, labelAction, value, onChange, type = "text", placeholder, disabled, ...props }) {
   const id = useId();
   return <div className="form-group">
-    <label className="form-label" htmlFor={id}>{label}</label>
+    {labelAction ? <div className="connection-field-label">
+      <label className="form-label" htmlFor={id}>{label}</label>
+      {labelAction}
+    </div> : <label className="form-label" htmlFor={id}>{label}</label>}
     <input id={id} className="modern-input" type={type} value={value ?? ""} placeholder={placeholder}
       disabled={disabled} onChange={event => onChange(event.target.value)} {...props} />
   </div>;

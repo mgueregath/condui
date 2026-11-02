@@ -70,7 +70,7 @@ func (c Connection) ConnectionProtocol() string {
 }
 
 func (c Connection) ValidateProtocol() error {
-	if protocol := c.ConnectionProtocol(); protocol != "ssh" && protocol != "vnc" && protocol != "rdp" {
+	if protocol := c.ConnectionProtocol(); protocol != "ssh" && protocol != "vnc" && protocol != "rdp" && protocol != "novnc" {
 		return fmt.Errorf("unsupported connection protocol")
 	}
 	return nil

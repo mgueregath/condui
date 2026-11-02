@@ -162,7 +162,7 @@ export default function ConnectionNode({
           )}
         </div>
         <div className="conn-host">
-          {!sshEnabled ? `${connection.host}:${connection[defaultProtocol(connection)]?.port}` : `${connection.username}@${connection.host}`}
+          {!sshEnabled ? (defaultProtocol(connection) === "novnc" ? connection.vnc?.websocket?.url : `${connection.host}:${connection[defaultProtocol(connection)]?.port}`) : `${connection.username}@${connection.host}`}
         </div>
       </div>
 
