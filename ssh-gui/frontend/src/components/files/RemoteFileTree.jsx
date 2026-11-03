@@ -11,7 +11,8 @@ import {
   OpenSqliteExplorerWindow,
 } from "../../../bindings/ssh-gui/app";
 
-import { Events } from "@wailsio/runtime";
+import { Call, Events } from "@wailsio/runtime";
+import { usesInAppWindows, openInAppWindow } from "../../inAppWindow";
 
 import RemoteFileNode from "./RemoteFileNode";
 import FileContextMenu from "./FileContextMenu";
@@ -94,6 +95,11 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
 
   const openFile = async (file) => {
     if (dbManagerEnabled && file.name?.toLowerCase().endsWith(".db")) {
+      if (usesInAppWindows) {
+        const url = await Call.ByName("main.App.SqliteExplorerURL", sessionId, file.path);
+        openInAppWindow({ kind: "url", icon: "db", url, title: file.name, sessionID: sessionId });
+        return;
+      }
       await OpenSqliteExplorerWindow(sessionId, file.path);
       return;
     }

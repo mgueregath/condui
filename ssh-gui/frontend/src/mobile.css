@@ -356,7 +356,113 @@ html.is-android body {
   overflow: hidden;
 }
 html.is-android,
-html.is-android body,
-html.is-android * {
-  overscroll-behavior: none; /* no stretch/glow at the edge of any scroller either */
+html.is-android body {
+  overscroll-behavior: none;
+}
+/* NOT on inner elements: `none` on a nested overflow container (e.g. the ports and
+   tunnels tables, overflow-x:auto) stops vertical scroll chaining to its parent. */
+
+/* ---------- In-app windows (Android: docker logs, stacks, DB explorer) ---------- */
+/* Tabs in the top bar, between the logo and the account button. */
+.inapp-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.inapp-tabs::-webkit-scrollbar {
+  display: none;
+}
+.inapp-tab {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  max-width: 220px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+button.inapp-tab {
+  gap: 6px;
+  padding: 0 10px;
+}
+.inapp-tab > button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.inapp-tab > button:first-child:not(:last-child) {
+  padding-right: 4px;
+}
+.inapp-tab.active {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
+}
+.inapp-tab-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  line-height: 1.2;
+}
+.inapp-tab-sub {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+.inapp-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inapp-tab-close {
+  flex: 0 0 auto;
+  width: 28px;
+  padding: 0 !important;
+  justify-content: center;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* Window content: covers the content area (inside .main-content), not the top bar. */
+.inapp-window {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+.inapp-window[hidden] {
+  display: none;
+}
+.inapp-window-scroll {
+  height: 100%;
+  overflow: auto;
+}
+.inapp-window iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
 }

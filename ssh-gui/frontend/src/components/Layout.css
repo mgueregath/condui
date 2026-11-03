@@ -54,11 +54,6 @@ body,
   -webkit-font-smoothing: antialiased;
 }
 
-/* Sin rebote elástico en ningún contenedor con scroll (macOS/WebKit, Android, touch) */
-* {
-  overscroll-behavior: none;
-}
-
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -122,10 +117,15 @@ body,
   display: flex;
   flex-direction: column;
   justify-content: center;
-  margin-left: 80px;
+  margin-left: 0;
   margin-right: 16px;
   line-height: 1;
   gap: 2px;
+}
+
+/* Solo macOS: deja sitio a los botones de la ventana (semáforo) a la izquierda */
+html.is-mac .topbar-logo {
+  margin-left: 80px;
 }
 
 .topbar-logo-wordmark {

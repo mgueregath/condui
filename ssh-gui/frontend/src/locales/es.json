@@ -444,5 +444,9 @@
     "disconnect": "Desconectar",
     "disconnectTitle": "¿Salir de {{name}}?",
     "disconnectBody": "Se cerrará la conexión con este servidor y volverás al listado de conexiones."
+  },
+  "windows": {
+    "main": "Principal",
+    "close": "Cerrar ventana"
   }
 }

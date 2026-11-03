@@ -127,17 +127,55 @@ func (a *App) handleLogStream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// OpenDockerLogWindow abre los logs del contenedor en una ventana del navegador del sistema
-func (a *App) OpenDockerLogWindow(sessionID string, containerID string, containerName string) error {
+// DockerLogURL devuelve la URL del visor de logs de un contenedor. En Android no
+// existen ventanas nativas adicionales, así que el frontend la muestra dentro de
+// la app; en escritorio la usa OpenDockerLogWindow.
+func (a *App) DockerLogURL(sessionID string, containerID string, containerName string) (string, error) {
 	if a.logServerPort == 0 {
-		return fmt.Errorf("servidor de logs no iniciado")
+		return "", fmt.Errorf("servidor de logs no iniciado")
 	}
-	url := fmt.Sprintf("http://127.0.0.1:%d/?session=%s&container=%s&name=%s",
+	return fmt.Sprintf("http://127.0.0.1:%d/?session=%s&container=%s&name=%s",
 		a.logServerPort,
 		neturl.QueryEscape(sessionID),
 		neturl.QueryEscape(containerID),
 		neturl.QueryEscape(containerName),
-	)
+	), nil
+}
+
+// DbExplorerURL devuelve la URL del explorador de bases de datos.
+func (a *App) DbExplorerURL(sessionID, dbType string, port int) (string, error) {
+	if !dbmanager.Enabled {
+		return "", dbmanager.ErrNotAvailable
+	}
+	if a.logServerPort == 0 {
+		return "", fmt.Errorf("servidor no iniciado")
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d/db?session=%s&type=%s&port=%d",
+		a.logServerPort,
+		neturl.QueryEscape(sessionID),
+		neturl.QueryEscape(dbType),
+		port,
+	), nil
+}
+
+// SqliteExplorerURL devuelve la URL del explorador para un archivo SQLite remoto.
+func (a *App) SqliteExplorerURL(sessionID, remotePath string) (string, error) {
+	if !dbmanager.Enabled {
+		return "", dbmanager.ErrNotAvailable
+	}
+	if a.logServerPort == 0 {
+		return "", fmt.Errorf("servidor no iniciado")
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d/db?session=%s&type=sqlite&path=%s",
+		a.logServerPort, neturl.QueryEscape(sessionID), neturl.QueryEscape(remotePath)), nil
+}
+
+// OpenDockerLogWindow abre los logs del contenedor en una ventana del navegador del sistema
+func (a *App) OpenDockerLogWindow(sessionID string, containerID string, containerName string) error {
+	url, err := a.DockerLogURL(sessionID, containerID, containerName)
+	if err != nil {
+		return err
+	}
 	window := application.Get().Window.NewWithOptions(application.WebviewWindowOptions{
 		URL:   url,
 		Title: containerName,
@@ -149,18 +187,10 @@ func (a *App) OpenDockerLogWindow(sessionID string, containerID string, containe
 
 // OpenDbExplorerWindow abre el explorador de BD en una ventana del navegador del sistema
 func (a *App) OpenDbExplorerWindow(sessionID, dbType string, port int) error {
-	if !dbmanager.Enabled {
-		return dbmanager.ErrNotAvailable
+	url, err := a.DbExplorerURL(sessionID, dbType, port)
+	if err != nil {
+		return err
 	}
-	if a.logServerPort == 0 {
-		return fmt.Errorf("servidor no iniciado")
-	}
-	url := fmt.Sprintf("http://127.0.0.1:%d/db?session=%s&type=%s&port=%d",
-		a.logServerPort,
-		neturl.QueryEscape(sessionID),
-		neturl.QueryEscape(dbType),
-		port,
-	)
 	window := application.Get().Window.NewWithOptions(application.WebviewWindowOptions{
 		URL:       url,
 		Title:     fmt.Sprintf("DB Explorer - %s:%d", dbType, port),
@@ -176,14 +206,10 @@ func (a *App) OpenDbExplorerWindow(sessionID, dbType string, port int) error {
 
 // OpenSqliteExplorerWindow opens a remote SQLite file in the database explorer.
 func (a *App) OpenSqliteExplorerWindow(sessionID, remotePath string) error {
-	if !dbmanager.Enabled {
-		return dbmanager.ErrNotAvailable
+	url, err := a.SqliteExplorerURL(sessionID, remotePath)
+	if err != nil {
+		return err
 	}
-	if a.logServerPort == 0 {
-		return fmt.Errorf("servidor no iniciado")
-	}
-	url := fmt.Sprintf("http://127.0.0.1:%d/db?session=%s&type=sqlite&path=%s",
-		a.logServerPort, neturl.QueryEscape(sessionID), neturl.QueryEscape(remotePath))
 	window := application.Get().Window.NewWithOptions(application.WebviewWindowOptions{
 		URL: url, Title: fmt.Sprintf("DB Explorer - %s", remotePath),
 		Width: 1400, Height: 900, MinWidth: 1000, MinHeight: 700,

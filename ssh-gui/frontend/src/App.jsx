@@ -43,6 +43,8 @@ import UnlockPendingConnectionModal from "./components/connections/UnlockPending
 
 import { isPhone, useIsPhone } from "./platform";
 import MobileNav from "./components/MobileNav";
+import InAppWindowHost, { InAppWindowTabs } from "./components/InAppWindow";
+import { activateInAppWindow, closeSessionWindows } from "./inAppWindow";
 import MobileResources from "./components/MobileResources";
 import { BsThreeDots } from "react-icons/bs";
 import { GrRefresh } from "react-icons/gr";
@@ -1051,6 +1053,7 @@ function App() {
       console.error("Failed to close SSH session", err);
     }
 
+    closeSessionWindows(tabId);
     const entry = terminalsRef.current.get(tabId);
     if (entry) {
       entry.term.dispose();
@@ -1103,6 +1106,7 @@ function App() {
           </span>
           <span className="topbar-logo-tagline">{t("app.sshManager")}</span>
         </div>
+        <InAppWindowTabs sessionNames={Object.fromEntries(tabs.map((tab) => [tab.id, tab.title]))} />
         <div className="topbar-account">
           {updateRelease && (
             <button
@@ -1179,6 +1183,7 @@ function App() {
 
       {/* MAIN */}
       <div className="main-content">
+        <InAppWindowHost />
         <LeftSidebar
           tabs={tabs}
           folders={folders}
@@ -1430,7 +1435,7 @@ function App() {
       {phone && tabs.length > 0 && (
         <MobileNav
           view={mobileView}
-          onChange={setMobileView}
+          onChange={(view) => { activateInAppWindow(null); setMobileView(view); }}
           isPro={accountStatus?.tier === "pro"}
           onUpgrade={() => setAccountModalOpen(true)}
           hideFiles={isLocalActive}

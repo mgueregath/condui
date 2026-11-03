@@ -444,5 +444,9 @@
     "disconnect": "Disconnect",
     "disconnectTitle": "Leave {{name}}?",
     "disconnectBody": "The connection to this server will be closed and you will return to the connection list."
+  },
+  "windows": {
+    "main": "Main",
+    "close": "Close window"
   }
 }

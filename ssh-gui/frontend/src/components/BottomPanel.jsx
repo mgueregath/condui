@@ -47,6 +47,7 @@ import { useTranslation } from "react-i18next";
 import ResponseMessage from "./common/ResponseMessage";
 import useResponseAction from "../hooks/useResponseAction";
 import { isPhone, useIsPhone } from "../platform";
+import { usesInAppWindows, openInAppWindow } from "../inAppWindow";
 import AlertModal from "./common/AlertModal";
 import SudoPasswordModal from "./common/SudoPasswordModal";
 import Modal from "./common/Modal";
@@ -694,6 +695,20 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
   };
 
   // Manejar envío de contraseña sudo
+  // Android: no native windows, so these open full screen inside the app.
+  const openContainerLogs = (c) => {
+    if (!usesInAppWindows) return OpenDockerLogWindow(sessionId, c.id, c.names).catch(console.error);
+    return Call.ByName("main.App.DockerLogURL", sessionId, c.id, c.names)
+      .then((url) => openInAppWindow({ kind: "url", icon: "log", url, title: c.names, sessionID: sessionId }))
+      .catch(console.error);
+  };
+  const openDbExplorer = (db) => {
+    if (!usesInAppWindows) return OpenDbExplorerWindow(sessionId, db.name, db.port);
+    return Call.ByName("main.App.DbExplorerURL", sessionId, db.name, db.port)
+      .then((url) => openInAppWindow({ kind: "url", icon: "db", url, title: `${db.name}:${db.port}`, sessionID: sessionId }))
+      .catch(console.error);
+  };
+
   const handleSudoPasswordSubmit = async (password) => {
     await SetSudoPassword(sessionId, password);
     setSudoPasswordModal(false);
@@ -817,7 +832,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
             <button
               className="bottom-action-btn"
               disabled={dockerOpen.busy}
-              onClick={() => dockerOpen.run(() => Call.ByName("main.App.OpenDockerExplorerWindow", sessionId), t("panel.response.opening"), t("panel.response.openFailed"))}
+              onClick={() => dockerOpen.run(() => usesInAppWindows ? openInAppWindow({ kind: "docker-explorer", sessionID: sessionId, title: t("panel.dockerExplorer") }) : Call.ByName("main.App.OpenDockerExplorerWindow", sessionId), t("panel.response.opening"), t("panel.response.openFailed"))}
             >
               <FaDocker /> {t("panel.dockerExplorer")}
             </button>
@@ -1335,7 +1350,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
                       >
                         <button
                           title={t("panel.viewDockerLogs")}
-                          onClick={() => OpenDockerLogWindow(sessionId, c.id, c.names).catch(console.error)}
+                          onClick={() => openContainerLogs(c)}
                           style={{
                             padding: "5px 7px",
                             cursor: "pointer",
@@ -1751,7 +1766,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
                               color: "var(--text-secondary)",
                               fontSize: "11px", cursor: "pointer",
                             }}
-                            onClick={() => OpenDbExplorerWindow(sessionId, db.name, db.port)}
+                            onClick={() => openDbExplorer(db)}
                           >
                             <FaSearch style={{ fontSize: 9 }} /> {t("panel.explore")}
                           </button>
