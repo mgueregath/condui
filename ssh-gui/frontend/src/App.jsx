@@ -786,9 +786,11 @@ function App() {
     if (!isPhone()) return;
     for (const old of tabs.filter((t) => t.id !== keepId)) {
       try {
-        await CloseSession(old.id);
+        if (old.type === "rdp") await closeRDP(old.id);
+        else if (["vnc", "novnc"].includes(old.type)) await closeVNC(old.id);
+        else await CloseSession(old.id);
       } catch (err) {
-        console.error("Failed to close SSH session", err);
+        console.error("Failed to close session", err);
       }
       const entry = terminalsRef.current.get(old.id);
       if (entry) {
@@ -823,7 +825,7 @@ function App() {
     return { id: result.sessionId, type: "ssh", homePath: result.homePath };
   };
 
-  const handleOpenConnection = async (c, forceNew = false) => {
+  const handleOpenConnection = async (c, forceNew = false, protocol = defaultProtocol(c)) => {
     const existing = tabs.find((t) => t.connectionId === c.id && (t.type || "ssh") === protocol);
 
     // On phones, tapping the connection that is already open just returns to it.
@@ -847,13 +849,12 @@ function App() {
     try {
       const session = await connectSession(c, protocol);
 
-      await closeOtherSessionsOnPhone(sessionId);
+      await closeOtherSessionsOnPhone(session.id);
       setTabs((prev) => addTab(prev, {
-        id: sessionId,
+        ...session,
         connectionId: c.id,
         title: c.name,
         color: c.color,
-        homePath: connectResult.homePath,
       }));
 
       setActiveTab(session.id);
