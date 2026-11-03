@@ -1,5 +1,10 @@
 build/bin
-build/android/*
+# Android: solo salidas de compilación (el resto de build/android sí se versiona)
+build/android/.gradle/
+build/android/build/
+build/android/app/build/
+build/android/app/src/main/jniLibs/
+build/android/local.properties
 node_modules
 frontend/dist
 frontend/.env.local
