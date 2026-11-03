@@ -2,7 +2,7 @@ package models
 
 import "fmt"
 
-// RDPConfig uses the shared connection Host; credentials remain local.
+// RDPConfig uses the shared connection Host; credentials use vault and sync encryption.
 type RDPConfig struct {
 	AllowUntrusted         bool     `json:"allowUntrusted,omitempty"`
 	DisableTLS             bool     `json:"disableTLS,omitempty"`

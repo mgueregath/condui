@@ -7,7 +7,7 @@ import (
 )
 
 func redactConnection(c *models.Connection) {
-	if c.Password != nil && isSyncEncrypted(*c.Password) {
+	if hasPendingConnectionSecrets(*c) {
 		c.PasswordPending = true
 	}
 	if c.RDP != nil {

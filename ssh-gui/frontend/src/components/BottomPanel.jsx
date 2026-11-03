@@ -239,18 +239,20 @@ function ActionBtn({ children, title, color, onClick, disabled, style = {} }) {
   );
 }
 
-export default function BottomPanel({ sessionId, connectionId, accountStatus, features, onUpgrade, mobileTab }) {
+export default function BottomPanel({ sessionId, connectionId, accountStatus, features, onUpgrade, mobileTab, dockerAvailable }) {
   const { t } = useTranslation();
   const isPro = accountStatus?.tier === "pro";
   const dbManagerEnabled = !!features?.dbManager;
-  const [activeTab, setActiveTab] = useState("transfers");
+  const [selectedTab, setActiveTab] = useState("transfers");
+  const activeTab = selectedTab === "docker" && !dockerAvailable ? "transfers" : selectedTab;
+  const visibleTabs = TABS.filter((tab) => tab.id !== "docker" || dockerAvailable);
   // collapsed (default): only the tab strip | docked: fixed below the console |
   // fullscreen: covers the console area.
   const [panelMode, setPanelMode] = useState("collapsed");
   // On phones the bottom nav drives this: a panel tab id opens it fullscreen,
   // anything else (console, resources, files...) keeps it hidden.
   const phone = useIsPhone();
-  const phoneShowsPanel = phone && TABS.some((tb) => tb.id === mobileTab);
+  const phoneShowsPanel = phone && visibleTabs.some((tb) => tb.id === mobileTab);
   const mode = phone ? (phoneShowsPanel ? "fullscreen" : "collapsed") : panelMode;
   const collapsed = mode === "collapsed";
   const fullscreen = mode === "fullscreen";
@@ -734,7 +736,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
         }}
       >
         <div className="bottom-tab-list">
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const locked = tab.pro && !isPro;
           const isActive = activeTab === tab.id;
           return (
@@ -821,10 +823,11 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
           {activeTab === "docker" && (
             <button
               className="bottom-action-btn"
+              title={t("panel.dockerExplorer")}
               disabled={dockerOpen.busy}
               onClick={() => dockerOpen.run(() => usesInAppWindows ? openInAppWindow({ kind: "docker-explorer", sessionID: sessionId, title: t("panel.dockerExplorer") }) : Call.ByName("main.App.OpenDockerExplorerWindow", sessionId), t("panel.response.opening"), t("panel.response.openFailed"))}
             >
-              <FaDocker /> {t("panel.dockerExplorer")}
+              <FaDocker /> 
             </button>
           )}
           {showPanelSearch && (
@@ -840,6 +843,8 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
           )}
           {(activeTab === "tunnels" || activeTab === "docker" || activeTab === "ports" || activeTab === "databases" || activeTab === "virtualbox") && (
             <button
+              aria-label={t("common.refresh")}
+              title={t("common.refresh")}
               className="bottom-action-btn"
               onClick={
                 activeTab === "tunnels" ? fetchTunnels :
@@ -849,12 +854,17 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
                         fetchContainers
               }
             >
-              <FaRedoAlt /> {t("common.refresh")}
+              <FaRedoAlt />
             </button>
           )}
           {!fullscreen && !isPhone() && collapsed && (
             <button className="bottom-action-btn panel-mode-btn" onClick={() => setPanelMode("docked")} title={t("panel.openDocked")}>
               <FaChevronUp />
+            </button>
+          )}
+          {!collapsed && (
+            <button className="bottom-action-btn panel-mode-btn" onClick={() => setPanelMode("collapsed")} title={t("panel.collapse")}>
+              <FaChevronDown />
             </button>
           )}
           {!fullscreen && (
@@ -869,11 +879,6 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
           {fullscreen && !isPhone() && (
             <button className="bottom-action-btn panel-mode-btn" onClick={() => setPanelMode("docked")} title={t("panel.exitFullscreen")}>
               <FaCompress />
-            </button>
-          )}
-          {!collapsed && (
-            <button className="bottom-action-btn panel-mode-btn" onClick={() => setPanelMode("collapsed")} title={t("panel.collapse")}>
-              <FaChevronDown />
             </button>
           )}
         </div>

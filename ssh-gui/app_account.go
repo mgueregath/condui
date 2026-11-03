@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -237,7 +238,10 @@ func (a *App) SyncNow() error {
 	if syncKey == nil {
 		return fmt.Errorf("sync key not available: please log in and unlock the vault first")
 	}
-	connections = reencryptConnectionsForSync(sshConnections(connections), key, syncKey)
+	connections, err = reencryptConnectionsForSync(connections, key, syncKey)
+	if err != nil {
+		return err
+	}
 
 	// Pro tier syncs the same connection set across all devices. Free tier
 	// keeps the previous capped upload behavior, capped at whatever
@@ -592,16 +596,6 @@ func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.
 	order := make([]string, 0, len(local)+len(remote))
 
 	for _, conn := range remote {
-		conn.RDP = nil
-		conn.VNC = nil
-		conn.SSHEnabled = nil
-		if !conn.HasSSH() {
-			continue
-		}
-		stored, err := a.database.GetConnectionByID(conn.ID)
-		if err == nil && !stored.HasSSH() {
-			continue
-		}
 		if conn.ID == "" {
 			continue
 		}
@@ -611,9 +605,6 @@ func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.
 		remoteByID[conn.ID] = conn
 	}
 	for _, conn := range local {
-		if !conn.HasSSH() {
-			continue
-		}
 		if conn.ID == "" {
 			continue
 		}
@@ -649,43 +640,6 @@ func (a *App) mergeRemoteConnections(local []models.Connection, remote []models.
 			merged = append(merged, chosen)
 		case hasLocal:
 			if previousHash != "" && connectionHash(localConn) == previousHash {
-				stored, err := a.database.GetConnectionByID(id)
-				if err != nil {
-					return nil, err
-				}
-				if stored.HasVNC() || stored.HasNoVNC() || stored.HasRDP() {
-					enabled := false
-					stored.SSHEnabled = &enabled
-					if stored.HasVNC() {
-						stored.Protocol = "vnc"
-					} else if stored.HasNoVNC() {
-						stored.Protocol = "novnc"
-					} else {
-						stored.Protocol = "rdp"
-					}
-					if stored.VNC != nil && stored.VNC.Reuse.User {
-						stored.VNC.Username = stored.Username
-						stored.VNC.Reuse.User = false
-					}
-					if stored.VNC != nil && stored.VNC.Reuse.Pass {
-						stored.VNC.Password = stored.Password
-						stored.VNC.Reuse.Pass = false
-					}
-					if stored.RDP != nil {
-						if stored.RDP.Reuse.User {
-							stored.RDP.Username = stored.Username
-							stored.RDP.Reuse.User = false
-						}
-						if stored.RDP.Reuse.Pass {
-							stored.RDP.Password = stored.Password
-							stored.RDP.Reuse.Pass = false
-						}
-					}
-					if err := a.database.UpdateConnection(stored); err != nil {
-						return nil, err
-					}
-					continue
-				}
 				if err := a.database.DeleteConnection(id); err != nil {
 					return nil, err
 				}
@@ -836,8 +790,15 @@ func folderHash(folder models.Folder) string {
 // so that the hash is consistent regardless of which encryption key was used
 // locally.
 func connectionHash(conn models.Connection) string {
+	conn = cloneSyncConnection(conn)
 	conn.Password = nil
 	conn.Passphrase = nil
+	if conn.VNC != nil {
+		conn.VNC.Password = nil
+	}
+	if conn.RDP != nil {
+		conn.RDP.Password = nil
+	}
 	data, _ := json.Marshal(conn)
 	sum := sha256.Sum256(data)
 	return base64.StdEncoding.EncodeToString(sum[:])
@@ -865,30 +826,108 @@ func reencryptSecretForSync(secret *string, localKey, syncKey []byte) (*string, 
 	return &enc, nil
 }
 
-// reencryptConnectionsForSync translates passwords and passphrases from the
-// local vault key to the syncVaultKey format so they can be decrypted on any
-// device that knows the vault password. A connection whose secret can't be
-// decrypted with the current local vault key (e.g. leftover data encrypted
-// under a different vault that was never reconciled) is left as-is instead
-// of aborting the whole sync — one broken connection must not block every
-// other connection from syncing. Re-saving that connection's password from
-// the UI re-encrypts it with the current key and clears the problem.
-func reencryptConnectionsForSync(connections []models.Connection, localKey, syncKey []byte) []models.Connection {
-	result := make([]models.Connection, len(connections))
-	for i, conn := range connections {
-		result[i] = conn
-		if password, err := reencryptSecretForSync(conn.Password, localKey, syncKey); err == nil {
-			result[i].Password = password
-		} else {
-			fmt.Printf("[WARN] sync: connection %s password undecryptable with current vault key, leaving unsynced: %v\n", conn.ID, err)
-		}
-		if passphrase, err := reencryptSecretForSync(conn.Passphrase, localKey, syncKey); err == nil {
-			result[i].Passphrase = passphrase
-		} else {
-			fmt.Printf("[WARN] sync: connection %s passphrase undecryptable with current vault key, leaving unsynced: %v\n", conn.ID, err)
+// cloneSyncConnection isolates nested credentials from hashes and wire transforms.
+func cloneSyncConnection(conn models.Connection) models.Connection {
+	if conn.VNC != nil {
+		v := *conn.VNC
+		conn.VNC = &v
+	}
+	if conn.RDP != nil {
+		r := *conn.RDP
+		conn.RDP = &r
+	}
+	return conn
+}
+
+func connectionSecrets(conn *models.Connection) []**string {
+	fields := []**string{&conn.Password, &conn.Passphrase}
+	if conn.VNC != nil {
+		fields = append(fields, &conn.VNC.Password)
+	}
+	if conn.RDP != nil {
+		fields = append(fields, &conn.RDP.Password)
+	}
+	return fields
+}
+
+func hasPendingConnectionSecrets(conn models.Connection) bool {
+	for _, field := range connectionSecrets(&conn) {
+		if *field != nil && isSyncEncrypted(**field) {
+			return true
 		}
 	}
-	return result
+	return false
+}
+
+// Use a keyed digest to detect credential-only edits without depending on
+// randomized encryption nonces or exposing a password fingerprint.
+func reencryptConnectionsForSync(connections []models.Connection, localKey, syncKey []byte) ([]models.Connection, error) {
+	result := make([]models.Connection, len(connections))
+	for i, original := range connections {
+		conn := cloneSyncConnection(original)
+		// Explicit disabled configs let storage clear accesses removed remotely.
+		enabled := conn.HasSSH()
+		conn.SSHEnabled = &enabled
+		if conn.VNC == nil {
+			conn.VNC = &models.VNCConfig{}
+		}
+		if conn.RDP == nil {
+			conn.RDP = &models.RDPConfig{}
+		}
+		plainSecrets := make([]*string, 0, 4)
+		pendingFields := make([]bool, 0, 4)
+		hasPending := false
+		for _, field := range connectionSecrets(&conn) {
+			var plain *string
+			pending := false
+			if *field != nil && **field != "" {
+				var value string
+				var err error
+				if isSyncEncrypted(**field) {
+					value, err = decryptFromSync(**field, syncKey)
+					if err != nil {
+						// A sync envelope is portable even when this device cannot
+						// unlock it yet. Preserve it rather than blocking the set.
+						value = **field
+						pending = true
+						hasPending = true
+						err = nil
+					}
+				} else {
+					value, err = decryptConnectionPassword(**field, localKey)
+				}
+				if err != nil {
+					return nil, fmt.Errorf("connection %s: cannot prepare credentials for sync: %w", conn.ID, err)
+				}
+				plain = &value
+			}
+			plainSecrets = append(plainSecrets, plain)
+			pendingFields = append(pendingFields, pending)
+			encrypted, err := reencryptSecretForSync(*field, localKey, syncKey)
+			if err != nil {
+				return nil, fmt.Errorf("connection %s: %w", conn.ID, err)
+			}
+			*field = encrypted
+		}
+		var digestInput any = plainSecrets
+		if hasPending {
+			// Mark ciphertext inputs explicitly so they cannot be confused with
+			// actual plaintext. The digest stays stable until secrets unlock.
+			digestInput = struct {
+				Secrets []*string `json:"secrets"`
+				Pending []bool    `json:"pending"`
+			}{plainSecrets, pendingFields}
+		}
+		data, err := json.Marshal(digestInput)
+		if err != nil {
+			return nil, err
+		}
+		digest := hmac.New(sha256.New, syncKey)
+		digest.Write(data)
+		conn.SyncSecretsHash = base64.StdEncoding.EncodeToString(digest.Sum(nil))
+		result[i] = conn
+	}
+	return result, nil
 }
 
 // translateSyncSecret converts a "sync:..." secret to a local-vault-encrypted
@@ -914,19 +953,17 @@ func translateSyncSecret(secret *string, localKey []byte, syncKeys ...[]byte) (*
 	return &enc, nil
 }
 
-// translateSyncPassword converts a connection's "sync:..." password and
-// passphrase to local-vault-encrypted values in place.
+// translateSyncPassword converts all protocol secrets to local vault encryption.
 func translateSyncPassword(conn *models.Connection, localKey []byte, syncKeys ...[]byte) error {
-	password, err := translateSyncSecret(conn.Password, localKey, syncKeys...)
-	if err != nil {
-		return fmt.Errorf("connection %s: %w", conn.ID, err)
+	*conn = cloneSyncConnection(*conn)
+	for _, field := range connectionSecrets(conn) {
+		secret, err := translateSyncSecret(*field, localKey, syncKeys...)
+		if err != nil {
+			return fmt.Errorf("connection %s: %w", conn.ID, err)
+		}
+		*field = secret
 	}
-	conn.Password = password
-	passphrase, err := translateSyncSecret(conn.Passphrase, localKey, syncKeys...)
-	if err != nil {
-		return fmt.Errorf("connection %s: %w", conn.ID, err)
-	}
-	conn.Passphrase = passphrase
+
 	return nil
 }
 
@@ -950,11 +987,7 @@ func (a *App) UnlockPendingConnection(connectionID, originVaultPassword string) 
 		return err
 	}
 
-	pending := func(c *models.Connection) bool {
-		return (c.Password != nil && isSyncEncrypted(*c.Password)) ||
-			(c.Passphrase != nil && isSyncEncrypted(*c.Passphrase))
-	}
-	if !pending(conn) {
+	if !hasPendingConnectionSecrets(*conn) {
 		return nil
 	}
 
@@ -962,7 +995,7 @@ func (a *App) UnlockPendingConnection(connectionID, originVaultPassword string) 
 	if err := translateSyncPassword(conn, localKey, originKey); err != nil {
 		return err
 	}
-	if pending(conn) {
+	if hasPendingConnectionSecrets(*conn) {
 		return fmt.Errorf("incorrect origin vault password")
 	}
 
@@ -985,34 +1018,17 @@ func (a *App) processPendingPasswords() {
 	}
 
 	for _, conn := range connections {
-		passwordPending := conn.Password != nil && isSyncEncrypted(*conn.Password)
-		passphrasePending := conn.Passphrase != nil && isSyncEncrypted(*conn.Passphrase)
-		if !passwordPending && !passphrasePending {
+		if !hasPendingConnectionSecrets(conn) {
 			continue
 		}
 		toStore := conn
 		if err := translateSyncPassword(&toStore, localKey, syncKeys...); err != nil {
 			continue
 		}
-		if toStore.Password != conn.Password || toStore.Passphrase != conn.Passphrase {
-			_ = a.database.UpsertConnection(&toStore)
-		}
+		_ = a.database.UpsertConnection(&toStore)
 	}
 }
 
 func isMissingRemoteBlob(err error) bool {
 	return err != nil && (err.Error() == "blob not found" || err.Error() == "server error 404")
-}
-
-func sshConnections(connections []models.Connection) []models.Connection {
-	result := make([]models.Connection, 0, len(connections))
-	for _, c := range connections {
-		if c.HasSSH() {
-			c.RDP = nil
-			c.VNC = nil
-			c.SSHEnabled = nil
-			result = append(result, c)
-		}
-	}
-	return result
 }

@@ -1535,7 +1535,7 @@ html.is-mac .topbar-logo {
   display: flex;
   gap: 8px;
   align-items: center;
-  padding-right: 10px;
+  /* padding-right: 10px; */
 }
 .bottom-action-btn {
   height: 24px;

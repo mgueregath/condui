@@ -48,6 +48,7 @@ import UnlockPendingConnectionModal from "./components/connections/UnlockPending
 
 import { isPhone, useIsPhone } from "./platform";
 import MobileNav from "./components/MobileNav";
+import useContainerRuntime from "./hooks/useContainerRuntime";
 import InAppWindowHost, { InAppWindowTabs } from "./components/InAppWindow";
 import { activateInAppWindow, closeSessionWindows } from "./inAppWindow";
 import MobileResources from "./components/MobileResources";
@@ -764,6 +765,9 @@ function App() {
   const activeTabData = tabs.find((t) => t.id === activeTab);
   const isLocalActive = activeTabData?.type === "local";
   const isDesktopActive = isDesktop(activeTabData?.type);
+  const dockerAvailable = useContainerRuntime(
+    !isLocalActive && !isDesktopActive && !activeTabData?.disconnected ? activeTab : null,
+  );
 
   // Opening/switching a session returns to the terminal on phones.
   useEffect(() => {
@@ -1427,7 +1431,7 @@ function App() {
               </div>
             </div>
             {!isLocalActive && !isDesktopActive && (
-              <BottomPanel sessionId={activeTab} connectionId={activeTabData?.connectionId} accountStatus={accountStatus} features={features} onUpgrade={() => setAccountModalOpen(true)} mobileTab={phone ? mobileView : undefined} />
+              <BottomPanel dockerAvailable={dockerAvailable} sessionId={activeTab} connectionId={activeTabData?.connectionId} accountStatus={accountStatus} features={features} onUpgrade={() => setAccountModalOpen(true)} mobileTab={phone ? mobileView : undefined} />
             )}
             {phone && mobileView === "resources" && (
               <MobileResources sessionId={activeTab} disconnected={activeTabData?.disconnected} />
@@ -1478,6 +1482,7 @@ function App() {
           isPro={accountStatus?.tier === "pro"}
           onUpgrade={() => setAccountModalOpen(true)}
           hideFiles={isLocalActive}
+          dockerAvailable={dockerAvailable}
         />
       )}
 

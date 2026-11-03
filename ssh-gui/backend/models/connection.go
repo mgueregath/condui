@@ -3,11 +3,13 @@ package models
 import "fmt"
 
 type Connection struct {
-	ID         string     `json:"id"`
-	Protocol   string     `json:"protocol,omitempty"`
-	SSHEnabled *bool      `json:"sshEnabled,omitempty"`
-	VNC        *VNCConfig `json:"vnc,omitempty"`
-	RDP        *RDPConfig `json:"rdp,omitempty"`
+	// SyncSecretsHash is a keyed digest used only by the sync wire format.
+	SyncSecretsHash string     `json:"syncSecretsHash,omitempty"`
+	ID              string     `json:"id"`
+	Protocol        string     `json:"protocol,omitempty"`
+	SSHEnabled      *bool      `json:"sshEnabled,omitempty"`
+	VNC             *VNCConfig `json:"vnc,omitempty"`
+	RDP             *RDPConfig `json:"rdp,omitempty"`
 
 	FolderID *string `json:"folderId,omitempty"`
 

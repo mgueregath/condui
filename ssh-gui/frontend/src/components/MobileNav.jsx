@@ -19,11 +19,11 @@ const ITEMS = [
   { id: "databases", labelKey: "panel.databases", icon: <FaDatabase />, pro: true },
 ];
 
-export default function MobileNav({ view, onChange, isPro, onUpgrade, hideFiles }) {
+export default function MobileNav({ view, onChange, isPro, onUpgrade, hideFiles, dockerAvailable }) {
   const { t } = useTranslation();
   return (
     <nav className="mobile-nav" aria-label="Navigation">
-      {ITEMS.filter((item) => !(hideFiles && item.id === "files")).map((item) => {
+      {ITEMS.filter((item) => !(hideFiles && item.id === "files") && (item.id !== "docker" || dockerAvailable)).map((item) => {
         const locked = item.pro && !isPro;
         return (
           <button
