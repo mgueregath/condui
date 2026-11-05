@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { IsVaultSetup, SetupMasterPassword, UnlockVault } from "../../../bindings/ssh-gui/app";
-import conduiLogo from "../../assets/images/condui-transparent.png";
+import ConduiLogo from "../common/ConduiLogo";
 import { useTranslation } from "react-i18next";
 
 export default function VaultUnlock({ onUnlocked }) {
@@ -67,7 +67,7 @@ export default function VaultUnlock({ onUnlocked }) {
     <div className="vault-screen">
       <div className="vault-card">
         <div className="vault-logo">
-          <img src={conduiLogo} alt="Condui" style={{ height: 48 }} />
+          <ConduiLogo style={{ height: 48 }} />
         </div>
 
         {mode === "setup" ? (

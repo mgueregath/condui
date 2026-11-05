@@ -1,11 +1,13 @@
 import React, { lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import "./platform";
+import "./services/theme";
 import "./style.css";
 import "./components/Layout.css";
 import "./mobile.css";
 import "./i18n";
 import "bootstrap/dist/css/bootstrap.min.css";
+import "./styles/theme.css";
 
 const App = lazy(() => import("./App"));
 const DockerExplorer = lazy(() => import("./components/docker/DockerExplorer"));

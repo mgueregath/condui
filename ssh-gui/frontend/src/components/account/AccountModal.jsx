@@ -5,6 +5,7 @@ import { AccountLogin, AccountLoginWithPin, AccountLogout, AccountRegister, Acco
 import ResponseMessage from "../common/ResponseMessage";
 import useResponseAction from "../../hooks/useResponseAction";
 import LanguageSwitcher from "../common/LanguageSwitcher";
+import ThemeSwitcher from "../common/ThemeSwitcher";
 import SettingsSidebar from "./SettingsSidebar";
 
 const SERVER_URL = import.meta.env.VITE_CONDUI_SERVER_URL || "";
@@ -124,8 +125,8 @@ export default function AccountModal({ onClose, onBusyChange }) {
   const pages = {
     account: <><Header title={status.loggedIn ? t("account.account") : t("account.signInTitle")} text={status.loggedIn ? t("settings.accountDescription") : t("account.signInDescription")} />{status.loggedIn ? <><div className="account-info-card settings-account-card"><div className="account-avatar">{status.email?.[0]?.toUpperCase() || "?"}</div><div className="account-info-details"><div className="account-email">{status.email}</div><span className={`tier-badge tier-${status.tier}`}>{status.tier === "pro" ? t("common.pro") : t("common.free")}</span></div></div><div className="settings-group"><Row title={t("settings.plan")} text={status.limits ? formatLimits(status.limits) : t("account.freePlanDescription")}>{status.tier === "free" && <a className="settings-inline-link" href="https://condui.app/upgrade" target="_blank" rel="noreferrer">{t("account.upgrade")} <FaArrowRight /></a>}</Row></div></> : authForm}</>,
     sync: <><Header title={t("settings.sections.sync")} text={t("settings.syncDescription")} /><div className="settings-group"><Row title={t("settings.syncStatus")} text={status.loggedIn ? (status.lastSync ? t("account.lastSync", { date: new Date(status.lastSync).toLocaleString(i18n.language) }) : t("account.neverSynced")) : t("settings.signInRequired")}><button className="btn-secondary btn-sm" onClick={() => { setSyncDone(false); handleSync(); }} disabled={sync.busy || !status.loggedIn}>{sync.busy ? t("account.syncing") : t("account.syncNow")}</button></Row></div><ResponseMessage {...(sync.response || (syncDone ? { severity: "success", message: t("account.synced") } : {}))} /></>,
-    appearance: <><Header title={t("settings.sections.appearance")} text={t("settings.appearanceDescription")} /><div className="settings-group"><Row title={t("settings.language")} text={t("settings.languageDescription")}><LanguageSwitcher /></Row></div></>,
-    security: <><Header title={t("settings.sections.security")} text={t("settings.securityDescription")} /><div className="settings-empty-state"><strong>{t("settings.securityManaged")}</strong><span>{t("settings.securityManagedDescription")}</span></div></>,
+    appearance: <><Header title={t("settings.sections.appearance")} text={t("settings.appearanceDescription")} /><div className="settings-group"><Row title={t("settings.theme.title")} text={t("settings.theme.description")}><ThemeSwitcher /></Row><Row title={t("settings.language")} text={t("settings.languageDescription")}><LanguageSwitcher /></Row></div></>,
+    security: <><Header title={t("settings.sections.security")} text={t("settings.securityDescription")} /><Row className="settings-empty-state" title={t("settings.securityManaged")} text={t("settings.securityManagedDescription")} /></>,
     updates: <><Header title={t("settings.sections.updates")} text={t("settings.updatesDescription")} /><div className="settings-group"><Row title={t("settings.appVersion")} text={appVersion ? t("account.version", { version: appVersion }) : t("common.loading")}><button className="btn-secondary btn-sm" onClick={handleUpdates} disabled={checkingUpdate}>{checkingUpdate ? t("account.checkingForUpdates") : t("account.checkForUpdates")}</button></Row></div>{updateMsg && <div className="vault-error">{updateMsg}</div>}</>,
   };
 
@@ -133,4 +134,4 @@ export default function AccountModal({ onClose, onBusyChange }) {
 }
 
 function Header({ title, text }) { return <header className="settings-section-header"><h1>{title}</h1><p>{text}</p></header>; }
-function Row({ title, text, children }) { return <div className="settings-row"><div><strong>{title}</strong><span>{text}</span></div>{children}</div>; }
+function Row({ title, text, children, className }) { return <div className={`settings-row ${className || ""}`}><div><strong>{title}</strong><span>{text}</span></div>{children}</div>; }

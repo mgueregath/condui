@@ -22,6 +22,13 @@
     "ok": "OK"
   },
   "settings": {
+    "theme": {
+      "title": "Theme",
+      "description": "Choose an appearance or follow your system settings.",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
     "title": "Settings",
     "language": "Language",
     "languageDescription": "Choose the application language.",

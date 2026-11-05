@@ -1,0 +1,38 @@
+:root[data-theme="dark"] {
+  --bg-base: #14121c;
+  --bg-surface: #1c1927;
+  --bg-elevated: #242031;
+  --bg-hover: #302941;
+  --bg-white: #1c1927;
+  --border: #403750;
+  --border-subtle: #302a3e;
+  --text-primary: #f0edf8;
+  --text-secondary: #c0b7d4;
+  --text-muted: #a69bbd;
+  --accent: #a78bfa;
+  --accent-rgb: 167, 139, 250;
+  --accent-hover: #9473ed;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.theme-switcher {
+  min-width: 120px;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.theme-switcher:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.language-switcher option {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}

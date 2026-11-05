@@ -1,0 +1,16 @@
+.condui-logo-dark {
+  display: none;
+}
+
+:root[data-theme="dark"] .condui-logo-light {
+  display: none;
+}
+
+:root[data-theme="dark"] .condui-logo-dark {
+  display: inline-block;
+}
+
+.topbar-logo-image {
+  height: 24px;
+  width: auto;
+}

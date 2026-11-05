@@ -2201,7 +2201,7 @@ select.modern-input {
 /* HEADER */
 
 .remote-editor-header {
-  background-color: #ffffff;
+  background-color: var(--bg-surface);
   height: 54px;
   padding: 0 16px;
   display: flex;
@@ -2243,7 +2243,7 @@ select.modern-input {
 /* FOOTER */
 
 .remote-editor-footer {
-  background-color: #ffffff;
+  background-color: var(--bg-surface);
   height: 48px;
   padding: 0 14px;
   display: flex;

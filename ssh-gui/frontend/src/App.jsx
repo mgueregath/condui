@@ -4,7 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
-import conduiLogo from "./assets/images/condui-transparent.png";
+import ConduiLogo from "./components/common/ConduiLogo";
 import { FaChevronLeft, FaCheck, FaCopy, FaEraser, FaExclamationTriangle, FaFolder, FaInbox, FaPaste, FaTimes, FaUser, FaTerminal, FaPlus } from "react-icons/fa";
 
 import { Events } from "@wailsio/runtime";
@@ -321,7 +321,7 @@ function LeftSidebar({
       </div>
 
       <div className="sidebar-footer">
-        <img className="logo-image-sm" src={conduiLogo} />
+        <ConduiLogo className="logo-image-sm" />
       </div>
     </div>
   );
@@ -1137,9 +1137,7 @@ function App() {
           </button>
         )}
         <div className="topbar-logo">
-          <span className="topbar-logo-wordmark">
-            condu<span className="i">i</span>
-          </span>
+          <ConduiLogo horizontal className="topbar-logo-image" />
           <span className="topbar-logo-tagline">{t("app.sshManager")}</span>
         </div>
         <InAppWindowTabs sessionNames={Object.fromEntries(tabs.map((tab) => [tab.id, tab.title]))} />
