@@ -35,7 +35,7 @@ env:
 jobs:
   build-macos:
     name: Build macOS (universal)
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       # navoro (ssh-gui/backend/dbexplorer) is public now, so the database
       # explorer feature is built into public releases. See README's Database
