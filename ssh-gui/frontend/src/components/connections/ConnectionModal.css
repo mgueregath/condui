@@ -1,5 +1,22 @@
 .response-fields { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 14px; }
-.modern-modal.connection-dialog { width: 780px; max-height: 92vh; overflow-y: auto; }
+/* Alto fijo (mínimo = máximo): no cambia según la pestaña ni el contenido. Cabecera,
+   identidad y botones quedan fijos; solo scrollean las pestañas y los paneles. */
+.modern-modal.connection-dialog {
+  --connection-dialog-height: min(700px, 92vh);
+  width: 780px;
+  min-height: var(--connection-dialog-height);
+  max-height: var(--connection-dialog-height);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.connection-editor { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.connection-editor > .modal-header,
+.connection-editor > .connection-shared,
+.connection-editor > .response-message,
+.connection-editor > .modal-footer { flex-shrink: 0; }
+.connection-editor > .connection-layout { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.connection-tabs, .connection-panels { min-height: 0; overflow-y: auto; }
 .connection-shared { padding: 20px 24px; }
 .connection-identity { display: grid; grid-template-columns: 1.4fr 1fr 64px; gap: 12px; }
 .connection-identity .modern-input,

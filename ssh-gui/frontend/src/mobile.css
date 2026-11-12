@@ -221,6 +221,10 @@ html.is-phone .modern-modal {
   max-height: calc(100dvh - 16px);
   overflow-y: auto;
 }
+html.is-phone .modern-modal.connection-dialog {
+  max-height: var(--connection-dialog-height); /* fixed height; only the panels scroll */
+  overflow: hidden;
+}
 html.is-phone .modal-header {
   flex-direction: column;
   align-items: flex-start;
