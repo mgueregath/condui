@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import Modal from "./Modal";
 
-export default function SudoPasswordModal({ open, onClose, onSubmit }) {
+export default function SudoPasswordModal({ onClose, onSubmit }) {
   const { t } = useTranslation();
+  const titleId = useId();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
@@ -25,10 +25,21 @@ export default function SudoPasswordModal({ open, onClose, onSubmit }) {
   };
 
   return (
-    <Modal open={open} onClose={handleClose}>
-      <div>
+    <div className="modal-overlay docker-sudo-overlay" onClick={handleClose}>
+      <div
+        className="modern-modal"
+        role="dialog"
+        aria-labelledby={titleId}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.stopPropagation();
+            handleClose();
+          }
+        }}
+      >
         <div className="modal-header">
-          <h2>{t("panel.sudoPasswordTitle")}</h2>
+          <h2 id={titleId}>{t("panel.sudoPasswordTitle")}</h2>
         </div>
 
         <div className="modal-body">
@@ -53,7 +64,6 @@ export default function SudoPasswordModal({ open, onClose, onSubmit }) {
               }
             }}
             placeholder={t("panel.sudoPasswordPlaceholder")}
-            autoFocus
             style={{
               width: "100%",
               padding: "8px 12px",
@@ -91,6 +101,6 @@ export default function SudoPasswordModal({ open, onClose, onSubmit }) {
           </button>
         </div>
       </div>
-    </Modal>
+    </div>
   );
 }

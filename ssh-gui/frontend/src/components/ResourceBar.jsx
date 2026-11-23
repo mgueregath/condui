@@ -1,5 +1,3 @@
-import { useState, useEffect } from "react";
-import { GetSystemStats } from "../../bindings/ssh-gui/app";
 import { useTranslation } from "react-i18next";
 import { FaArrowDown, FaArrowUp } from "react-icons/fa";
 import ResourceTooltip from "./ResourceTooltip";
@@ -30,32 +28,8 @@ function StatItem({ label, pct, text, details }) {
   );
 }
 
-export default function ResourceBar({ sessionId, disconnected }) {
+export default function ResourceBar({ stats }) {
   const { t } = useTranslation();
-  const [stats, setStats] = useState(null);
-
-  useEffect(() => {
-    setStats(null);
-    if (!sessionId || disconnected) return;
-    let active = true;
-    let timer;
-    const fetchStats = async () => {
-      try {
-        const result = await GetSystemStats(sessionId);
-        if (active) setStats(result);
-      } catch {
-        // Keep the last valid sample while the remote session recovers.
-      } finally {
-        if (active) timer = setTimeout(fetchStats, 5000);
-      }
-    };
-    fetchStats();
-    return () => { active = false; clearTimeout(timer); };
-  }, [sessionId, disconnected]);
-
-  // Siempre renderizar la barra cuando hay sesión activa (aunque no haya stats aún)
-  // para que FitAddon calcule bien la altura del terminal desde el primer render.
-  if (!sessionId || disconnected) return null;
 
   const memPct =
     stats && stats.memTotalGB > 0

@@ -335,7 +335,6 @@ html.is-phone .modal-footer {
 .mobile-res-bar > div {
   height: 100%;
   border-radius: 3px;
-  transition: width 0.5s ease, background 0.5s ease;
 }
 .mobile-res-details {
   margin-top: 10px;

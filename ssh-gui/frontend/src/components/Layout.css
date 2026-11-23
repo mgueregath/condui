@@ -578,7 +578,6 @@ html.is-mac .topbar-logo {
   border-radius: 8px 8px 0 0;
   border-bottom: none;
   cursor: pointer;
-  transition: 0.12s;
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 500;
@@ -596,10 +595,16 @@ html.is-mac .topbar-logo {
   color: var(--text-primary);
   border-color: var(--border);
   z-index: 999;
-  font-size: 12px;
-  font-weight: 600;
   border: 1px solid var(--border);
   border-bottom: none;
+}
+
+:root[data-theme="dark"] .tabbar .tab {
+  border-color: var(--border-subtle);
+}
+
+:root[data-theme="dark"] .tabbar .tab.active {
+  border-color: var(--accent);
 }
 
 .tab-close {
@@ -615,7 +620,6 @@ html.is-mac .topbar-logo {
   justify-content: center;
   font-size: 13px;
   padding: 0;
-  transition: 0.12s;
   opacity: 0;
 }
 .tab:hover .tab-close,
@@ -1108,6 +1112,11 @@ html.is-mac .topbar-logo {
   background: var(--terminal-bg);
 }
 
+.terminal-session {
+  position: absolute;
+  inset: 0;
+}
+
 .terminal .xterm-viewport {
   background: var(--terminal-bg) !important;
 }
@@ -1174,7 +1183,6 @@ html.is-mac .topbar-logo {
 .res-bar-fill {
   height: 100%;
   border-radius: 3px;
-  transition: width 0.5s ease, background 0.5s ease;
 }
 
 .res-value {
@@ -1514,7 +1522,6 @@ html.is-mac .topbar-logo {
   font-weight: 500;
   color: var(--text-muted);
   border-bottom: 2px solid transparent;
-  transition: 0.12s;
   white-space: nowrap;
 }
 .bottom-tab:hover {
@@ -1790,6 +1797,16 @@ html.is-mac .topbar-logo {
   align-items: center;
   justify-content: center;
   z-index: 9999;
+}
+.bottom-content > .docker-sudo-overlay {
+  position: absolute;
+  z-index: 1;
+  padding: 8px;
+}
+.docker-sudo-overlay > .modern-modal {
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
 }
 .modern-modal {
   background: var(--bg-surface);

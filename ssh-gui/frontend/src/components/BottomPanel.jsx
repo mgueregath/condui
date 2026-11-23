@@ -239,13 +239,15 @@ function ActionBtn({ children, title, color, onClick, disabled, style = {} }) {
   );
 }
 
-export default function BottomPanel({ sessionId, connectionId, accountStatus, features, onUpgrade, mobileTab, dockerAvailable }) {
+export default function BottomPanel({ sessionId, connectionId, accountStatus, features, onUpgrade, mobileTab, dockerAvailable, virtualBoxAvailable }) {
   const { t } = useTranslation();
   const isPro = accountStatus?.tier === "pro";
   const dbManagerEnabled = !!features?.dbManager;
   const [selectedTab, setActiveTab] = useState("transfers");
-  const activeTab = selectedTab === "docker" && !dockerAvailable ? "transfers" : selectedTab;
-  const visibleTabs = TABS.filter((tab) => tab.id !== "docker" || dockerAvailable);
+  const visibleTabs = TABS.filter(({ id }) =>
+    (id !== "docker" || dockerAvailable) && (id !== "virtualbox" || virtualBoxAvailable),
+  );
+  const activeTab = visibleTabs.some(({ id }) => id === selectedTab) ? selectedTab : "transfers";
   // collapsed (default): only the tab strip | docked: fixed below the console |
   // fullscreen: covers the console area.
   const [panelMode, setPanelMode] = useState("collapsed");
@@ -282,7 +284,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
     setAlertModal({ title, message });
 
   // Estado para modal de contraseña sudo
-  const [sudoPasswordModal, setSudoPasswordModal] = useState(false);
+  const [sudoPasswordSessionId, setSudoPasswordSessionId] = useState(null);
   const [deleteTunnelTarget, setDeleteTunnelTarget] = useState(null);
   const [forceStopTarget, setForceStopTarget] = useState(null);
 
@@ -651,7 +653,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
       console.error("Error al obtener contenedores:", err);
       // Si el error es SUDO_PASSWORD_REQUIRED, solicitar contraseña
       if (err?.message?.includes("SUDO_PASSWORD_REQUIRED")) {
-        setSudoPasswordModal(true);
+        setSudoPasswordSessionId(sessionId);
       }
     }
   };
@@ -703,10 +705,13 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
 
   const handleSudoPasswordSubmit = async (password) => {
     await SetSudoPassword(sessionId, password);
-    setSudoPasswordModal(false);
+    setSudoPasswordSessionId((pending) => pending === sessionId ? null : pending);
     // Reintentar obtener contenedores
     await fetchContainers();
   };
+
+  const showDockerSudoPrompt =
+    !collapsed && activeTab === "docker" && sessionId && sudoPasswordSessionId === sessionId;
 
   return (
     <div
@@ -899,7 +904,7 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
         }}
       >
         {/* PESTAÑA: LOGS */}
-        {activeTab === "docker" && <ResponseMessage {...dockerOpen.response} />}
+        {activeTab === "docker" && !showDockerSudoPrompt && <ResponseMessage {...dockerOpen.response} />}
         {activeTab === "logs" && (
           <div
             className="logs-tab-content"
@@ -1143,7 +1148,14 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
           </div>
         )}
         {/* PESTAÑA: DOCKER */}
-        {activeTab === "docker" && (
+        {showDockerSudoPrompt && (
+          <SudoPasswordModal
+            key={sessionId}
+            onClose={() => setSudoPasswordSessionId(null)}
+            onSubmit={handleSudoPasswordSubmit}
+          />
+        )}
+        {activeTab === "docker" && !showDockerSudoPrompt && (
           <div
             className="docker-tab-content"
             style={{
@@ -1794,12 +1806,6 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
         title={alertModal?.title}
         message={alertModal?.message}
         onClose={() => setAlertModal(null)}
-      />
-
-      <SudoPasswordModal
-        open={sudoPasswordModal}
-        onClose={() => setSudoPasswordModal(false)}
-        onSubmit={handleSudoPasswordSubmit}
       />
 
       <Modal open={!!deleteTunnelTarget} onClose={() => setDeleteTunnelTarget(null)}>

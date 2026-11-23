@@ -20,7 +20,7 @@ func (a *App) GetVirtualBoxVMs(sessionID string) ([]models.VMInfo, error) {
 // IsVirtualBoxAvailable checks whether VBoxManage is installed on the remote host.
 func (a *App) IsVirtualBoxAvailable(sessionID string) bool {
 	session, ok := a.sessionManager.Get(sessionID)
-	if !ok {
+	if !ok || session.Client == nil {
 		return false
 	}
 	return vboxinfo.IsAvailable(session.Client)

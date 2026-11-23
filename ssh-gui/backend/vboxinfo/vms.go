@@ -17,7 +17,7 @@ func IsAvailable(client *ssh.Client) bool {
 		return false
 	}
 	defer s.Close()
-	_, err = s.Output("which VBoxManage 2>/dev/null || which vboxmanage 2>/dev/null")
+	err = s.Run("command -v VBoxManage >/dev/null 2>&1 || command -v vboxmanage >/dev/null 2>&1")
 	return err == nil
 }
 

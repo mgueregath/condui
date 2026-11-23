@@ -1,7 +1,5 @@
-import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FaArrowDown, FaArrowUp } from "react-icons/fa";
-import { GetSystemStats } from "../../bindings/ssh-gui/app";
 import { CPUDetails, MemoryDetails, DiskDetails } from "./ResourceDetails";
 import { fmtGB, fmtBps, fmtUptime } from "./resourceFormat";
 
@@ -29,30 +27,8 @@ function Card({ title, value, pct, children }) {
   );
 }
 
-// Phone view of the stats that the desktop shows in the small bar under the
-// terminal. Polls only while mounted, i.e. while this view is open.
-export default function MobileResources({ sessionId, disconnected }) {
+export default function MobileResources({ stats }) {
   const { t } = useTranslation();
-  const [stats, setStats] = useState(null);
-
-  useEffect(() => {
-    setStats(null);
-    if (!sessionId || disconnected) return;
-    let active = true;
-    let timer;
-    const fetchStats = async () => {
-      try {
-        const result = await GetSystemStats(sessionId);
-        if (active) setStats(result);
-      } catch {
-        // keep the last sample while the session recovers
-      } finally {
-        if (active) timer = setTimeout(fetchStats, 3000);
-      }
-    };
-    fetchStats();
-    return () => { active = false; clearTimeout(timer); };
-  }, [sessionId, disconnected]);
 
   if (!stats) {
     return <div className="mobile-resources"><span className="res-loading">—</span></div>;

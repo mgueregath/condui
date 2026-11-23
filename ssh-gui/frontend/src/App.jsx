@@ -48,7 +48,8 @@ import UnlockPendingConnectionModal from "./components/connections/UnlockPending
 
 import { isPhone, useIsPhone } from "./platform";
 import MobileNav from "./components/MobileNav";
-import useContainerRuntime from "./hooks/useContainerRuntime";
+import useRemoteAvailability from "./hooks/useRemoteAvailability";
+import useSystemStats from "./hooks/useSystemStats";
 import InAppWindowHost, { InAppWindowTabs } from "./components/InAppWindow";
 import { activateInAppWindow, closeSessionWindows } from "./inAppWindow";
 import MobileResources from "./components/MobileResources";
@@ -330,7 +331,6 @@ function LeftSidebar({
 function App() {
   const { t } = useTranslation();
   const terminalRef = useRef(null);
-  const holdingRef = useRef(null);
   const termRef = useRef(null);
   const terminalsRef = useRef(new Map());
   const attachedSessionRef = useRef(null);
@@ -616,13 +616,12 @@ function App() {
     modified: false,
   });
 
-  // Crea (una sola vez por sesión) una instancia de Terminal en un <div>
-  // desmontado, para que sobreviva a los cambios de pestaña activa en vez de
-  // destruirse y recrearse (lo que perdía scroll/cursor/pantalla alternativa).
+  // Cada sesión conserva su terminal en el mismo contenedor visible de la app.
+  // Mantener sus dimensiones al ocultarlo permite que xterm sincronice el scroll.
   const createTerminalInstance = (sessionId) => {
     const container = document.createElement("div");
-    container.style.width = "100%";
-    container.style.height = "100%";
+    container.className = "terminal-session";
+    terminalRef.current.appendChild(container);
 
     const entry = { sessionId, term: null, fitAddon: null, container };
 
@@ -711,15 +710,14 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  // Adjunta al DOM visible el terminal de la pestaña activa y devuelve a la
-  // zona oculta ("holding") el de la pestaña anterior, sin destruirlo.
+  // Cambia la visibilidad sin desmontar ni mover el viewport de xterm.
   useEffect(() => {
-    if (!terminalRef.current || !holdingRef.current) return; // Guard: terminal div not mounted (vault screen showing)
+    if (!terminalRef.current) return;
 
     const prevId = attachedSessionRef.current;
     if (prevId && prevId !== activeTab) {
       const prevEntry = terminalsRef.current.get(prevId);
-      if (prevEntry) holdingRef.current.appendChild(prevEntry.container);
+      if (prevEntry) prevEntry.container.style.visibility = "hidden";
     }
 
     if (!activeTab || isDesktop(tabs.find(tab => tab.id === activeTab)?.type)) {
@@ -729,7 +727,7 @@ function App() {
     }
 
     const entry = terminalsRef.current.get(activeTab) || createTerminalInstance(activeTab);
-    terminalRef.current.appendChild(entry.container);
+    entry.container.style.visibility = "";
     attachedSessionRef.current = activeTab;
     termRef.current = entry.term;
 
@@ -765,9 +763,10 @@ function App() {
   const activeTabData = tabs.find((t) => t.id === activeTab);
   const isLocalActive = activeTabData?.type === "local";
   const isDesktopActive = isDesktop(activeTabData?.type);
-  const dockerAvailable = useContainerRuntime(
-    !isLocalActive && !isDesktopActive && !activeTabData?.disconnected ? activeTab : null,
-  );
+  const remoteSessionId = activeTabData?.type === "ssh" && !activeTabData.disconnected ? activeTab : null;
+  const dockerAvailable = useRemoteAvailability(remoteSessionId, "main.App.HasContainerRuntime");
+  const virtualBoxAvailable = useRemoteAvailability(remoteSessionId, "main.App.IsVirtualBoxAvailable");
+  const systemStats = useSystemStats(remoteSessionId);
 
   // Opening/switching a session returns to the terminal on phones.
   useEffect(() => {
@@ -1120,10 +1119,6 @@ function App() {
 
   return (
     <div className={`app-shell${tabs.length > 0 ? " has-tabs" : ""}${phone ? ` mobile-view-${mobileView}` : ""}`}>
-      {/* Contenedor oculto donde "viven" los terminales de pestañas no
-          activas: preserva su instancia de xterm (scroll, cursor, pantalla
-          alternativa) en vez de destruirla al cambiar de pestaña. */}
-      <div ref={holdingRef} style={{ position: "absolute", width: 0, height: 0, overflow: "hidden", visibility: "hidden" }} />
       <div className="topbar">
         {phone && tabs.length > 0 && activeTabData && (
           <button
@@ -1349,7 +1344,7 @@ function App() {
                 <div className="terminal-container">
                   <div
                     ref={terminalRef}
-                    style={{ display: isDesktopActive ? "none" : "block" }}
+                    style={{ visibility: isDesktopActive ? "hidden" : undefined }}
                     onContextMenu={(event) => {
                       event.preventDefault();
                       setTerminalContextMenu({ x: event.clientX, y: event.clientY });
@@ -1420,19 +1415,23 @@ function App() {
                     </div>
                   )}
                 </div>
-                {!isLocalActive && !isDesktopActive && (
-                  <ResourceBar
-                    sessionId={activeTab}
-                    disconnected={activeTabData?.disconnected}
-                  />
-                )}
+                {remoteSessionId && <ResourceBar stats={systemStats} />}
               </div>
             </div>
             {!isLocalActive && !isDesktopActive && (
-              <BottomPanel dockerAvailable={dockerAvailable} sessionId={activeTab} connectionId={activeTabData?.connectionId} accountStatus={accountStatus} features={features} onUpgrade={() => setAccountModalOpen(true)} mobileTab={phone ? mobileView : undefined} />
+              <BottomPanel
+                dockerAvailable={dockerAvailable}
+                virtualBoxAvailable={virtualBoxAvailable}
+                sessionId={activeTab}
+                connectionId={activeTabData?.connectionId}
+                accountStatus={accountStatus}
+                features={features}
+                onUpgrade={() => setAccountModalOpen(true)}
+                mobileTab={phone ? mobileView : undefined}
+              />
             )}
             {phone && mobileView === "resources" && (
-              <MobileResources sessionId={activeTab} disconnected={activeTabData?.disconnected} />
+              <MobileResources stats={systemStats} />
             )}
           </div>
 
@@ -1481,6 +1480,7 @@ function App() {
           onUpgrade={() => setAccountModalOpen(true)}
           hideFiles={isLocalActive}
           dockerAvailable={dockerAvailable}
+          virtualBoxAvailable={virtualBoxAvailable}
         />
       )}
 

@@ -19,11 +19,16 @@ const ITEMS = [
   { id: "databases", labelKey: "panel.databases", icon: <FaDatabase />, pro: true },
 ];
 
-export default function MobileNav({ view, onChange, isPro, onUpgrade, hideFiles, dockerAvailable }) {
+export default function MobileNav({ view, onChange, isPro, onUpgrade, hideFiles, dockerAvailable, virtualBoxAvailable }) {
   const { t } = useTranslation();
+  const visibleItems = ITEMS.filter(({ id }) =>
+    (id !== "files" || !hideFiles) &&
+    (id !== "docker" || dockerAvailable) &&
+    (id !== "virtualbox" || virtualBoxAvailable),
+  );
   return (
     <nav className="mobile-nav" aria-label="Navigation">
-      {ITEMS.filter((item) => !(hideFiles && item.id === "files") && (item.id !== "docker" || dockerAvailable)).map((item) => {
+      {visibleItems.map((item) => {
         const locked = item.pro && !isPro;
         return (
           <button
