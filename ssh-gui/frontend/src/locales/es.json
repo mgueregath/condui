@@ -380,6 +380,7 @@
     "memoryOverlap": "Reservada es parte de la usada. Buffer/caché puede ser recuperable y estar incluido en disponible. En Linux, reservada no se informa por separado.",
     "partitions": "Particiones montadas",
     "partitionsUnavailable": "No hay datos de particiones disponibles.",
+    "filesystem": "Sistema de archivos",
     "partitionRefresh": "Actualización cada 60 segundos. Se muestra la última lectura válida.",
     "updated": "Última lectura: {{time}}"
   },

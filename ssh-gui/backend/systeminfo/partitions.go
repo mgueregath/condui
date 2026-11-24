@@ -18,6 +18,7 @@ type CPUCore struct {
 type Partition struct {
 	Device      string  `json:"device"`
 	MountPoint  string  `json:"mountPoint"`
+	Filesystem  string  `json:"filesystem"`
 	UsedGB      float64 `json:"usedGB"`
 	TotalGB     float64 `json:"totalGB"`
 	AvailableGB float64 `json:"availableGB"`
@@ -31,7 +32,7 @@ type PartitionCache struct {
 	attemptedAt time.Time
 }
 
-func (c *PartitionCache) Load(client *ssh.Client) {
+func (c *PartitionCache) Load(client *ssh.Client, macOS bool) {
 	if time.Since(c.attemptedAt) < time.Minute {
 		return
 	}
@@ -43,13 +44,23 @@ func (c *PartitionCache) Load(client *ssh.Client) {
 	defer session.Close()
 	timeout := time.AfterFunc(10*time.Second, func() { session.Close() })
 	defer timeout.Stop()
-	output, err := session.Output("LC_ALL=C /bin/df -Pk -l")
+	mountCommand := "/bin/cat /proc/self/mounts"
+	if macOS {
+		mountCommand = "/sbin/mount"
+	}
+	command := "/bin/sh -c 'LC_ALL=C /bin/df -Pk -l && { echo; " + mountCommand + " || :; }'"
+	output, err := session.Output(command)
 	if err != nil {
 		return
 	}
-	partitions, err := parsePartitions(string(output))
+	usage, mounts, _ := strings.Cut(string(output), "\n\n")
+	partitions, err := parsePartitions(usage)
 	if err != nil {
 		return
+	}
+	formats := partitionFormats(mounts, macOS)
+	for i := range partitions {
+		partitions[i].Filesystem = formats[partitions[i].MountPoint]
 	}
 	c.Partitions = partitions
 	c.UpdatedAt = time.Now()
@@ -92,4 +103,29 @@ func parsePartitions(output string) ([]Partition, error) {
 		})
 	}
 	return partitions, nil
+}
+
+func partitionFormats(output string, macOS bool) map[string]string {
+	formats := make(map[string]string)
+	unescape := strings.NewReplacer("\\040", " ", "\\011", "\t", "\\012", "\n", "\\134", "\\")
+	for _, line := range strings.Split(output, "\n") {
+		var mountPoint, filesystem string
+		if macOS {
+			_, mount, ok := strings.Cut(line, " on ")
+			optionsStart := strings.LastIndex(mount, " (")
+			if !ok || optionsStart < 0 || !strings.HasSuffix(mount, ")") {
+				continue
+			}
+			mountPoint = mount[:optionsStart]
+			filesystem, _, _ = strings.Cut(mount[optionsStart+2:len(mount)-1], ",")
+		} else {
+			fields := strings.Fields(line)
+			if len(fields) < 3 {
+				continue
+			}
+			mountPoint, filesystem = unescape.Replace(fields[1]), fields[2]
+		}
+		formats[strings.Join(strings.Fields(mountPoint), " ")] = filesystem
+	}
+	return formats
 }

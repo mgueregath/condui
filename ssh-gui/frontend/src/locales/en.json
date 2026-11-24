@@ -380,6 +380,7 @@
     "memoryOverlap": "Reserved is included in used. Buffer/cache may be reclaimable and included in available. Linux does not report reserved separately.",
     "partitions": "Mounted partitions",
     "partitionsUnavailable": "No partition data available.",
+    "filesystem": "File system",
     "partitionRefresh": "Updated every 60 seconds. Showing the last valid reading.",
     "updated": "Last reading: {{time}}"
   },

@@ -38,6 +38,7 @@ export function DiskDetails({ stats }) {
       <div className="resource-partition" key={`${partition.device}:${partition.mountPoint}`}>
         <div className="resource-partition-path">{partition.mountPoint}</div>
         <div className="resource-detail-note resource-partition-path">{partition.device}</div>
+        <Row label={t("resources.filesystem")}>{partition.filesystem?.toUpperCase() || "-"}</Row>
         <Row label={t("resources.used")}>{fmtGB(partition.usedGB)} / {fmtGB(partition.totalGB)} ({partition.usedPercent.toFixed(0)}%)</Row>
         <Row label={t("resources.available")}>{fmtGB(partition.availableGB)}</Row>
       </div>

@@ -92,7 +92,7 @@ func (a *App) GetSystemStats(sessionID string) (*SystemStats, error) {
 	if remoteOS == osinfo.OSLinux {
 		parsed.MemReservedGB = nil
 	}
-	session.SystemPartitions.Load(session.Client)
+	session.SystemPartitions.Load(session.Client, remoteOS == osinfo.OSDarwin)
 	parsed.Partitions = session.SystemPartitions.Partitions
 	if !session.SystemPartitions.UpdatedAt.IsZero() {
 		parsed.PartitionsUpdatedAt = session.SystemPartitions.UpdatedAt.Unix()
