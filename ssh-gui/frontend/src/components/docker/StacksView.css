@@ -1,3 +1,27 @@
+.dx-compose-files {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.dx-compose-file {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dx-compose-file pre {
+  max-height: 280px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
 .dx-table.dx-stacks-table {
   width: 100%;
   min-width: 1000px;

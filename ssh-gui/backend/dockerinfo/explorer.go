@@ -19,7 +19,10 @@ type ExplorerContainer struct {
 		Labels map[string]string
 	}
 	State           struct{ Status string }
-	NetworkSettings struct{ Ports map[string]json.RawMessage }
+	NetworkSettings struct {
+		Ports    map[string]json.RawMessage
+		Networks map[string]struct{ NetworkID string }
+	}
 }
 type ExplorerImage struct {
 	ID       string `json:"Id"`
@@ -27,7 +30,22 @@ type ExplorerImage struct {
 	Created  string
 	Size     int64
 }
+type ExplorerNetwork struct {
+	ID         string
+	Name       string
+	Driver     string
+	Scope      string
+	Ingress    bool
+	Containers map[string]struct{}
+	InUse      bool
+	Protected  bool
+	IPAM       struct {
+		Config []struct{ Subnet string }
+	}
+}
+
 type ExplorerSnapshot struct {
+	Networks   []ExplorerNetwork
 	Volumes    []ExplorerVolume
 	Containers []ExplorerContainer
 	Images     []ExplorerImage
@@ -72,6 +90,7 @@ func GetExplorerSnapshot(client *ssh.Client, password string) (*ExplorerSnapshot
 	command := `containers=$(docker container ls -aq) || exit 1
 images=$(docker image ls -aq --no-trunc) || exit 1
 volumes=$(docker volume ls -q) || exit 1
+networks=$(docker network ls -q --no-trunc) || exit 1
 images=$(printf '%s\n' "$images" | sort -u) || exit 1
 printf '{"Containers":'
 if [ -n "$containers" ]; then docker container inspect $containers || exit 1; else printf '[]'; fi
@@ -79,6 +98,8 @@ printf ',"Images":'
 if [ -n "$images" ]; then docker image inspect $images || exit 1; else printf '[]'; fi
 printf ',"Volumes":'
 if [ -n "$volumes" ]; then docker volume inspect $volumes || exit 1; else printf '[]'; fi
+printf ',"Networks":'
+if [ -n "$networks" ]; then docker network inspect $networks || exit 1; else printf '[]'; fi
 printf '}'`
 	output, err := explorerCommand(client, password, command)
 	if err != nil {
@@ -88,6 +109,7 @@ printf '}'`
 	if err := json.Unmarshal(output, &snapshot); err != nil {
 		return nil, fmt.Errorf("respuesta de Docker inválida: %w", err)
 	}
+	markNetworkUsage(&snapshot)
 	// Expose only the metadata needed by the browser, never container environment variables.
 	return &snapshot, nil
 }

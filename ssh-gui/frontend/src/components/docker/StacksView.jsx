@@ -1,6 +1,8 @@
-import { FaPlay, FaStop, FaRedoAlt, FaSyncAlt } from "react-icons/fa";
+import { useState } from "react";
+import { FaFileCode, FaPlay, FaStop, FaRedoAlt, FaSyncAlt } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
 import { containerName, groupContainers } from "./explorerData";
+import StackComposeFiles from "./StackComposeFiles";
 import "./StacksView.css";
 
 function Action({ title, icon: Icon, disabled, onClick, action }) {
@@ -17,8 +19,9 @@ function Ports({ container }) {
  return ports.length ? <ul className="dx-ports">{ports.map((port, index) => <li key={port + index} title={port}>{port}</li>)}</ul> : "-";
 }
 
-export default function StacksView({ containers, query, busy, onAction, onRefresh }) {
+export default function StacksView({ sessionID, containers, query, busy, onAction, onRefresh }) {
  const { t } = useTranslation("dockerExplorer");
+ const [openStack, setOpenStack] = useState(null);
  const groups = groupContainers(containers).map(group => ({
   ...group,
   visible: group.containers.filter(container => [group.project, containerName(container), container.Config.Image].join(" ").toLowerCase().includes(query))
@@ -27,6 +30,7 @@ export default function StacksView({ containers, query, busy, onAction, onRefres
   <p className="dx-note">{t("stackNote")}</p>
   {!groups.length && <p>{t("emptyContainers")}</p>}
   {groups.map(group => {
+   const filesOpen = openStack === group.key;
    const title = group.project || t("ungrouped");
    const active = group.containers.filter(container => container.State.Status === "running").length;
    const state = active === group.containers.length ? "running" : active ? "partial" : "stopped";
@@ -37,6 +41,9 @@ export default function StacksView({ containers, query, busy, onAction, onRefres
       <span>{group.type && group.type + " | "}{t("activeCount", {active, total: group.containers.length})}</span>
      </div></div>
      <div className="dx-stack-actions" role="group" aria-label={t("actionsFor", {name: title})}>
+      {group.type && <button type="button" className="dx-icon" aria-expanded={filesOpen}
+       title={t(filesOpen ? "compose.hide" : "compose.show")} aria-label={t(filesOpen ? "compose.hide" : "compose.show")}
+       onClick={() => setOpenStack(filesOpen ? null : group.key)}><FaFileCode aria-hidden="true" /></button>}
       {group.type === "Compose" && <>
        <Action action="start" title={t("start")} icon={FaPlay} disabled={busy || active === group.containers.length} onClick={() => onAction(group.project, "start")} />
        <Action action="stop" title={t("stop")} icon={FaStop} disabled={busy || !active} onClick={() => onAction(group.project, "stop")} />
@@ -45,6 +52,7 @@ export default function StacksView({ containers, query, busy, onAction, onRefres
       <Action title={t("refresh")} icon={FaSyncAlt} disabled={busy} onClick={onRefresh} />
      </div>
     </header>
+    {filesOpen && <StackComposeFiles sessionID={sessionID} containers={group.containers} />}
     <div className="dx-table-wrap"><table className="dx-table dx-stacks-table">
      <colgroup><col className="dx-stack-col-container" /><col className="dx-stack-col-service" /><col className="dx-stack-col-image" /><col className="dx-stack-col-state" /><col className="dx-stack-col-ports" /></colgroup>
      <thead><tr>{["container", "service", "image", "state", "ports"].map(key => <th key={key}>{t(key)}</th>)}</tr></thead>

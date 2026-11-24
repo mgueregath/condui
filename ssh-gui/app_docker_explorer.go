@@ -52,3 +52,11 @@ func (a *App) DeleteDockerExplorerVolume(sessionID, name string) error {
 	}
 	return dockerinfo.DeleteExplorerVolume(session.Client, session.SudoPassword, name)
 }
+
+func (a *App) DeleteDockerExplorerNetwork(sessionID, id string) error {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return fmt.Errorf("sesion desconectada")
+	}
+	return dockerinfo.DeleteExplorerNetwork(session.Client, session.SudoPassword, id)
+}
