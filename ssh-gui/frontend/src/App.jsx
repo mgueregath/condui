@@ -321,9 +321,9 @@ function LeftSidebar({
         )}
       </div>
 
-      <div className="sidebar-footer">
+      {/* <div className="sidebar-footer">
         <ConduiLogo className="logo-image-sm" />
-      </div>
+      </div> */}
     </div>
   );
 }
