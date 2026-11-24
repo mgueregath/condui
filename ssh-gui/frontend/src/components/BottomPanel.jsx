@@ -1,7 +1,7 @@
 import TransferList from "./TransferList";
 import "./PanelList.css";
 import { useState, useEffect, useMemo } from "react";
-import { Events, Call } from "@wailsio/runtime";
+import { Browser, Events, Call } from "@wailsio/runtime";
 import {
   ToggleTunnel,
   AddTunnel,
@@ -239,7 +239,33 @@ function ActionBtn({ children, title, color, onClick, disabled, style = {} }) {
   );
 }
 
-export default function BottomPanel({ sessionId, connectionId, accountStatus, features, onUpgrade, mobileTab, dockerAvailable, virtualBoxAvailable }) {
+function dockerPortURL(mapping, remoteHost) {
+  const binding = mapping.match(/^(.*):(\d+)(?:-\d+)?->\d+(?:-\d+)?\/tcp$/);
+  if (!binding) return null;
+
+  const [, address, port] = binding;
+  const host = address.replace(/^\[|\]$/g, "");
+  const sshHost = remoteHost?.trim().replace(/^\[|\]$/g, "");
+  const wildcard = !host || host === "0.0.0.0" || host === "::";
+  const loopback = /^(127\.|::1$)/.test(host);
+  if (loopback && host !== sshHost) return null;
+
+  const destination = wildcard ? sshHost : host;
+  if (!destination || !/^[a-z0-9.:%_-]+$/i.test(destination)) return null;
+  const authority = destination.includes(":") ? "[" + destination + "]" : destination;
+  try {
+    return new URL("http://" + authority + ":" + port).href;
+  } catch {
+    return null;
+  }
+}
+
+function openDockerPort(event) {
+  event.preventDefault();
+  Browser.OpenURL(event.currentTarget.href).catch(console.error);
+}
+
+export default function BottomPanel({ sessionId, connectionId, remoteHost, accountStatus, features, onUpgrade, mobileTab, dockerAvailable, virtualBoxAvailable }) {
   const { t } = useTranslation();
   const isPro = accountStatus?.tier === "pro";
   const dbManagerEnabled = !!features?.dbManager;
@@ -1313,11 +1339,18 @@ export default function BottomPanel({ sessionId, connectionId, accountStatus, fe
                         }}>
                         {c.ports && (
                           <div style={{ display: "flex", flexWrap: "wrap", gap: "3px", marginTop: "2px" }}>
-                            {c.ports.split(", ").filter(p => p && !p.startsWith(":::")).map((p, i) => (
-                              <span key={i} className="docker-port-badge">
-                                {p.replace("0.0.0.0:", "").replace(/->(\d+)\/tcp/, " -> $1")}
-                              </span>
-                            ))}
+                            {c.ports.split(", ").filter(Boolean).map((mapping) => {
+                              const href = dockerPortURL(mapping, remoteHost);
+                              const label = mapping.replace(/^0\.0\.0\.0:/, "").replace(/->(\d+)\/tcp$/, " -> $1");
+                              return href ? (
+                                <a key={mapping} className="docker-port-badge" href={href}
+                                  onClick={openDockerPort} onAuxClick={(event) => {
+                                    if (event.button === 1) openDockerPort(event);
+                                  }}>
+                                  {label}
+                                </a>
+                              ) : <span key={mapping} className="docker-port-badge">{label}</span>;
+                            })}
                           </div>
                         )}
                       </div>

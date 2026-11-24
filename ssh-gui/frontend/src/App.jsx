@@ -1424,6 +1424,7 @@ function App() {
                 virtualBoxAvailable={virtualBoxAvailable}
                 sessionId={activeTab}
                 connectionId={activeTabData?.connectionId}
+                remoteHost={connections.find((c) => c.id === activeTabData?.connectionId)?.host}
                 accountStatus={accountStatus}
                 features={features}
                 onUpgrade={() => setAccountModalOpen(true)}
