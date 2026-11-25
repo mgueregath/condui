@@ -331,6 +331,16 @@
     }
   },
   "files": {
+    "file": {
+      "create": "Create file",
+      "name": "File name",
+      "invalid": "Enter a file name without slashes.",
+      "failed": "Could not create the file."
+    },
+    "hidden": {
+      "show": "Show hidden files",
+      "hide": "Hide hidden files"
+    },
     "savingChanges": "Saving changes...",
     "changesSaved": "Changes saved",
     "unsavedChanges": "Unsaved changes",

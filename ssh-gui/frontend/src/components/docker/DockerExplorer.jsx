@@ -27,7 +27,7 @@ export default function DockerExplorer({ sessionID }) {
   locked.current = true; setBusy(true); setStatus({text: t("loading"), error: false});
   try {
    const data = await getSnapshot(sessionID);
-   setSnapshot({Containers: data.Containers || [], Images: data.Images || [], Volumes: data.Volumes || [], Networks: data.Networks || []});
+   setSnapshot({Containers: data.Containers || [], Images: data.Images || [], Volumes: data.Volumes || [], Networks: data.Networks || [], PortainerServer: data.PortainerServer, PortainerAgent: data.PortainerAgent});
    setStatus({text: t("updated"), error: false});
   } catch (error) { setStatus({text: errorText(error), error: true}); }
   finally { locked.current = false; setBusy(false); }
@@ -41,7 +41,7 @@ export default function DockerExplorer({ sessionID }) {
   try { await operation(); } catch (error) { errors.push(errorText(error)); }
   try {
    const data = await getSnapshot(sessionID);
-   setSnapshot({Containers: data.Containers || [], Images: data.Images || [], Volumes: data.Volumes || [], Networks: data.Networks || []});
+   setSnapshot({Containers: data.Containers || [], Images: data.Images || [], Volumes: data.Volumes || [], Networks: data.Networks || [], PortainerServer: data.PortainerServer, PortainerAgent: data.PortainerAgent});
   } catch (error) { errors.push(t("refreshFailed") + ": " + errorText(error)); }
   setStatus({text: errors.length ? errors.join(" ") : success, error: !!errors.length});
   locked.current = false; setBusy(false);
@@ -109,7 +109,7 @@ export default function DockerExplorer({ sessionID }) {
   <p className={"dx-status" + (status.error ? " error" : "")} role="status" aria-live="polite">{status.text}</p>
   <input className="modern-input dx-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder={t("search")} aria-label={t("search")} />
   <section hidden={view !== "stacks"} aria-label={t("stacks")}>
-   <StacksView sessionID={sessionID} containers={snapshot.Containers} query={query} busy={busy} onAction={stackAction} onRefresh={refresh} />
+   <StacksView sessionID={sessionID} portainerServer={snapshot.PortainerServer} portainerAgent={snapshot.PortainerAgent} containers={snapshot.Containers} query={query} busy={busy} onAction={stackAction} onRefresh={refresh} />
   </section>
   <section hidden={view !== "images"} aria-label={t("images")}>
    <ImagesView images={snapshot.Images} containers={snapshot.Containers} query={query} busy={busy} onDelete={requestDelete} />

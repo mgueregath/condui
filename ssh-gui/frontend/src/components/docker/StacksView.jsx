@@ -19,7 +19,7 @@ function Ports({ container }) {
  return ports.length ? <ul className="dx-ports">{ports.map((port, index) => <li key={port + index} title={port}>{port}</li>)}</ul> : "-";
 }
 
-export default function StacksView({ sessionID, containers, query, busy, onAction, onRefresh }) {
+export default function StacksView({ sessionID, portainerServer, portainerAgent, containers, query, busy, onAction, onRefresh }) {
  const { t } = useTranslation("dockerExplorer");
  const [openStack, setOpenStack] = useState(null);
  const groups = groupContainers(containers).map(group => ({
@@ -52,7 +52,7 @@ export default function StacksView({ sessionID, containers, query, busy, onActio
       <Action title={t("refresh")} icon={FaSyncAlt} disabled={busy} onClick={onRefresh} />
      </div>
     </header>
-    {filesOpen && <StackComposeFiles sessionID={sessionID} containers={group.containers} />}
+    {filesOpen && <StackComposeFiles sessionID={sessionID} portainerServer={portainerServer} portainerAgent={portainerAgent} containers={group.containers} />}
     <div className="dx-table-wrap"><table className="dx-table dx-stacks-table">
      <colgroup><col className="dx-stack-col-container" /><col className="dx-stack-col-service" /><col className="dx-stack-col-image" /><col className="dx-stack-col-state" /><col className="dx-stack-col-ports" /></colgroup>
      <thead><tr>{["container", "service", "image", "state", "ports"].map(key => <th key={key}>{t(key)}</th>)}</tr></thead>

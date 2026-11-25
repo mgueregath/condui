@@ -331,6 +331,16 @@
     }
   },
   "files": {
+    "file": {
+      "create": "Crear fichero",
+      "name": "Nombre del fichero",
+      "invalid": "Introduce un nombre de fichero sin barras.",
+      "failed": "No se pudo crear el fichero."
+    },
+    "hidden": {
+      "show": "Mostrar archivos ocultos",
+      "hide": "Ocultar archivos ocultos"
+    },
     "savingChanges": "Guardando cambios...",
     "changesSaved": "Cambios guardados",
     "unsavedChanges": "Modificaciones sin guardar",

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { FaFolder, FaEdit, FaTrash, FaDownload } from "react-icons/fa";
+import { FaFolder, FaEdit, FaTrash, FaDownload, FaFile, FaEye, FaEyeSlash } from "react-icons/fa";
 import { RiFileEditFill } from "react-icons/ri";
 import { MdCreateNewFolder } from "react-icons/md";
 import { useTranslation } from "react-i18next";
@@ -15,6 +15,9 @@ export default function FileContextMenu({
   onDelete,
   onRename,
   onNewFolder,
+  onNewFile,
+  showHidden,
+  onToggleHidden,
   onOpenFile,
   onClose,
 }) {
@@ -155,6 +158,23 @@ export default function FileContextMenu({
       onClick: () => onDelete(item),
     });
   }
+
+  if (item.isDirectory) {
+    items.unshift({
+      icon: <FaFile />,
+      label: t("files.file.create"),
+      onClick: () => onNewFile(item),
+    });
+  }
+
+  items.push(
+    { divider: true },
+    {
+      icon: showHidden ? <FaEyeSlash /> : <FaEye />,
+      label: t(showHidden ? "files.hidden.hide" : "files.hidden.show"),
+      onClick: onToggleHidden,
+    },
+  );
 
   const menuWidth = 200;
   const menuHeight = items.length * 34;

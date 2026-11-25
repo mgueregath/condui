@@ -37,6 +37,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
   ];
   const [path, setPath] = useState("/");
   const [files, setFiles] = useState([]);
+  const [showHidden, setShowHidden] = useState(false);
   const [sortBy, setSortBy] = useState("name");
   const [sortDir, setSortDir] = useState("asc");
 
@@ -169,8 +170,12 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
     setTextPrompt({ mode: "newFolder", value: "" });
   };
 
+  const createFile = (item) => {
+    setTextPrompt({ mode: "newFile", item, value: "" });
+  };
+
   const confirmTextPrompt = async () => {
-    if (!textPrompt) return;
+    if (!textPrompt || textPrompt.pending) return;
     const name = textPrompt.value.trim();
     if (!name) {
       setTextPrompt(null);
@@ -180,6 +185,23 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
       const item = textPrompt.item;
       const parent = item.path.substring(0, item.path.lastIndexOf("/"));
       await RenameRemoteFile(sessionId, item.path, `${parent}/${name}`);
+    } else if (textPrompt.mode === "newFile") {
+      if (name.includes("/") || name === "." || name === "..") {
+        setTextPrompt((p) => ({ ...p, error: { severity: "error", message: t("files.file.invalid") } }));
+        return;
+      }
+      const remotePath = `${textPrompt.item.path.replace(/\/$/, "")}/${name}`;
+      setTextPrompt({ ...textPrompt, pending: true, error: null });
+      try {
+        await Call.ByName("main.App.CreateRemoteFile", sessionId, remotePath);
+      } catch (err) {
+        setTextPrompt((p) => p && ({
+          ...p,
+          pending: false,
+          error: responseError(err, t("files.file.failed")),
+        }));
+        return;
+      }
     } else {
       await CreateRemoteDirectory(
         sessionId,
@@ -213,8 +235,8 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
   };
 
   const sortedFiles = useMemo(() => {
-    if (!files.length) return files;
-    return [...files].sort((a, b) => {
+    const visibleFiles = showHidden ? [...files] : files.filter((file) => !file.name.startsWith("."));
+    return visibleFiles.sort((a, b) => {
       let cmp = 0;
       switch (sortBy) {
         case "name":
@@ -241,7 +263,7 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [files, sortBy, sortDir]);
+  }, [files, showHidden, sortBy, sortDir]);
 
   const parts = path.split("/").filter(Boolean);
 
@@ -312,6 +334,9 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
         onDelete={deleteFile}
         onRename={renameFile}
         onNewFolder={createFolder}
+        onNewFile={createFile}
+        showHidden={showHidden}
+        onToggleHidden={() => setShowHidden((visible) => !visible)}
         onOpenFile={openFile}
         onClose={() => setContextMenu((c) => ({ ...c, visible: false }))}
       />
@@ -363,31 +388,37 @@ const RemoteFileTree = forwardRef(function RemoteFileTree(
         </div>
       </Modal>
 
-      <Modal open={!!textPrompt} onClose={() => setTextPrompt(null)}>
+      <Modal open={!!textPrompt} onClose={() => { if (!textPrompt?.pending) setTextPrompt(null); }}>
         <div>
           <div className="modal-header">
-            <h2>{textPrompt?.mode === "rename" ? t("files.newName") : t("files.folderName")}</h2>
+            <h2>{t({
+              rename: "files.newName",
+              newFolder: "files.folderName",
+              newFile: "files.file.name",
+            }[textPrompt?.mode] || "files.folderName")}</h2>
           </div>
           <div className="modal-body">
             <div className="form-group">
               <input
                 autoFocus
                 className="modern-input"
+                disabled={textPrompt?.pending}
                 value={textPrompt?.value || ""}
                 onChange={(e) =>
-                  setTextPrompt((p) => ({ ...p, value: e.target.value }))
+                  setTextPrompt((p) => ({ ...p, value: e.target.value, error: null }))
                 }
                 onKeyDown={(e) => {
                   if (e.key === "Enter") confirmTextPrompt();
                 }}
               />
             </div>
+            <ResponseMessage {...textPrompt?.error} />
           </div>
           <div className="modal-footer">
-            <button className="btn-secondary" onClick={() => setTextPrompt(null)}>
+            <button className="btn-secondary" disabled={textPrompt?.pending} onClick={() => setTextPrompt(null)}>
               {t("common.cancel")}
             </button>
-            <button className="btn-primary" onClick={confirmTextPrompt}>
+            <button className="btn-primary" disabled={textPrompt?.pending} onClick={confirmTextPrompt}>
               {t("common.save")}
             </button>
           </div>

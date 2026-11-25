@@ -45,10 +45,12 @@ type ExplorerNetwork struct {
 }
 
 type ExplorerSnapshot struct {
-	Networks   []ExplorerNetwork
-	Volumes    []ExplorerVolume
-	Containers []ExplorerContainer
-	Images     []ExplorerImage
+	PortainerServer bool
+	PortainerAgent  bool
+	Networks        []ExplorerNetwork
+	Volumes         []ExplorerVolume
+	Containers      []ExplorerContainer
+	Images          []ExplorerImage
 }
 
 func shellQuote(value string) string {
@@ -110,6 +112,9 @@ printf '}'`
 		return nil, fmt.Errorf("respuesta de Docker inválida: %w", err)
 	}
 	markNetworkUsage(&snapshot)
+	server, agent := localPortainerServer(snapshot.Containers)
+	snapshot.PortainerServer = server != nil
+	snapshot.PortainerAgent = agent
 	// Expose only the metadata needed by the browser, never container environment variables.
 	return &snapshot, nil
 }

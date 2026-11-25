@@ -27,10 +27,13 @@ i18n.addResourceBundle("es", "dockerExplorer", {
   },
   "compose": {
     "show": "Ver archivos Compose",
+    "readOnly": "Solo lectura. La edición del stack estará disponible más adelante.",
     "hide": "Ocultar archivos Compose",
     "missing": "Docker no informa la ubicación del archivo Compose de este stack.",
     "loading": "Leyendo archivo...",
     "failed": "No se pudo leer el archivo Compose.",
+    "local": "Se detectaron Portainer Server y Portainer Agent en este host. Si el stack se administra desde otro servidor, el archivo Compose puede estar allí.",
+    "remote": "Se detectó Portainer Agent. El archivo Compose puede estar en el sistema donde se ejecuta Portainer Server.",
     "empty": "El archivo está vacío."
   },
   "start": "Iniciar contenedores detenidos del stack",
@@ -99,10 +102,13 @@ i18n.addResourceBundle("en", "dockerExplorer", {
   },
   "compose": {
     "show": "View Compose files",
+    "readOnly": "Read only. Stack editing will be available later.",
     "hide": "Hide Compose files",
     "missing": "Docker does not report the Compose file location for this stack.",
     "loading": "Reading file...",
     "failed": "Could not read the Compose file.",
+    "local": "Portainer Server and Portainer Agent were detected on this host. If another server manages the stack, the Compose file may be there.",
+    "remote": "Portainer Agent was detected. The Compose file may be on the host running Portainer Server.",
     "empty": "The file is empty."
   },
   "start": "Start stopped containers in this stack",

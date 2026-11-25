@@ -60,3 +60,11 @@ func (a *App) DeleteDockerExplorerNetwork(sessionID, id string) error {
 	}
 	return dockerinfo.DeleteExplorerNetwork(session.Client, session.SudoPassword, id)
 }
+
+func (a *App) ReadDockerExplorerPortainerComposeFile(sessionID, path string) (*dockerinfo.ExplorerComposeFile, error) {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("sesion desconectada")
+	}
+	return dockerinfo.ReadPortainerComposeFile(session.Client, session.SudoPassword, path)
+}

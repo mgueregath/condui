@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -195,6 +196,22 @@ func (a *App) CreateRemoteDirectory(
 		session.SFTP,
 		path,
 	)
+}
+
+func (a *App) CreateRemoteFile(sessionID, path string) error {
+	session, ok := a.sessionManager.Get(sessionID)
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+	if session.SFTP == nil {
+		return fmt.Errorf("sftp client nil")
+	}
+
+	file, err := session.SFTP.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL)
+	if err != nil {
+		return err
+	}
+	return file.Close()
 }
 
 func (a *App) ReadRemoteFile(
